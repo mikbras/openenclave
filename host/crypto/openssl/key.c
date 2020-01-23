@@ -6,9 +6,9 @@
 #include <openenclave/internal/safecrt.h>
 #include <openenclave/internal/utils.h>
 #include <openssl/bio.h>
+#include <openssl/engine.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
-#include <openssl/engine.h>
 #include <string.h>
 #include "init.h"
 
@@ -43,15 +43,15 @@ void oe_private_key_init(
 }
 
 oe_result_t oe_private_key_from_engine(
-    const char *engine_id,
-    const char *engine_load_path,
-    const char *key_id,
+    const char* engine_id,
+    const char* engine_load_path,
+    const char* key_id,
     oe_private_key_t* key,
     int key_type,
     uint64_t magic)
 {
     oe_result_t result = OE_UNEXPECTED;
-    oe_private_key_t* impl = (oe_private_key_t*)key;
+    oe_private_key_t* impl = key;
     BIO* bio = NULL;
     EVP_PKEY* pkey = NULL;
 
@@ -63,42 +63,40 @@ oe_result_t oe_private_key_from_engine(
     if (!engine_id || !engine_load_path || !key_id || !impl)
         OE_RAISE(OE_INVALID_PARAMETER);
 
-printf("p1\n");
     /* if the engine is pre-installed we will get a null */
-    ENGINE *e = NULL;
+    ENGINE* e = NULL;
     if (!(e = ENGINE_by_id(engine_id)))
     {
         /* if we got a null we can still load dynaimc. */
         ENGINE_load_dynamic();
-        ENGINE *dyne = ENGINE_by_id("dynamic");
-printf("p1.1\n");
+        ENGINE* dyne = ENGINE_by_id("dynamic");
         if (!ENGINE_ctrl_cmd_string(dyne, "ID", engine_id, 0))
             OE_RAISE(OE_INVALID_PARAMETER);
-        
-printf("p1.2\n");
-        if (!ENGINE_ctrl_cmd_string(dyne, "SO_PATH", engine_load_path, 0))
-            OE_RAISE(OE_INVALID_PARAMETER);
 
-printf("p1.3\n");
+        /* the so load path is option if the engine is configured in
+         * openssl.conf */
+        if (engine_load_path)
+        {
+            if (!ENGINE_ctrl_cmd_string(dyne, "SO_PATH", engine_load_path, 0))
+                OE_RAISE(OE_INVALID_PARAMETER);
+        }
+
         if (!ENGINE_ctrl_cmd_string(dyne, "LIST_ADD", "1", 0))
             OE_RAISE(OE_INVALID_PARAMETER);
-printf("p1.4\n");
+
         if (!ENGINE_ctrl_cmd_string(dyne, "LOAD", NULL, 0))
             OE_RAISE(OE_INVALID_PARAMETER);
-printf("p1.5\n");
+
         if (!(e = ENGINE_by_id(engine_id)))
             OE_RAISE(OE_INVALID_PARAMETER);
     }
 
-printf("p2\n");
     if (!ENGINE_init(e))
         OE_RAISE(OE_INVALID_PARAMETER);
 
-printf("p3\n");
     if (!(pkey = ENGINE_load_private_key(e, key_id, NULL, NULL)))
         OE_RAISE(OE_INVALID_PARAMETER);
 
-printf("p4\n");
     /* Verify that it is the right key type */
     if (EVP_PKEY_id(pkey) != key_type)
         OE_RAISE(OE_INVALID_PARAMETER);
@@ -407,7 +405,6 @@ done:
     return result;
 }
 
-
 oe_result_t oe_private_key_sign(
     const oe_private_key_t* private_key,
     oe_hash_type_t hash_type,
@@ -481,9 +478,9 @@ done:
 }
 
 oe_result_t oe_sign_by_engine(
-    const char *engine_id,    // string name of the engine, ie "esrp"
-    const char *key_id,       // string id of the desired signing key, ie "KEYCODE=CP-23072"
-    const char *engine_load_path, // Location of the 
+    const char* engine_id,        // string name of the engine
+    const char* key_id,           // string id of the desired signing key
+    const char* engine_load_path, // Location of the
     oe_hash_type_t hash_type,
     const void* hash_data,
     size_t hash_size,
@@ -492,12 +489,11 @@ oe_result_t oe_sign_by_engine(
 {
     oe_result_t result = OE_UNEXPECTED;
     EVP_PKEY_CTX* ctx = NULL;
-    EVP_PKEY *pkey    = NULL;
-    ENGINE *e = NULL;
+    EVP_PKEY* pkey = NULL;
+    ENGINE* e = NULL;
 
     /* Check for null parameters */
-    if (!engine_id || !key_id  || !hash_data || !hash_size ||
-        !signature_size)
+    if (!engine_id || !key_id || !hash_data || !hash_size || !signature_size)
         OE_RAISE(OE_INVALID_PARAMETER);
 
     /* Check that hash buffer is big enough (hash_type is size of that hash) */
@@ -514,11 +510,12 @@ oe_result_t oe_sign_by_engine(
     /* Load and init the engine. */
     if (engine_load_path)
     {
-        /* If the engine load path is set this is a dynamically loaded engine, not built in */
+        /* If the engine load path is set this is a dynamically loaded engine,
+         * not built in */
         ENGINE_load_dynamic();
-        ENGINE *dyne = ENGINE_by_id("dynamic");
-        
-        if (!ENGINE_ctrl_cmd_string(dyne, "ID", "esrp", 0))
+        ENGINE* dyne = ENGINE_by_id("dynamic");
+
+        if (!ENGINE_ctrl_cmd_string(dyne, "ID", engine_id, 0))
             OE_RAISE(OE_CRYPTO_ERROR);
 
         if (!ENGINE_ctrl_cmd_string(dyne, "SO_PATH", engine_load_path, 0))
@@ -531,18 +528,22 @@ oe_result_t oe_sign_by_engine(
             OE_RAISE(OE_CRYPTO_ERROR);
     }
 
-    if (!( e = ENGINE_by_id(engine_id)))
+    if (!(e = ENGINE_by_id(engine_id)))
         OE_RAISE(OE_CRYPTO_ERROR);
 
     if (!ENGINE_init(e))
     {
         /* if ENGINE_init failed there is no valid reference to e */
-        e = NULL;  
+        e = NULL;
         OE_RAISE(OE_CRYPTO_ERROR);
     }
 
-    /* Then get the private key 2do: try to sign using the engine rather 
-       than the private key, if possible. */
+    /* Then get the private key. In future, could try to sign using the engine
+       rather than a public key derived from the the private key, if possible.
+       But no known engine does this, the openssl app doesn't do it, and it
+       appears that the necessary paths might not work in openssl so we leave it
+       for future investigation..
+     */
 
     if (!(pkey = ENGINE_load_private_key(e, key_id, NULL, NULL)))
         OE_RAISE(OE_CRYPTO_ERROR);
@@ -550,8 +551,9 @@ oe_result_t oe_sign_by_engine(
     /* Create signing context */
     if (!(ctx = EVP_PKEY_CTX_new(pkey, e)))
     {
-        /* some engines are not capable of performing the signing operation, but some are. 
-           If we can, we should use them, but its not an error if we can't */
+        /* some engines are not capable of performing the signing operation, but
+           some are. If we can, we should use them, but it's not an error if we
+           can't */
 
         if (!(ctx = EVP_PKEY_CTX_new(pkey, NULL)))
             OE_RAISE(OE_CRYPTO_ERROR);
@@ -591,7 +593,6 @@ oe_result_t oe_sign_by_engine(
 done:
     if (e)
         ENGINE_finish(e);
-
 
     if (ctx)
         EVP_PKEY_CTX_free(ctx);
