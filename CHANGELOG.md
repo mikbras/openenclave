@@ -7,6 +7,7 @@ breaking changes should be noted here. It should be more concise than `git log`.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+
 [Unreleased][Unreleased_log]
 ------------
 
