@@ -471,6 +471,36 @@ oe_result_t oe_cond_signal(oe_cond_t* condition)
     return OE_OK;
 }
 
+oe_result_t oe_cond_requeue(
+    oe_cond_t* src_condition,
+    oe_cond_t* dest_condition,
+    size_t count)
+{
+    oe_cond_impl_t* src_cond = (oe_cond_impl_t*)src_condition;
+    oe_cond_impl_t* dest_cond = (oe_cond_impl_t*)dest_condition;
+
+    if (!src_condition || !dest_condition)
+        return OE_INVALID_PARAMETER;
+
+    oe_spin_lock(&src_cond->lock);
+    oe_spin_lock(&dest_cond->lock);
+    {
+        oe_thread_data_t* waiter;
+
+        for (size_t i = 0; i < count; i++)
+        {
+            if (!(waiter = _queue_pop_front((Queue*)&src_cond->queue)))
+                break;
+
+            _queue_push_back((Queue*)&dest_cond->queue, waiter);
+        }
+    }
+    oe_spin_unlock(&dest_cond->lock);
+    oe_spin_unlock(&src_cond->lock);
+
+    return OE_OK;
+}
+
 oe_result_t oe_cond_broadcast(oe_cond_t* condition)
 {
     oe_cond_impl_t* cond = (oe_cond_impl_t*)condition;

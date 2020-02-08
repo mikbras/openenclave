@@ -62,6 +62,7 @@ add_library(oelibc STATIC
     epoll.c
     exit.c
     freeaddrinfo.c
+    futex.c
     getaddrinfo.c
     getnameinfo.c
     kill.c
