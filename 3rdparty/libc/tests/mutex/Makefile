@@ -11,7 +11,6 @@ CFLAGS += -O0
 all:
 	$(MAKE) -C ../..
 	$(CC) $(CFLAGS) -c main.c
-	$(CC) $(CFLAGS) -c -S main.c
 	$(CC) $(CFLAGS) -static -o main main.o
 	./main
 
