@@ -570,6 +570,11 @@ long posix_syscall(long n, ...)
         {
             return posix_set_thread_area((void*)x1);
         }
+        case SYS_membarrier:
+        {
+            /* ATTN: */
+            return 0;
+        }
     }
 
     posix_printf("unhandled syscall: %s\n", _syscall_name(n));

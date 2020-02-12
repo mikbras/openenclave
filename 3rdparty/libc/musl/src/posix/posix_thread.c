@@ -10,7 +10,7 @@
 #include "posix_spinlock.h"
 #include "pthread_impl.h"
 
-#define USE_PTHREAD_SELF
+//#define USE_PTHREAD_SELF
 
 typedef struct _thread_data thread_data_t;
 
@@ -49,7 +49,10 @@ struct pthread* posix_pthread_self(void)
 #else
     thread_data_t* td;
     __asm__("mov %%fs:0,%0" : "=r" (td));
-    return td->pthread_self;
+    assert(td->self == td);
+    pthread_t pthread_self = td->pthread_self;
+    assert(pthread_self->self == pthread_self);
+    return pthread_self;
 #endif
 }
 
@@ -72,14 +75,11 @@ int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
 #else
     thread_data_t* td;
 
-    /* Create thread-data structure and prepend to list. */
-    {
-        if (!(td = malloc(sizeof(thread_data_t))))
-            return -ENOMEM;
+    if (!(td = malloc(sizeof(thread_data_t))))
+        return -ENOMEM;
 
-        td->self = td;
-        td->pthread_self = tls;
-    }
+    td->self = td;
+    td->pthread_self = tls;
 
     /* Call the assembly function */
     return __clone(func, stack, flags, arg, ptid, td, ctid);
