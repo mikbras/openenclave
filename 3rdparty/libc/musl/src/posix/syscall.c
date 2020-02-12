@@ -1,20 +1,16 @@
 #include "syscall.h"
-#include <stddef.h>
 #include <stdint.h>
-#include <syscall.h>
-#include <stdio.h>
-#include <unistd.h>
-#include <stdarg.h>
-#include <errno.h>
-#include <string.h>
-#include <sys/uio.h>
-#include <sys/mman.h>
-#include <assert.h>
+#include <stddef.h>
 #include <stdbool.h>
+#include <errno.h>
+#include <assert.h>
+#include <stdarg.h>
+#include <unistd.h>
 #include <stdlib.h>
+#include <string.h>
+#include "mman.h"
 #include "io.h"
 #include "thread.h"
-#include "mman.h"
 
 static const char* _syscall_name(long n)
 {
@@ -387,7 +383,8 @@ static const char* _syscall_name(long n)
 
 void posix_exit(int status)
 {
-posix_printf("posix_exit: %d\n", status);
+    posix_printf("posix_exit: %d\n", status);
+
     for (;;)
         posix_syscall1(SYS_exit, status);
 }
@@ -532,11 +529,6 @@ long posix_syscall(long n, ...)
             off_t offset = (int)x6;
             const int FLAGS = MAP_PRIVATE | MAP_ANON;
 
-#if 0
-            posix_printf("addr=%p length=%zu prot=%d flags=%d fd=%d off=%ld\n",
-                addr, length, prot, flags, fd, offset);
-#endif
-
             if (!addr && fd == -1 && !offset && flags == FLAGS)
             {
                 uint8_t* ptr;
@@ -561,11 +553,6 @@ long posix_syscall(long n, ...)
         }
         case SYS_futex:
         {
-#if 0
-            int* uaddr;
-            int futex_op;
-            int val;
-#endif
             return posix_syscall6(n, x1, x2, x3, x4, x5, x6);
         }
         case SYS_set_thread_area:

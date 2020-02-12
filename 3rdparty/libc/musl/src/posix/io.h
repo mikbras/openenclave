@@ -1,7 +1,6 @@
 #ifndef _POSIX_IO_H
 #define _POSIX_IO_H
 
-#include <unistd.h>
 #include <sys/uio.h>
 
 ssize_t posix_read(int fd, void* buf, size_t count);

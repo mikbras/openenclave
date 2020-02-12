@@ -1,9 +1,9 @@
-#include "syscall.h"
 #include "mman.h"
-#include "io.h"
 #include <stdint.h>
 #include <errno.h>
 #include <sys/mman.h>
+#include "syscall.h"
+#include "io.h"
 
 void* posix_brk(void* new_brk)
 {

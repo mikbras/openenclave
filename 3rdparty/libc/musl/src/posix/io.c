@@ -1,8 +1,7 @@
-#include <stdarg.h>
-#include <unistd.h>
-#include <stdio.h>
 #include "io.h"
-#include <syscall.h>
+#include <stdarg.h>
+#include <stdio.h>
+#include <unistd.h>
 #include "syscall.h"
 
 void posix_printf(const char* fmt, ...)

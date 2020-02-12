@@ -1,6 +1,7 @@
 #ifndef _POSIX_MMAN_H
 #define _POSIX_MMAN_H
 
+#include <sys/mman.h>
 #include <stddef.h>
 
 void* posix_brk(void* new_brk);
