@@ -1,7 +1,7 @@
 CC=/opt/musl/bin/musl-gcc
 CFLAGS += -g
 CFLAGS += -Wall
-CFLAGS += -fPIC
+#CFLAGS += -fPIC
 CFLAGS += -O0
 #CFLAGS += -ftls-model=local-exec
 #CFLAGS += -ftls-model=global-dynamic
@@ -12,7 +12,7 @@ all:
 	$(MAKE) -C ../..
 	$(CC) $(CFLAGS) -c main.c
 	$(CC) $(CFLAGS) -c -S main.c
-	$(CC) $(CFLAGS) -v -static -o main main.o
+	$(CC) $(CFLAGS) -static -o main main.o
 	./main
 
 clean:

@@ -1,4 +1,4 @@
-#include "posix_syscall.h"
+#include "syscall.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <syscall.h>
@@ -6,14 +6,15 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <errno.h>
+#include <string.h>
 #include <sys/uio.h>
 #include <sys/mman.h>
 #include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
-#include "posix_io.h"
-#include "posix_thread.h"
-#include "posix_mman.h"
+#include "io.h"
+#include "thread.h"
+#include "mman.h"
 
 static const char* _syscall_name(long n)
 {
@@ -531,20 +532,20 @@ long posix_syscall(long n, ...)
             off_t offset = (int)x6;
             const int FLAGS = MAP_PRIVATE | MAP_ANON;
 
+#if 0
+            posix_printf("addr=%p length=%zu prot=%d flags=%d fd=%d off=%ld\n",
+                addr, length, prot, flags, fd, offset);
+#endif
+
             if (!addr && fd == -1 && !offset && flags == FLAGS)
             {
-                void* ptr;
+                uint8_t* ptr;
 
                 if (!(ptr = malloc(length)))
                     return -ENOMEM;
 
                 return (long)ptr;
             }
-
-#if 0
-            posix_printf("addr=%p length=%zu prot=%d flags=%d fd=%d off=%ld\n",
-                addr, length, prot, flags, fd, offset);
-#endif
 
             break;
         }
@@ -553,8 +554,9 @@ long posix_syscall(long n, ...)
             void* addr = (void*)x1;
             size_t length = (size_t)x2;
 
-            /* ATTN: check that this was allocated by malloc() above. */
+            memset(addr, 0, length);
             free(addr);
+
             return 0;
         }
         case SYS_futex:

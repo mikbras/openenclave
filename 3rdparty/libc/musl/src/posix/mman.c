@@ -1,5 +1,6 @@
-#include "posix_syscall.h"
-#include "posix_mman.h"
+#include "syscall.h"
+#include "mman.h"
+#include "io.h"
 #include <stdint.h>
 #include <errno.h>
 #include <sys/mman.h>
@@ -11,6 +12,9 @@ void* posix_brk(void* new_brk)
 
     if ((old = (uint8_t*)posix_syscall1(SYS_brk, 0)) == (void*)-1)
         return (void*)-1;
+
+    if (!new_brk)
+        return old;
 
     if ((new = (uint8_t*)posix_syscall1(SYS_brk, (long)new_brk)) == (void*)-1)
         return (void*)-1;
