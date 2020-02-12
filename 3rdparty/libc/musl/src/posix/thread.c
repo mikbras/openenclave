@@ -35,6 +35,7 @@ static struct posix_pthread* _clone_td(struct pthread* td)
 
     memcpy(p, td->dtv, tls_size + sizeof(struct pthread));
     new = (struct posix_pthread*)(p + tls_size);
+    memset(&new->base, 0xFF, sizeof(new->base));
     new->base.self = &new->base;
     new->pthread = td;
 
