@@ -1,5 +1,5 @@
 
-all:
+all: musl/config.mak
 	( cd musl; make )
 	( cd musl; make install )
 
@@ -9,5 +9,5 @@ clean:
 distclean:
 	( cd musl; make distclean )
 
-configure:
+musl/config.mak:
 	( cd musl; ./configure --prefix=/opt/musl --enable-debug=yes CFLAGS=-Werror )
