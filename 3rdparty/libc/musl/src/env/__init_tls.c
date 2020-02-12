@@ -87,6 +87,7 @@ static void static_init_tls(size_t *aux)
 	size_t base = 0;
 	void *mem;
 
+#if 0
 	for (p=(void *)aux[AT_PHDR],n=aux[AT_PHNUM]; n; n--,p+=aux[AT_PHENT]) {
 		phdr = (void *)p;
 		if (phdr->p_type == PT_PHDR)
@@ -101,6 +102,7 @@ static void static_init_tls(size_t *aux)
 				phdr->p_memsz < DEFAULT_STACK_MAX ?
 				phdr->p_memsz : DEFAULT_STACK_MAX;
 	}
+#endif
 
 	if (tls_phdr) {
 		main_tls.image = (void *)(base + tls_phdr->p_vaddr);

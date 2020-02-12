@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <elf.h>
 #include <string.h>
 #include <assert.h>
 #include "libc.h"
@@ -85,4 +86,20 @@ int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
 
     /* Call the assembly function */
     return __clone(func, stack, flags, arg, ptid, new, ctid);
+}
+
+void posix_init_libc(void)
+{
+    size_t aux[64];
+    memset(aux, 0, sizeof(aux));
+
+    libc.auxv = aux;
+    libc.page_size = PAGESIZE;
+    libc.secure = 0;
+    __progname = "unknown";
+    __sysinfo = 0;
+    __environ = NULL;
+    __hwcap = 0;
+
+    __init_tls(aux);
 }
