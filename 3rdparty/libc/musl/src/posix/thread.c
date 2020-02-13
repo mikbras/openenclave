@@ -13,6 +13,7 @@
 #include "syscall.h"
 #include "spinlock.h"
 #include "mman.h"
+#include <openenclave/internal/sgxtypes.h>
 
 struct posix_pthread
 {
@@ -45,23 +46,25 @@ static struct posix_pthread* _clone_td(struct pthread* td)
 
 int posix_set_thread_area(void* p)
 {
-    static const int SET_FS = 0x1002;
     pthread_t td = (pthread_t)p;
-    struct posix_pthread* new;
+    oe_thread_data_t* oetd;
 
-    if (!(new = _clone_td(td)))
-        return -ENOMEM;
+    __asm__("mov %%fs:0,%0" : "=r" (oetd));
 
-    return (int)posix_syscall2(SYS_arch_prctl, SET_FS, (long)new);
+    oetd->__reserved_0 = (uint64_t)td;
+
+    return 0;
 }
 
 struct pthread* posix_pthread_self(void)
 {
-    struct posix_pthread* ptd;
-    __asm__("mov %%fs:0,%0" : "=r" (ptd));
-    assert(ptd->pthread);
+    oe_thread_data_t* oetd;
 
-    return ptd->pthread;
+    __asm__("mov %%fs:0,%0" : "=r" (oetd));
+
+    assert(oetd->__reserved_0);
+
+    return (struct pthread*)oetd->__reserved_0;
 }
 
 int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)

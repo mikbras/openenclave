@@ -432,7 +432,7 @@ long posix_syscall(long n, ...)
     long x6 = va_arg(ap, long);
     va_end(ap);
 
-#if 0
+#if 1
     posix_printf("syscall: %s\n", _syscall_name(n));
 #endif
 
@@ -456,7 +456,11 @@ long posix_syscall(long n, ...)
             {
                 const void* buf = (const void*)x2;
                 size_t count = (size_t)x3;
-                return (long)posix_write(fd, buf, count);
+
+                if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
+                {
+                    return (long)posix_write(fd, buf, count);
+                }
             }
 
             break;

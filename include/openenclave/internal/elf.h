@@ -139,6 +139,11 @@ ELF_EXTERNC_BEGIN
 /* elf64_rel.r_info */
 #define R_X86_64_RELATIVE 8
 
+/* Added relocation types for libcrt */
+#define R_X86_64_64 1
+#define R_X86_64_GLOB_DAT 6
+#define R_X86_64_DPTMOD64 16
+
 /* Supported thread-local storage relocations */
 #define R_X86_64_TPOFF64 18 /* Offset in initial TLS block */
 

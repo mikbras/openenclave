@@ -1,3 +1,6 @@
+INCLUDES += -I/root/openenclave/include
+
+#LDFLAGS += -L/root/openenclave/build/output/lib/openenclave/enclave -loecore
 
 all: musl/config.mak
 	( cd musl; make )
@@ -10,4 +13,4 @@ distclean:
 	( cd musl; make distclean )
 
 musl/config.mak:
-	( cd musl; ./configure --prefix=/opt/musl --enable-debug=yes CFLAGS=-Werror )
+	( cd musl; ./configure --prefix=/opt/musl --disable-shared --enable-debug=yes CFLAGS="-Werror -fPIE $(INCLUDES) $(LDFLAGS)" )
