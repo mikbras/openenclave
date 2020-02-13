@@ -4,28 +4,27 @@
 #include <sys/mman.h>
 #include "syscall.h"
 #include "io.h"
+#include <openenclave/internal/syscall/unistd.h>
 
 void* posix_brk(void* new_brk)
 {
-    uint8_t* old;
+    uint8_t* current;
     uint8_t* new;
 
-    if ((old = (uint8_t*)posix_syscall1(SYS_brk, 0)) == (void*)-1)
+    /* If argument is null, return current break value. */
+    if (new_brk == NULL)
+        return oe_sbrk(0);
+
+    /* Get the current break value. */
+    if ((current = oe_sbrk(0)) == (void*)-1)
         return (void*)-1;
 
-    if (!new_brk)
-        return old;
+    intptr_t increment = (uint8_t*)new_brk - current;
 
-    if ((new = (uint8_t*)posix_syscall1(SYS_brk, (long)new_brk)) == (void*)-1)
+    if (((uint8_t*)oe_sbrk(increment)) == (void*)-1)
         return (void*)-1;
 
-    if (new > old)
-    {
-        if (posix_mprotect(old, new - old, PROT_READ | PROT_WRITE) != 0)
-            return (void*)-ENOMEM;
-    }
-
-    return new;
+    return new_brk;
 }
 
 int posix_mprotect(void* addr, size_t len, int prot)

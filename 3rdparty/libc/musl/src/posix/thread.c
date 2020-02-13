@@ -87,6 +87,8 @@ int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
     if (!(new = _clone_td(td)))
         return -ENOMEM;
 
+    /* ATTN: stopped here */
+
     /* Call the assembly function */
     return __clone(func, stack, flags, arg, ptid, new, ctid);
 }

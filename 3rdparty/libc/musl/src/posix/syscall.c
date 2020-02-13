@@ -8,6 +8,7 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <openenclave/corelibc/stdlib.h>
 #include "mman.h"
 #include "io.h"
 #include "thread.h"
@@ -432,7 +433,7 @@ long posix_syscall(long n, ...)
     long x6 = va_arg(ap, long);
     va_end(ap);
 
-#if 1
+#if 0
     posix_printf("syscall: %s\n", _syscall_name(n));
 #endif
 
@@ -537,7 +538,7 @@ long posix_syscall(long n, ...)
             {
                 uint8_t* ptr;
 
-                if (!(ptr = malloc(length)))
+                if (!(ptr = oe_malloc(length)))
                     return -ENOMEM;
 
                 return (long)ptr;
@@ -551,7 +552,7 @@ long posix_syscall(long n, ...)
             size_t length = (size_t)x2;
 
             memset(addr, 0, length);
-            free(addr);
+            oe_free(addr);
 
             return 0;
         }
