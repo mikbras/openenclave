@@ -1,10 +1,10 @@
-#include "io.h"
 #include <stdarg.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <assert.h>
-#include "syscall.h"
 #include <openenclave/internal/print.h>
+#include "posix_syscall.h"
+#include "posix_io.h"
 
 int posix_printf(const char* fmt, ...)
 {

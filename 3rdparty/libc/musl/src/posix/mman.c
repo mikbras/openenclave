@@ -1,10 +1,10 @@
-#include "mman.h"
 #include <stdint.h>
 #include <errno.h>
 #include <sys/mman.h>
-#include "syscall.h"
-#include "io.h"
 #include <openenclave/internal/syscall/unistd.h>
+#include "posix_syscall.h"
+#include "posix_io.h"
+#include "posix_mman.h"
 
 void* posix_brk(void* new_brk)
 {

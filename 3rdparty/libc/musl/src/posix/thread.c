@@ -6,42 +6,68 @@
 #include <elf.h>
 #include <string.h>
 #include <assert.h>
+#include <openenclave/internal/sgxtypes.h>
 #include "libc.h"
 #include "pthread_impl.h"
-#include "thread.h"
-#include "io.h"
-#include "syscall.h"
-#include "spinlock.h"
-#include "mman.h"
-#include <openenclave/internal/sgxtypes.h>
+#include "posix_thread.h"
+#include "posix_io.h"
+#include "posix_syscall.h"
+#include "posix_spinlock.h"
+#include "posix_mman.h"
+#include "posix_trace.h"
 
-struct posix_pthread
+#define MAX_THREAD_INFO 1024
+
+typedef struct _thread_info
 {
-    struct pthread base;
-    struct pthread* pthread;
-};
+    pid_t tid;
+    int (*func)(void*);
+    void* arg;
+    int flags;
+    pid_t* ptid;
+    pid_t* ctid;
+    struct pthread* td;
+}
+thread_info_t;
 
-static struct posix_pthread* _clone_td(struct pthread* td)
+static thread_info_t _thread_info[MAX_THREAD_INFO];
+static posix_spinlock_t _lock;
+
+static thread_info_t* _get_thread_info(void)
 {
-    size_t tls_size;
-    uint8_t* p;
-    struct posix_pthread* new;
+    thread_info_t* ti = NULL;
 
-    if (!td || td->self != td)
-        return NULL;
+    posix_spin_lock(&_lock);
+    {
+        for (int i = 0; i < MAX_THREAD_INFO; i++)
+        {
+            if (_thread_info[i].tid == 0)
+            {
+                ti = &_thread_info[i];
+                ti->tid = i + 1;
+                break;
+            }
+        }
+    }
+    posix_spin_unlock(&_lock);
 
-    tls_size = (uint8_t*)td - (uint8_t*)td->dtv;
+    return ti;
+}
 
-    if (!(p = malloc(tls_size + sizeof(struct posix_pthread))))
-        return NULL;
+static int _put_thread_info(uint64_t tid)
+{
+    size_t index;
 
-    memcpy(p, td->dtv, tls_size + sizeof(struct pthread));
-    new = (struct posix_pthread*)(p + tls_size);
-    memset(&new->base, 0xFF, sizeof(new->base));
-    new->base.self = &new->base;
-    new->pthread = td;
+    if (!(tid > 0 && tid < MAX_THREAD_INFO))
+        return -1;
 
-    return new;
+    index = tid - 1;
+
+    posix_spin_lock(&_lock);
+    _thread_info[index].tid = 0;
+    posix_spin_unlock(&_lock);
+
+    return 0;
 }
 
 int posix_set_thread_area(void* p)
@@ -67,13 +93,33 @@ struct pthread* posix_pthread_self(void)
     return (struct pthread*)oetd->__reserved_0;
 }
 
+int posix_run_thread_ecall(int tid)
+{
+    thread_info_t* ti;
+    int r;
+
+    posix_printf("%s(): tid=%d\n", __FUNCTION__, tid);
+
+    if (tid <= 0 || tid > MAX_THREAD_INFO)
+        return -1;
+
+    ti = &_thread_info[tid-1];
+
+    r = (*ti->func)(ti->arg);
+
+    return 0;
+}
+
 int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
 {
+    int ret = 0;
     va_list ap;
     pid_t* ptid;
     pid_t* ctid;
     struct pthread* td;
-    struct posix_pthread* new;
+    thread_info_t* ti;
+    uint64_t tid;
+    extern oe_result_t posix_start_thread_ocall(int* retval, int tid);
 
     va_start(ap, arg);
     ptid = va_arg(ap, pid_t*);
@@ -84,13 +130,45 @@ int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
     assert(td != NULL);
     assert(td->self == td);
 
-    if (!(new = _clone_td(td)))
-        return -ENOMEM;
+    /* Create the thread info structure */
+    {
+        if (!(ti = _get_thread_info()))
+        {
+            ret = -ENOMEM;
+            goto done;
+        }
 
-    /* ATTN: stopped here */
+        ti->func = func;
+        ti->arg = arg;
+        ti->flags = flags;
+        ti->ptid = ptid;
+        ti->ctid = ctid;
+        ti->td = td;
+    }
 
-    /* Call the assembly function */
-    return __clone(func, stack, flags, arg, ptid, new, ctid);
+    /* Ask the host to call posix_run_thread_ecall() on a new thread. */
+    {
+        int retval = -1;
+
+        if (posix_start_thread_ocall(&retval, ti->tid) != OE_OK)
+        {
+            ret = -ENOMEM;
+            goto done;
+        }
+
+        if (retval != 0)
+        {
+            ret = -ENOMEM;
+            goto done;
+        }
+    }
+
+
+done:
+
+    posix_printf("%s(): ret=%d tid=%d\n", __FUNCTION__, ret, ti->tid);
+
+    return ret;
 }
 
 void posix_init_libc(void)

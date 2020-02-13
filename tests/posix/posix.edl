@@ -3,8 +3,27 @@
 
 enclave
 {
+    struct posix_timespec
+    {
+        int64_t tv_sec;
+        uint64_t tv_nsec;
+    };
+
     trusted
     {
         public void posix_test();
+
+        public int posix_run_thread_ecall(int tid);
+    };
+
+    untrusted
+    {
+        int posix_start_thread_ocall(int tid);
+
+        int posix_futex_wait_ocall(
+            [user_check] int* uaddr,
+            int futex_op,
+            int val,
+            [in, count=1] struct posix_timespec* timeout);
     };
 };

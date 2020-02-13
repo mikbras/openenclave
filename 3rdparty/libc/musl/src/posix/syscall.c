@@ -1,17 +1,21 @@
-#include "syscall.h"
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <errno.h>
 #include <assert.h>
 #include <stdarg.h>
+#include <time.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <openenclave/corelibc/stdlib.h>
-#include "mman.h"
-#include "io.h"
-#include "thread.h"
+#include <openenclave/enclave.h>
+#include "posix_syscall.h"
+#include "posix_mman.h"
+#include "posix_io.h"
+#include "posix_thread.h"
+#include "posix_trace.h"
+#include "futex.h"
 
 static const char* _syscall_name(long n)
 {
@@ -420,6 +424,19 @@ int posix_tkill(int tid, int sig)
 
 #define TIOCGWINSZ 0x5413
 
+struct posix_timespec
+{
+    int64_t tv_sec;
+    uint64_t tv_nsec;
+};
+
+oe_result_t posix_futex_wait_ocall(
+    int* retval,
+    int* uaddr,
+    int futex_op,
+    int val,
+    struct posix_timespec* timeout);
+
 long posix_syscall(long n, ...)
 {
     va_list ap;
@@ -433,7 +450,7 @@ long posix_syscall(long n, ...)
     long x6 = va_arg(ap, long);
     va_end(ap);
 
-#if 0
+#if 1
     posix_printf("syscall: %s\n", _syscall_name(n));
 #endif
 
@@ -558,7 +575,50 @@ long posix_syscall(long n, ...)
         }
         case SYS_futex:
         {
-            return posix_syscall6(n, x1, x2, x3, x4, x5, x6);
+            int* uaddr = (int*)x1;
+            int futex_op = (int)x2;
+            int val = (int)x3;
+
+            if (futex_op == FUTEX_WAIT || futex_op == FUTEX_WAIT|FUTEX_PRIVATE)
+            {
+                struct posix_timespec posix_timeout_buffer;
+                struct posix_timespec* posix_timeout = NULL;
+                const struct timespec* timeout;
+                int retval;
+
+                if ((timeout = ((const struct timespec*)x4)))
+                {
+                    posix_timeout = &posix_timeout_buffer;
+                    posix_timeout->tv_sec = timeout->tv_sec;
+                    posix_timeout->tv_nsec = timeout->tv_nsec;
+                }
+
+                if (posix_futex_wait_ocall(
+                    &retval,
+                    uaddr,
+                    futex_op,
+                    val,
+                    posix_timeout) != OE_OK)
+                {
+                    return -EINVAL;
+                }
+
+                if (retval != 0)
+                {
+posix_printf("retval=%d\n", retval);
+oe_result_t oe_print_backtrace(void);
+oe_print_backtrace();
+                    return retval;
+                }
+
+                return 0;
+            }
+            else
+            {
+                posix_printf("unhandled futex op: %d\n", futex_op);
+            }
+
+            break;
         }
         case SYS_set_thread_area:
         {
