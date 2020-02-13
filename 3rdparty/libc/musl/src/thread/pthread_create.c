@@ -25,13 +25,13 @@ static int tl_lock_waiters;
 void __tl_lock(void)
 {
 	int tid = __pthread_self()->tid;
-	int val = __thread_list_lock;
+	int val = __UADDR(__thread_list_lock);
 	if (val == tid) {
 		tl_lock_count++;
 		return;
 	}
-	while ((val = a_cas(&__thread_list_lock, 0, tid)))
-		__wait(&__thread_list_lock, &tl_lock_waiters, val, 0);
+	while ((val = a_cas(&__UADDR(__thread_list_lock), 0, tid)))
+		__wait(&__UADDR(__thread_list_lock), &tl_lock_waiters, val, 0);
 }
 
 void __tl_unlock(void)
@@ -40,17 +40,17 @@ void __tl_unlock(void)
 		tl_lock_count--;
 		return;
 	}
-	a_store(&__thread_list_lock, 0);
-	if (tl_lock_waiters) __wake(&__thread_list_lock, 1, 0);
+	a_store(&__UADDR(__thread_list_lock), 0);
+	if (tl_lock_waiters) __wake(&__UADDR(__thread_list_lock), 1, 0);
 }
 
 void __tl_sync(pthread_t td)
 {
 	a_barrier();
-	int val = __thread_list_lock;
+	int val = __UADDR(__thread_list_lock);
 	if (!val) return;
-	__wait(&__thread_list_lock, &tl_lock_waiters, val, 0);
-	if (tl_lock_waiters) __wake(&__thread_list_lock, 1, 0);
+	__wait(&__UADDR(__thread_list_lock), &tl_lock_waiters, val, 0);
+	if (tl_lock_waiters) __wake(&__UADDR(__thread_list_lock), 1, 0);
 }
 
 _Noreturn void __pthread_exit(void *result)
@@ -339,7 +339,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 
 	__tl_lock();
 	libc.threads_minus_1++;
-	ret = posix_clone((c11 ? start_c11 : start), stack, flags, args, &new->tid, TP_ADJ(new), &__thread_list_lock);
+	ret = posix_clone((c11 ? start_c11 : start), stack, flags, args, &new->tid, TP_ADJ(new), &__UADDR(__thread_list_lock));
 
 	/* All clone failures translate to EAGAIN. If explicit scheduling
 	 * was requested, attempt it before unlocking the thread list so

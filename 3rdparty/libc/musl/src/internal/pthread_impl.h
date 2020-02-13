@@ -189,5 +189,6 @@ extern hidden unsigned __default_guardsize;
 
 volatile int* posix_futex_uaddr(volatile int* ptr);
 #define __UADDR(LOCK) posix_futex_uaddr(&LOCK)[0]
+int posix_printf(const char* fmt, ...);
 
 #endif

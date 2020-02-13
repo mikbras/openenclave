@@ -20,6 +20,11 @@ static size_t _uaddrs_size;
 static int _uaddrs_next = 1;
 static posix_spinlock_t _lock;
 
+static bool _is_host_uaddr(volatile int* uaddr)
+{
+    return uaddr >= _uaddrs && uaddr < &_uaddrs[_uaddrs_size];
+}
+
 void posix_init_uaddrs(volatile int* uaddrs, size_t uaddrs_size)
 {
     _uaddrs = uaddrs;
@@ -74,15 +79,13 @@ int posix_futex_wait(
 {
     if (futex_op == FUTEX_WAIT || futex_op == FUTEX_WAIT|FUTEX_PRIVATE)
     {
-        struct posix_timespec posix_timeout_buffer;
-        struct posix_timespec* posix_timeout = NULL;
         int retval;
 
-        if (timeout)
+        if (!_is_host_uaddr(uaddr))
         {
-            posix_timeout = &posix_timeout_buffer;
-            posix_timeout->tv_sec = timeout->tv_sec;
-            posix_timeout->tv_nsec = timeout->tv_nsec;
+            posix_printf("posix_futex_wait(): bad uaddr\n");
+            posix_print_backtrace();
+            assert(false);
         }
 
         if (posix_futex_wait_ocall(
@@ -90,7 +93,7 @@ int posix_futex_wait(
             uaddr,
             futex_op,
             val,
-            posix_timeout) != OE_OK)
+            (const struct posix_timespec*)timeout) != OE_OK)
         {
             return -EINVAL;
         }

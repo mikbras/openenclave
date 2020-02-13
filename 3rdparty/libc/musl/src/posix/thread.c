@@ -122,6 +122,9 @@ int posix_run_thread_ecall(int tid)
 
     oetd->__reserved_0 = (uint64_t)ti->td;
 
+    /* ATTN: ? */
+    ti->td->tid = ti->tid;
+
 /*
 MEB:
 */
@@ -158,12 +161,14 @@ int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
             goto done;
         }
 
+        ti->td = td;
         ti->func = func;
         ti->arg = arg;
         ti->flags = flags;
         ti->ptid = ptid;
+
+        /* The __thread_list_lock must be cleared/woken upon thread exit. */
         ti->ctid = ctid;
-        ti->td = td;
     }
 
     /* Ask the host to call posix_run_thread_ecall() on a new thread. */

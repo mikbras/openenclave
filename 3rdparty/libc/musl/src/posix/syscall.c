@@ -8,7 +8,9 @@
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
+#include <pthread.h>
 #include <openenclave/corelibc/stdlib.h>
+#include "pthread_impl.h"
 #include "posix_syscall.h"
 #include "posix_mman.h"
 #include "posix_io.h"
@@ -390,7 +392,10 @@ static const char* _syscall_name(long n)
 
 void posix_exit(int status)
 {
-    posix_printf("posix_exit: %d\n", status);
+    struct pthread* td = (struct pthread*)pthread_self();
+
+    posix_print_backtrace();
+    sleep(5);
 
     for (;;)
         posix_syscall1(SYS_exit, status);
@@ -448,9 +453,9 @@ long posix_syscall(long n, ...)
         case SYS_exit:
         case SYS_exit_group:
         {
-posix_printf("exit............\n");
-            posix_print_backtrace();
-            posix_exit(x1);
+            int status = (int)x1;
+            //posix_print_backtrace();
+            posix_exit(status);
             return -1;
         }
         case SYS_read:
@@ -579,6 +584,7 @@ posix_printf("exit............\n");
             else
             {
                 posix_printf("unhandled futex op: %d\n", futex_op);
+                assert(false);
             }
 
             break;
