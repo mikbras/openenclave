@@ -47,22 +47,41 @@ int posix_start_thread_ocall(int tid)
     return 0;
 }
 
+int posix_nanosleep_ocall(
+    const struct posix_timespec* req,
+    struct posix_timespec* rem)
+{
+    if (nanosleep((struct timespec*)req, (struct timespec*)rem) != 0)
+        return -errno;
+
+    return 0;
+}
+
 int posix_futex_wait_ocall(
     int* uaddr,
     int futex_op,
     int val,
-    struct posix_timespec* timeout)
+    const struct posix_timespec* timeout)
 {
-    printf("posix_futex_wait_ocall(): *uaddr=%x val=%x\n", *uaddr, val);
+    long r;
 
-    if (syscall(
-        __NR_futex, uaddr, futex_op, val, (struct timespec*)timeout) != 0)
-    {
+#if 0
+    printf("<posix_futex_wait_ocall(): thread=%p uaddr=%p *uaddr=%x val=%x\n", (void*)pthread_self(), uaddr, *uaddr, val);
+    #endif
+
+    r = syscall(__NR_futex, uaddr, futex_op, val, (struct timespec*)timeout);
+
+#if 0
+    printf(">posix_futex_wait_ocall(): thread=%p uaddr=%p r=%ld errno=%d\n", (void*)pthread_self(), uaddr, r, errno);
+#endif
+
+    if (r != 0)
         return -errno;
-    }
 
     return 0;
 }
+
+int _uaddrs[4096];
 
 int main(int argc, const char* argv[])
 {
@@ -79,7 +98,10 @@ int main(int argc, const char* argv[])
     result = oe_create_posix_enclave(argv[1], type, flags, NULL, 0, &enclave);
     OE_TEST(result == OE_OK);
 
-    result = posix_test(enclave);
+    result = posix_init_ecall(enclave, _uaddrs, OE_COUNTOF(_uaddrs));
+    OE_TEST(result == OE_OK);
+
+    result = posix_test_ecall(enclave);
     OE_TEST(result == OE_OK);
 
     result = oe_terminate_enclave(enclave);

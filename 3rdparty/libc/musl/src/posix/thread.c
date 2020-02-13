@@ -82,29 +82,49 @@ int posix_set_thread_area(void* p)
     return 0;
 }
 
-struct pthread* posix_pthread_self(void)
+oe_thread_data_t* _get_oetd(void)
 {
     oe_thread_data_t* oetd;
 
     __asm__("mov %%fs:0,%0" : "=r" (oetd));
 
-    assert(oetd->__reserved_0);
+    return oetd;
+}
 
-    return (struct pthread*)oetd->__reserved_0;
+struct pthread* posix_pthread_self(void)
+{
+    oe_thread_data_t* oetd;
+    struct pthread* td;
+
+    __asm__("mov %%fs:0,%0" : "=r" (oetd));
+
+    td = (struct pthread*)oetd->__reserved_0;
+    assert(td != NULL);
+
+    return td;
 }
 
 int posix_run_thread_ecall(int tid)
 {
     thread_info_t* ti;
+    oe_thread_data_t* oetd = _get_oetd();
     int r;
 
-    posix_printf("%s(): tid=%d\n", __FUNCTION__, tid);
+    if (!oetd)
+        return -1;
 
     if (tid <= 0 || tid > MAX_THREAD_INFO)
         return -1;
 
     ti = &_thread_info[tid-1];
 
+    assert(ti->td != NULL);
+
+    oetd->__reserved_0 = (uint64_t)ti->td;
+
+/*
+MEB:
+*/
     r = (*ti->func)(ti->arg);
 
     return 0;
@@ -166,23 +186,9 @@ int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
 
 done:
 
+#if 0
     posix_printf("%s(): ret=%d tid=%d\n", __FUNCTION__, ret, ti->tid);
+#endif
 
     return ret;
-}
-
-void posix_init_libc(void)
-{
-    size_t aux[64];
-    memset(aux, 0, sizeof(aux));
-
-    libc.auxv = aux;
-    libc.page_size = PAGESIZE;
-    libc.secure = 0;
-    __progname = "unknown";
-    __sysinfo = 0;
-    __environ = NULL;
-    __hwcap = 0;
-
-    __init_tls(aux);
 }

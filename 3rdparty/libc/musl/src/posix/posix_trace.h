@@ -4,6 +4,13 @@
 #include "posix_io.h"
 
 #define TRACE \
-    posix_printf("TRACE: %s(%u): %s()\n", __FILE__, __LINE__, __FUNCTION__)
+    do \
+    { \
+        posix_printf("TRACE: %s(%u): %s()\n", \
+            __FILE__, __LINE__, __FUNCTION__); \
+    } \
+    while (0)
+
+void posix_print_backtrace(void);
 
 #endif /* _POSIX_TRACE_H */

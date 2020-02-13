@@ -12,6 +12,7 @@ add_custom_command(
 
 add_executable(posix_enc
     enc.c
+    stubs.c
     start.S
     ${CMAKE_CURRENT_BINARY_DIR}/posix_t.c)
 

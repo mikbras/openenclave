@@ -4,29 +4,47 @@
 #include <openenclave/corelibc/string.h>
 #include <openenclave/enclave.h>
 #include <stdio.h>
+#include <errno.h>
 #include <openenclave/internal/print.h>
 #include <pthread.h>
+#include <unistd.h>
+#include <openenclave/internal/backtrace.h>
 #include "posix_t.h"
 
-void* thread(void* arg)
+static void* _thread_func(void* arg)
 {
-    printf("arg=%lu\n", arg);
+    (void)arg;
+
+    //printf("_thread_func(): arg=%lu\n", (uint64_t)arg);
+    printf("T2.SLEEPING...\n");
+    sleep(5);
+
     return NULL;
 }
 
-void posix_test(void)
+static volatile int* _uaddrs;
+static size_t _uaddrs_size;
+
+void posix_init_ecall(int* uaddrs, size_t uaddrs_size)
 {
-    void posix_init_libc(void);
+    _uaddrs = (volatile int*)uaddrs;
+    _uaddrs_size = uaddrs_size;
+}
 
-    posix_init_libc();
-
+void posix_test_ecall(void)
+{
     pthread_t t;
+    extern void posix_init(volatile int* uaddrs, size_t uaddrs_size);
 
-    if (pthread_create(&t, NULL, thread, (void*)12345) != 0)
+    posix_init(_uaddrs, _uaddrs_size);
+
+    if (pthread_create(&t, NULL, _thread_func, (void*)12345) != 0)
     {
         fprintf(stderr, "pthread_create() failed\n");
         abort();
     }
+
+    printf("T1.JOINING...\n");
 
     if (pthread_join(t, NULL) != 0)
     {
@@ -35,18 +53,6 @@ void posix_test(void)
     }
 
     printf("=== posix_test()\n");
-}
-
-void oe_verify_report_ecall()
-{
-}
-
-void oe_get_public_key_ecall()
-{
-}
-
-void oe_get_public_key_by_policy_ecall()
-{
 }
 
 OE_SET_ENCLAVE_SGX(

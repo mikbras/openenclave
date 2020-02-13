@@ -13,4 +13,4 @@ distclean:
 	( cd musl; make distclean )
 
 musl/config.mak:
-	( cd musl; ./configure --prefix=/opt/musl --disable-shared --enable-debug=yes CFLAGS="-Werror -fPIE $(INCLUDES) $(LDFLAGS)" )
+	( cd musl; ./configure --prefix=/opt/musl --disable-shared --enable-debug=yes --disable-optimize CFLAGS="-Werror -fPIE $(INCLUDES) $(LDFLAGS)" )

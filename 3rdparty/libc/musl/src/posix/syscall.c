@@ -9,11 +9,13 @@
 #include <stdlib.h>
 #include <string.h>
 #include <openenclave/corelibc/stdlib.h>
-#include <openenclave/enclave.h>
 #include "posix_syscall.h"
 #include "posix_mman.h"
 #include "posix_io.h"
 #include "posix_thread.h"
+#include "posix_trace.h"
+#include "posix_futex.h"
+#include "posix_time.h"
 #include "posix_trace.h"
 #include "futex.h"
 
@@ -424,19 +426,6 @@ int posix_tkill(int tid, int sig)
 
 #define TIOCGWINSZ 0x5413
 
-struct posix_timespec
-{
-    int64_t tv_sec;
-    uint64_t tv_nsec;
-};
-
-oe_result_t posix_futex_wait_ocall(
-    int* retval,
-    int* uaddr,
-    int futex_op,
-    int val,
-    struct posix_timespec* timeout);
-
 long posix_syscall(long n, ...)
 {
     va_list ap;
@@ -451,7 +440,7 @@ long posix_syscall(long n, ...)
     va_end(ap);
 
 #if 1
-    posix_printf("syscall: %s\n", _syscall_name(n));
+    posix_printf("SYSCALL{%s}\n", _syscall_name(n));
 #endif
 
     switch (n)
@@ -459,6 +448,8 @@ long posix_syscall(long n, ...)
         case SYS_exit:
         case SYS_exit_group:
         {
+posix_printf("exit............\n");
+            posix_print_backtrace();
             posix_exit(x1);
             return -1;
         }
@@ -555,7 +546,7 @@ long posix_syscall(long n, ...)
             {
                 uint8_t* ptr;
 
-                if (!(ptr = oe_malloc(length)))
+                if (!(ptr = oe_calloc(1, length)))
                     return -ENOMEM;
 
                 return (long)ptr;
@@ -581,37 +572,9 @@ long posix_syscall(long n, ...)
 
             if (futex_op == FUTEX_WAIT || futex_op == FUTEX_WAIT|FUTEX_PRIVATE)
             {
-                struct posix_timespec posix_timeout_buffer;
-                struct posix_timespec* posix_timeout = NULL;
-                const struct timespec* timeout;
-                int retval;
+                const struct timespec* timeout = (const struct timespec*)x4;
 
-                if ((timeout = ((const struct timespec*)x4)))
-                {
-                    posix_timeout = &posix_timeout_buffer;
-                    posix_timeout->tv_sec = timeout->tv_sec;
-                    posix_timeout->tv_nsec = timeout->tv_nsec;
-                }
-
-                if (posix_futex_wait_ocall(
-                    &retval,
-                    uaddr,
-                    futex_op,
-                    val,
-                    posix_timeout) != OE_OK)
-                {
-                    return -EINVAL;
-                }
-
-                if (retval != 0)
-                {
-posix_printf("retval=%d\n", retval);
-oe_result_t oe_print_backtrace(void);
-oe_print_backtrace();
-                    return retval;
-                }
-
-                return 0;
+                return posix_futex_wait(uaddr, futex_op, val, timeout);
             }
             else
             {
@@ -628,6 +591,12 @@ oe_print_backtrace();
         {
             /* ATTN: */
             return 0;
+        }
+        case SYS_nanosleep:
+        {
+            const struct timespec* req = (const struct timespec*)x1;
+            struct timespec* rem = (struct timespec*)x2;
+            return posix_nanosleep(req, rem);
         }
     }
 

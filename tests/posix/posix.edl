@@ -11,7 +11,11 @@ enclave
 
     trusted
     {
-        public void posix_test();
+        public void posix_init_ecall(
+            [user_check] int* uaddrs,
+            size_t uaddrs_size);
+
+        public void posix_test_ecall();
 
         public int posix_run_thread_ecall(int tid);
     };
@@ -24,6 +28,10 @@ enclave
             [user_check] int* uaddr,
             int futex_op,
             int val,
-            [in, count=1] struct posix_timespec* timeout);
+            [in, count=1] const struct posix_timespec* timeout);
+
+        int posix_nanosleep_ocall(
+            [in] const struct posix_timespec* req,
+            [out] struct posix_timespec* rem);
     };
 };
