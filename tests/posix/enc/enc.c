@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <openenclave/internal/print.h>
+#include <openenclave/internal/tests.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <openenclave/internal/backtrace.h>
@@ -13,13 +14,16 @@
 
 static void* _thread_func(void* arg)
 {
-    (void)arg;
+    for (size_t i = 0; i < 1000; i++)
+    {
+        printf("_thread_func: %zu\n", i);
+    }
 
     //printf("_thread_func(): arg=%lu\n", (uint64_t)arg);
     printf("T2.SLEEPING...\n");
     sleep(3);
 
-    return NULL;
+    return arg;
 }
 
 static volatile int* _uaddrs;
@@ -42,21 +46,29 @@ void posix_test_ecall(void)
 
     posix_init(_uaddrs, _uaddrs_size);
 
+    /* Create a new thread */
     if (pthread_create(&t, NULL, _thread_func, (void*)12345) != 0)
     {
         fprintf(stderr, "pthread_create() failed\n");
         abort();
     }
 
-    printf("T1.JOINING...\n");
-
-    if (pthread_join(t, NULL) != 0)
+    /* Join with the other thread */
     {
-        fprintf(stderr, "pthread_join() failed\n");
-        abort();
-    }
+        void* retval;
 
-    printf("T1.JOININED...\n");
+        printf("T1.JOINING...\n");
+
+        if (pthread_join(t, &retval) != 0)
+        {
+            fprintf(stderr, "pthread_join() failed\n");
+            abort();
+        }
+
+        printf("T1.JOININED...\n");
+
+        OE_TEST((uint64_t)retval == 12345);
+    }
 
     printf("=== posix_test()\n");
 }

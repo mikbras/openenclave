@@ -23,9 +23,9 @@ oe_result_t posix_futex_wake_ocall(
     int futex_op,
     int val);
 
-static volatile int** _enclave_uaddrs;
 static volatile int* _host_uaddrs;
 static size_t _uaddrs_size;
+static int _uaddrs_next_index = 1;
 static posix_spinlock_t _lock;
 
 static bool _is_host_uaddr(volatile int* uaddr)
@@ -40,12 +40,6 @@ void posix_init_uaddrs(volatile int* uaddrs, size_t uaddrs_size)
 
     _host_uaddrs = uaddrs;
     _uaddrs_size = uaddrs_size;
-
-    if (!(_enclave_uaddrs = oe_calloc(_uaddrs_size, sizeof(int*))))
-    {
-        assert(false);
-        abort();
-    }
 }
 
 volatile int* posix_futex_uaddr(volatile int* uaddr)
@@ -55,33 +49,26 @@ volatile int* posix_futex_uaddr(volatile int* uaddr)
     /* Map the enclave address to a host address */
     posix_spin_lock(&_lock);
     {
-        size_t i;
-
-        for (i = 0; i < _uaddrs_size && _enclave_uaddrs[i]; i++)
+        if (*uaddr <= 0)
         {
-            if (_enclave_uaddrs[i] == uaddr)
+            if (_uaddrs_next_index != _uaddrs_size)
             {
-                ptr = &_host_uaddrs[i];
-                break;
+                _host_uaddrs[_uaddrs_next_index] = *uaddr;
+                *uaddr = _uaddrs_next_index;
+                ptr = &_host_uaddrs[_uaddrs_next_index];
+                _uaddrs_next_index++;
             }
         }
-
-        if (!ptr)
+        else if (*uaddr < _uaddrs_size)
         {
-            if (i < _uaddrs_size)
-            {
-                _enclave_uaddrs[i] = uaddr;
-                _enclave_uaddrs[i] = uaddr;
-                ptr = &_host_uaddrs[i];
-                *ptr = *uaddr;
-            }
+            ptr = &_host_uaddrs[*uaddr];
         }
     }
     posix_spin_unlock(&_lock);
 
     if (!ptr)
     {
-        posix_puts("posix_spin_unlock() panic");
+        posix_puts("posix_futex_uaddr() panic");
         abort();
     }
 
