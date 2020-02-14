@@ -17,12 +17,12 @@ enclave
 
         public void posix_test_ecall();
 
-        public int posix_run_thread_ecall(int tid);
+        public int posix_run_thread_ecall(uint64_t cookie);
     };
 
     untrusted
     {
-        int posix_start_thread_ocall(int tid);
+        int posix_start_thread_ocall(uint64_t cookie);
 
         int posix_futex_wait_ocall(
             [user_check] int* uaddr,
@@ -30,8 +30,15 @@ enclave
             int val,
             [in, count=1] const struct posix_timespec* timeout);
 
+        int posix_futex_wake_ocall(
+            [user_check] int* uaddr,
+            int futex_op,
+            int val);
+
         int posix_nanosleep_ocall(
             [in] const struct posix_timespec* req,
             [out] struct posix_timespec* rem);
+
+        int posix_gettid_ocall();
     };
 };

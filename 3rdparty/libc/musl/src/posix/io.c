@@ -1,10 +1,22 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
 #include <assert.h>
 #include <openenclave/internal/print.h>
 #include "posix_syscall.h"
 #include "posix_io.h"
+
+int posix_puts(const char* str)
+{
+    if (oe_host_write(0, str, strlen(str)) != 0)
+        return -1;
+
+    if (oe_host_write(0, "\n", 1) != 0)
+        return -1;
+
+    return 0;
+}
 
 int posix_printf(const char* fmt, ...)
 {

@@ -390,17 +390,6 @@ static const char* _syscall_name(long n)
     return "unknown";
 }
 
-void posix_exit(int status)
-{
-    struct pthread* td = (struct pthread*)pthread_self();
-
-    posix_print_backtrace();
-    sleep(5);
-
-    for (;;)
-        posix_syscall1(SYS_exit, status);
-}
-
 static int _ioctl_tiocgwinsz(int fd, unsigned long request, long arg)
 {
     struct winsize
@@ -454,7 +443,6 @@ long posix_syscall(long n, ...)
         case SYS_exit_group:
         {
             int status = (int)x1;
-            //posix_print_backtrace();
             posix_exit(status);
             return -1;
         }
@@ -509,8 +497,8 @@ long posix_syscall(long n, ...)
         }
         case SYS_set_tid_address:
         {
-            /* ATTN: */
-            return 0;
+            int* tidptr = (int*)x1;
+            return posix_set_tid_address(tidptr);
         }
         case SYS_brk:
         {
@@ -572,18 +560,21 @@ long posix_syscall(long n, ...)
         case SYS_futex:
         {
             int* uaddr = (int*)x1;
-            int futex_op = (int)x2;
+            int op = (int)x2;
             int val = (int)x3;
 
-            if (futex_op == FUTEX_WAIT || futex_op == FUTEX_WAIT|FUTEX_PRIVATE)
+            if (op == FUTEX_WAIT || op == FUTEX_WAIT|FUTEX_PRIVATE)
             {
                 const struct timespec* timeout = (const struct timespec*)x4;
-
-                return posix_futex_wait(uaddr, futex_op, val, timeout);
+                return posix_futex_wait(uaddr, op, val, timeout);
+            }
+            else if (op == FUTEX_WAKE || op == FUTEX_WAKE|FUTEX_PRIVATE)
+            {
+                return posix_futex_wake(uaddr, op, val);
             }
             else
             {
-                posix_printf("unhandled futex op: %d\n", futex_op);
+                posix_printf("unhandled futex op: %d\n", op);
                 assert(false);
             }
 

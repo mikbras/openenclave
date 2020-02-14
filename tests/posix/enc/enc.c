@@ -17,7 +17,7 @@ static void* _thread_func(void* arg)
 
     //printf("_thread_func(): arg=%lu\n", (uint64_t)arg);
     printf("T2.SLEEPING...\n");
-    sleep(5);
+    sleep(3);
 
     return NULL;
 }
@@ -31,8 +31,12 @@ void posix_init_ecall(int* uaddrs, size_t uaddrs_size)
     _uaddrs_size = uaddrs_size;
 }
 
+extern bool oe_disable_debug_malloc_check;
+
 void posix_test_ecall(void)
 {
+    oe_disable_debug_malloc_check = true;
+
     pthread_t t;
     extern void posix_init(volatile int* uaddrs, size_t uaddrs_size);
 
@@ -51,6 +55,8 @@ void posix_test_ecall(void)
         fprintf(stderr, "pthread_join() failed\n");
         abort();
     }
+
+    printf("T1.JOININED...\n");
 
     printf("=== posix_test()\n");
 }

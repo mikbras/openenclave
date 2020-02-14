@@ -9,4 +9,9 @@ int posix_futex_wait(
     int val,
     const struct timespec* timeout);
 
+int posix_futex_wake(
+    int* uaddr,
+    int futex_op,
+    int val);
+
 #endif /* _POSIX_FUTEX_H */

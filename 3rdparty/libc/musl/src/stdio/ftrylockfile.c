@@ -6,7 +6,7 @@ void __do_orphaned_stdio_locks()
 {
 	FILE *f;
 	for (f=__pthread_self()->stdio_locks; f; f=f->next_locked)
-		a_store(&f->lock, 0x40000000);
+		a_store(&__UADDR(f->lock), 0x40000000);
 }
 
 void __unlist_locked_file(FILE *f)
@@ -31,15 +31,15 @@ int ftrylockfile(FILE *f)
 {
 	pthread_t self = __pthread_self();
 	int tid = self->tid;
-	int owner = f->lock;
+	int owner = __UADDR(f->lock);
 	if ((owner & ~MAYBE_WAITERS) == tid) {
 		if (f->lockcount == LONG_MAX)
 			return -1;
 		f->lockcount++;
 		return 0;
 	}
-	if (owner < 0) f->lock = owner = 0;
-	if (owner || a_cas(&f->lock, 0, tid))
+	if (owner < 0) __UADDR(f->lock) = owner = 0;
+	if (owner || a_cas(&__UADDR(f->lock), 0, tid))
 		return -1;
 	__register_locked_file(f, self);
 	return 0;

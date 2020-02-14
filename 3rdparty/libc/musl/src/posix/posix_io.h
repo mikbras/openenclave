@@ -9,6 +9,8 @@ ssize_t posix_write(int fd, const void* buf, size_t count);
 
 ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt);
 
+int posix_puts(const char* str);
+
 __attribute__((format(printf, 1, 2)))
 int posix_printf(const char* fmt, ...);
 
