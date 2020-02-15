@@ -1,17 +1,18 @@
+#include <errno.h>
+
 #include <openenclave/enclave.h>
 #include <openenclave/corelibc/stdlib.h>
-#include <errno.h>
-#include <stdlib.h>
-#include <assert.h>
+
+#include "futex.h"
+
+#include "posix_warnings.h"
 #include "posix_futex.h"
 #include "posix_io.h"
 #include "posix_spinlock.h"
-#include "posix_thread.h"
-#include "futex.h"
 #include "posix_trace.h"
 #include "posix_time.h"
 
-#include "posix_warnings.h"
+#define UADDR_OFFSET 1024
 
 oe_result_t posix_futex_wait_ocall(
     int* retval,
@@ -28,24 +29,22 @@ oe_result_t posix_futex_wake_ocall(
 
 static volatile int* _host_uaddrs;
 static size_t _uaddrs_size;
-static int _uaddrs_next_index;
+static size_t _uaddrs_next_index;
 static posix_spinlock_t _lock;
 
-static bool _is_host_uaddr(volatile int* uaddr)
+OE_INLINE bool _is_host_uaddr(volatile int* uaddr)
 {
     return uaddr >= _host_uaddrs && uaddr < &_host_uaddrs[_uaddrs_size];
 }
 
 void posix_init_uaddrs(volatile int* uaddrs, size_t uaddrs_size)
 {
-    assert(uaddrs != NULL);
-    assert(uaddrs_size > 0);
+    oe_assert(uaddrs != NULL);
+    oe_assert(uaddrs_size > 0);
 
     _host_uaddrs = uaddrs;
     _uaddrs_size = uaddrs_size;
 }
-
-#define UADDR_OFFSET 1024
 
 volatile int* posix_futex_uaddr(volatile int* uaddr)
 {
@@ -56,10 +55,10 @@ volatile int* posix_futex_uaddr(volatile int* uaddr)
     {
         if (*uaddr < UADDR_OFFSET)
         {
-            if (_uaddrs_next_index != (int)_uaddrs_size)
+            if (_uaddrs_next_index != _uaddrs_size)
             {
                 _host_uaddrs[_uaddrs_next_index] = *uaddr;
-                *uaddr = _uaddrs_next_index + UADDR_OFFSET;
+                *uaddr = (int)_uaddrs_next_index + UADDR_OFFSET;
                 ptr = &_host_uaddrs[_uaddrs_next_index];
                 _uaddrs_next_index++;
             }
@@ -75,7 +74,7 @@ volatile int* posix_futex_uaddr(volatile int* uaddr)
     {
         posix_printf("posix_futex_uaddr() panic");
         posix_print_backtrace();
-        abort();
+        oe_abort();
     }
 
     return ptr;
@@ -87,8 +86,6 @@ int posix_futex_wait(
     int val,
     const struct timespec* timeout)
 {
-    // posix_printf("WAIT\n");
-
     if (futex_op == FUTEX_WAIT || futex_op == (FUTEX_WAIT|FUTEX_PRIVATE))
     {
         int retval;
@@ -97,7 +94,7 @@ int posix_futex_wait(
         {
             posix_printf("posix_futex_wait(): bad uaddr\n");
             posix_print_backtrace();
-            assert(false);
+            oe_abort();
         }
 
         if (posix_futex_wait_ocall(
@@ -122,8 +119,6 @@ int posix_futex_wake(
     int futex_op,
     int val)
 {
-    // posix_printf("WAKE\n");
-
     if (futex_op == FUTEX_WAKE || futex_op == (FUTEX_WAKE|FUTEX_PRIVATE))
     {
         int retval;
@@ -132,7 +127,7 @@ int posix_futex_wake(
         {
             posix_printf("posix_futex_wake(): bad uaddr\n");
             posix_print_backtrace();
-            assert(false);
+            oe_abort();
         }
 
         if (posix_futex_wake_ocall(&retval, uaddr, futex_op, val) != OE_OK)

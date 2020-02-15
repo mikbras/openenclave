@@ -171,6 +171,7 @@ static oe_result_t _add_control_pages(
      */
 
     /* Save the address of new TCS page into enclave object */
+    oe_mutex_lock(&enclave->lock);
     {
         if (enclave->num_bindings == OE_SGX_MAX_TCS)
             OE_RAISE_MSG(
@@ -178,6 +179,7 @@ static oe_result_t _add_control_pages(
 
         enclave->bindings[enclave->num_bindings++].tcs = enclave_addr + *vaddr;
     }
+    oe_mutex_unlock(&enclave->lock);
 
     /* Add the TCS page */
     {
@@ -738,6 +740,7 @@ oe_result_t oe_create_enclave(
      * as part of the enclave mutex and condition variable
      * implementation.
      */
+    oe_mutex_lock(&enclave->lock);
     for (size_t i = 0; i < enclave->num_bindings; i++)
     {
         ThreadBinding* binding = &enclave->bindings[i];
@@ -752,6 +755,7 @@ oe_result_t oe_create_enclave(
             OE_RAISE_MSG(OE_FAILURE, "CreateEvent failed", NULL);
         }
     }
+    oe_mutex_unlock(&enclave->lock);
 
 #endif
 
