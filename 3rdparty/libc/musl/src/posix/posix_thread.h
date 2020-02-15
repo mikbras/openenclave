@@ -9,7 +9,12 @@ void posix_init_uaddrs(volatile int* uaddrs, size_t uaddrs_size);
 
 int posix_set_thread_area(void* p);
 
-int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...);
+int posix_clone(
+    int (*fn)(void *),
+    void* child_stack,
+    int flags,
+    void* arg,
+    ...);
 
 void posix_exit(int status);
 
