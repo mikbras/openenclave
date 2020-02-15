@@ -29,6 +29,7 @@ void* posix_brk(void* new_brk)
     return new_brk;
 }
 
+#if 0
 int posix_mprotect(void* addr, size_t len, int prot)
 {
     if (addr && len && (prot & (PROT_READ|PROT_WRITE)))
@@ -39,3 +40,4 @@ int posix_mprotect(void* addr, size_t len, int prot)
     return -EACCES;
 
 }
+#endif

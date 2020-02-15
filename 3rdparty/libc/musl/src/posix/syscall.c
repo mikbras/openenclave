@@ -530,7 +530,10 @@ long posix_syscall(long n, ...)
             size_t len = (size_t)x2;
             int prot = (int)x3;
 
-            return posix_mprotect(addr, len, prot);
+            if (addr && len && (prot & (PROT_READ|PROT_WRITE)))
+                return 0;
+
+            break;
         }
         case SYS_mmap:
         {
@@ -569,9 +572,8 @@ long posix_syscall(long n, ...)
             {
                 memset(addr, 0, length);
                 oe_free(addr);
+                return 0;
             }
-
-            return 0;
         }
         case SYS_futex:
         {
@@ -602,8 +604,7 @@ long posix_syscall(long n, ...)
         }
         case SYS_membarrier:
         {
-            /* ATTN: */
-            return 0;
+            break;
         }
         case SYS_nanosleep:
         {
