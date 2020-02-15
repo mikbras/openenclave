@@ -20,10 +20,10 @@ oe_enclave_t* enclave = NULL;
 
 void* _thread_func(void* arg)
 {
-    uint64_t* cookie = (uint64_t*)arg;
+    uint64_t cookie = (uint64_t)arg;
     int retval;
 
-    if (posix_run_thread_ecall(enclave, &retval, *cookie) != OE_OK)
+    if (posix_run_thread_ecall(enclave, &retval, cookie) != OE_OK)
     {
         fprintf(stderr, "posix_run_thread_ecall(): failed\n");
         exit(1);
@@ -45,7 +45,7 @@ int posix_start_thread_ocall(uint64_t cookie)
 {
     pthread_t t;
 
-    if (pthread_create(&t, NULL, _thread_func, (void*)&cookie) != 0)
+    if (pthread_create(&t, NULL, _thread_func, (void*)cookie) != 0)
         return -1;
 
     return 0;

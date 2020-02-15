@@ -441,9 +441,15 @@ long posix_syscall(long n, ...)
     long x6 = va_arg(ap, long);
     va_end(ap);
 
-#if 1
+    (void)x1;
+    (void)x2;
+    (void)x3;
+    (void)x4;
+    (void)x5;
+    (void)x6;
+
+#if 0
     posix_printf("SYSCALL{%s}: tid=%d\n", _syscall_name(n), posix_gettid());
-    //posix_print_backtrace();
 #endif
 
     switch (n)
@@ -533,6 +539,8 @@ long posix_syscall(long n, ...)
             if (addr && len && (prot & (PROT_READ|PROT_WRITE)))
                 return 0;
 
+            return 0;
+
             break;
         }
         case SYS_mmap:
@@ -574,6 +582,8 @@ long posix_syscall(long n, ...)
                 oe_free(addr);
                 return 0;
             }
+
+            break;
         }
         case SYS_futex:
         {

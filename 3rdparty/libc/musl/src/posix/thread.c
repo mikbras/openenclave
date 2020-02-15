@@ -1,16 +1,14 @@
-#include <syscall.h>
 #include <stdarg.h>
-#include <unistd.h>
 #include <errno.h>
-#include <stdlib.h>
-#include <elf.h>
 #include <string.h>
-#include <assert.h>
 #include <setjmp.h>
-#include <openenclave/internal/sgxtypes.h>
+
 #include <openenclave/enclave.h>
-#include "libc.h"
+#include <openenclave/internal/sgxtypes.h>
+#include <openenclave/corelibc/stdlib.h>
+
 #include "pthread_impl.h"
+
 #include "posix_thread.h"
 #include "posix_io.h"
 #include "posix_syscall.h"
@@ -18,12 +16,9 @@
 #include "posix_mman.h"
 #include "posix_trace.h"
 #include "posix_futex.h"
-
 #include "posix_warnings.h"
 
-#define MAX_THREAD_INFO 1024
-
-#define MAGIC 0x6a25f0aa
+#define THREAD_INFO_MAGIC 0x6a25f0aa
 
 oe_result_t posix_start_thread_ocall(int* retval, uint64_t cookie);
 
@@ -40,8 +35,9 @@ typedef struct _thread_info
     pid_t* ptid;
 
     /* Refers to __UADDR(__thread_list_lock) */
-    pid_t* ctid;
+    volatile pid_t* ctid;
 
+    /* Used to jump from posix_exit() back to posix_run_thread_ecall() */
     jmp_buf jmpbuf;
 }
 thread_info_t;
@@ -57,9 +53,11 @@ static oe_thread_data_t* _get_oetd(void)
     return oetd;
 }
 
-static thread_info_t* _get_thread_info(oe_thread_data_t* oetd)
+static thread_info_t* _get_thread_info(void)
 {
-    if (!oetd)
+    oe_thread_data_t* oetd;
+
+    if (!(oetd = _get_oetd()))
         return NULL;
 
     return (thread_info_t*)(oetd->__reserved_0);
@@ -82,11 +80,14 @@ int posix_gettid(void)
 
 int posix_set_tid_address(int* tidptr)
 {
-    thread_info_t* ti = _get_thread_info(_get_oetd());
+    thread_info_t* ti;
     int retval;
 
-    if (!ti)
+    if (!(ti = _get_thread_info()))
+    {
+        oe_assert(false);
         return -EINVAL;
+    }
 
     ti->ctid = tidptr;
 
@@ -105,7 +106,7 @@ int posix_set_thread_area(void* p)
         return -EINVAL;
 
     memset(&_main_thread_info, 0, sizeof(_main_thread_info));
-    _main_thread_info.magic = MAGIC;
+    _main_thread_info.magic = THREAD_INFO_MAGIC;
     _main_thread_info.td = (pthread_t)p;
     _set_thread_info(oetd, &_main_thread_info);
 
@@ -114,10 +115,9 @@ int posix_set_thread_area(void* p)
 
 struct pthread* posix_pthread_self(void)
 {
-    oe_thread_data_t* oetd = _get_oetd();
     thread_info_t* ti;
 
-    if (!oetd || !(ti = _get_thread_info(oetd)))
+    if (!(ti = _get_thread_info()))
         return NULL;
 
     return ti->td;
@@ -130,11 +130,17 @@ int posix_run_thread_ecall(uint64_t cookie)
     int r;
     int tid;
 
-    if (!ti || !oe_is_within_enclave(ti, sizeof(ti)) || ti->magic != MAGIC)
+    if (!ti || !oe_is_within_enclave(ti, sizeof(ti)) || ti->magic != THREAD_INFO_MAGIC)
+    {
+        oe_assert(false);
         return -1;
+    }
 
     if (!oetd)
+    {
+        oe_assert(false);
         return -1;
+    }
 
     _set_thread_info(oetd, ti);
 
@@ -174,19 +180,19 @@ int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
     pid_t* ctid = va_arg(ap, pid_t*);
     va_end(ap);
 
-    assert(td != NULL);
-    assert(td->self == td);
+    oe_assert(td != NULL);
+    oe_assert(td->self == td);
 
     /* Create the thread info structure for the new thread */
     thread_info_t* ti;
     {
-        if (!(ti = calloc(1, sizeof(thread_info_t))))
+        if (!(ti = oe_calloc(1, sizeof(thread_info_t))))
         {
             ret = -ENOMEM;
             goto done;
         }
 
-        ti->magic = MAGIC;
+        ti->magic = THREAD_INFO_MAGIC;
         ti->td = td;
         ti->func = func;
         ti->arg = arg;
@@ -198,8 +204,9 @@ int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
     /* Ask the host to call posix_run_thread_ecall() on a new thread. */
     {
         int retval = -1;
+        uint64_t cookie = (uint64_t)ti;
 
-        if (posix_start_thread_ocall(&retval, (uint64_t)ti) != OE_OK)
+        if (posix_start_thread_ocall(&retval, cookie) != OE_OK)
         {
             ret = -ENOMEM;
             goto done;
@@ -223,36 +230,26 @@ done:
 
 void posix_exit(int status)
 {
-    oe_thread_data_t* oetd = _get_oetd();
     thread_info_t* ti;
 
     /* ATTN: ignored */
     (void)status;
 
-    assert(oetd);
+    ti = _get_thread_info();
+    oe_assert(ti);
 
-    ti = _get_thread_info(_get_oetd());
-
-    /* If this is not the main thread. */
-    if (ti->func)
+    /* If the main thread called this. */
+    if (!ti->func)
     {
-#if 0
-        posix_printf("EXITING CHILD: ptid=%d ctid=%d\n", *ti->ptid, *ti->ctid);
-#endif
-
-        /* Clear ctid: */
-        a_swap(ti->ctid, 0);
-
-        /* Wake the joiner. */
-        posix_futex_wake(ti->ctid, FUTEX_WAKE, 1);
-
-        /* Jump back to the thread routine */
-        longjmp(ti->jmpbuf, 1);
+        oe_assert(false);
     }
-    else
-    {
-#if 0
-        posix_printf("EXITING PARENT: %d\n", *ti->ctid);
-#endif
-    }
+
+    /* Clear ctid: */
+    a_swap(ti->ctid, 0);
+
+    /* Wake the joiner. */
+    posix_futex_wake((int*)ti->ctid, FUTEX_WAKE, 1);
+
+    /* Jump back to the thread routine */
+    longjmp(ti->jmpbuf, 1);
 }
