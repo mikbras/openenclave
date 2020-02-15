@@ -16,7 +16,6 @@
 #include "posix_spinlock.h"
 #include "posix_trace.h"
 #include "posix_time.h"
-#include "posix_list.h"
 
 #define NUM_CHAINS 1024
 

@@ -152,6 +152,7 @@ hidden void __unmapself(void *, size_t);
 hidden int __timedwait(volatile int *, int, clockid_t, const struct timespec *, int);
 hidden int __timedwait_cp(volatile int *, int, clockid_t, const struct timespec *, int);
 hidden void __wait(volatile int *, volatile int *, int, int);
+hidden void __cwait(volatile int *, volatile int *, int, int);
 static inline void __wake(volatile void *addr, int cnt, int priv)
 {
 	if (priv) priv = FUTEX_PRIVATE;
@@ -164,6 +165,19 @@ static inline void __futexwait(volatile void *addr, int val, int priv)
 	if (priv) priv = FUTEX_PRIVATE;
 	__syscall(SYS_futex, addr, FUTEX_WAIT|priv, val, 0) != -ENOSYS ||
 	__syscall(SYS_futex, addr, FUTEX_WAIT, val, 0);
+}
+static inline void __cwake(volatile void *addr, int cnt, int priv)
+{
+	if (priv) priv = FUTEX_PRIVATE;
+	if (cnt<0) cnt = INT_MAX;
+	__syscall(SYS_cutex, addr, FUTEX_WAKE|priv, cnt) != -ENOSYS ||
+	__syscall(SYS_cutex, addr, FUTEX_WAKE, cnt);
+}
+static inline void __cutexwait(volatile void *addr, int val, int priv)
+{
+	if (priv) priv = FUTEX_PRIVATE;
+	__syscall(SYS_cutex, addr, FUTEX_WAIT|priv, val, 0) != -ENOSYS ||
+	__syscall(SYS_cutex, addr, FUTEX_WAIT, val, 0);
 }
 
 hidden void __acquire_ptc(void);
@@ -192,5 +206,16 @@ extern hidden unsigned __default_guardsize;
 #endif
 volatile int* posix_futex_uaddr(volatile int* ptr);
 int posix_printf(const char* fmt, ...);
+
+int posix_cutex_lock(int* uaddr);
+int posix_cutex_unlock(int* uaddr);
+
+#define __CUTEX_SCOPE(UADDR, EXPR) \
+    ({                             \
+        posix_cutex_lock(UADDR);   \
+        int r = EXPR;              \
+        posix_cutex_unlock(UADDR); \
+        r;                         \
+    })
 
 #endif
