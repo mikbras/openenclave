@@ -111,8 +111,6 @@ int posix_futex_wait(
             return -EINVAL;
         }
 
-        posix_printf("WAKEUP=%d tid=%d\n", retval, posix_gettid());
-
         return retval;
     }
 

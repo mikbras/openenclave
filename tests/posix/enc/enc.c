@@ -22,9 +22,8 @@ static void* _thread_func(void* arg)
 
     //printf("_thread_func(): arg=%lu\n", (uint64_t)arg);
 #endif
-    //printf("thread{%p}\n", (void*)pthread_self());
-    //printf("sleep\n");
-    sleep(1);
+    printf("thread{%p}\n", (void*)pthread_self());
+    //sleep(1);
 
 #if 0
     struct timespec ts;
@@ -62,13 +61,11 @@ void posix_test_ecall(void)
     /* Create threads */
     for (size_t i = 0; i < NUM_THREADS; i++)
     {
-oe_host_printf("BEFORE\n");
         if (pthread_create(&threads[i], NULL, _thread_func, (void*)12345) != 0)
         {
             fprintf(stderr, "EEE: pthread_create() failed\n");
             abort();
         }
-oe_host_printf("AFTER\n");
     }
 
     /* Join threads */
