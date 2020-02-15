@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <errno.h>
 #include <assert.h>
 #include <openenclave/internal/print.h>
 #include "posix_syscall.h"
@@ -24,19 +25,18 @@ int posix_printf(const char* fmt, ...)
 
     va_list ap;
     va_start(ap, fmt);
-    int n = vsnprintf(buf, sizeof(buf), fmt, ap);
+    int n = oe_host_vfprintf(0, fmt, ap);
     va_end(ap);
-
-    if (oe_host_write(0, buf, n) != 0)
-        return -1;
 
     return n;
 }
 
+#if 0
 ssize_t posix_read(int fd, void* buf, size_t count)
 {
     return posix_syscall3(SYS_read, fd, (long)buf, (long)count);
 }
+#endif
 
 ssize_t posix_write(int fd, const void* buf, size_t count)
 {
@@ -49,7 +49,7 @@ ssize_t posix_write(int fd, const void* buf, size_t count)
     }
 
     assert("posix_write" == NULL);
-    return posix_syscall3(SYS_write, fd, (long)buf, (long)count);
+    return -EBADFD;
 }
 
 ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
@@ -73,6 +73,6 @@ ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
         return count;
     }
 
-    assert("posix_write" == NULL);
-    return (ssize_t)posix_syscall3(SYS_writev, x1, x2, x3);
+    assert("posix_writev" == NULL);
+    return -EBADFD;
 }

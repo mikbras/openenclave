@@ -6,7 +6,10 @@
 #include <sys/mman.h>
 #include <string.h>
 #include <stddef.h>
+#include <assert.h>
 
+extern int posix_printf(const char* fmt, ...);
+extern int posix_gettid();
 int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...);
 
 static void dummy_0()
@@ -75,7 +78,7 @@ _Noreturn void __pthread_exit(void *result)
 	 * its kernel tid is controlled by killlock. For detached threads,
 	 * any use past this point would have undefined behavior, but for
 	 * joinable threads it's a valid usage that must be handled. */
-	LOCK(self->killlock);
+	LOCK(&__UADDR(self->killlock[0]));
 
 	/* The thread list lock must be AS-safe, and thus requires
 	 * application signals to be blocked before it can be taken. */
@@ -88,7 +91,7 @@ _Noreturn void __pthread_exit(void *result)
 	if (self->next == self) {
 		__tl_unlock();
 		__restore_sigs(&set);
-		UNLOCK(self->killlock);
+		UNLOCK(&__UADDR(self->killlock[0]));
 		exit(0);
 	}
 
@@ -154,7 +157,7 @@ _Noreturn void __pthread_exit(void *result)
 	 * to prevent inadvertent use and inform functions that would use
 	 * it that it's no longer available. */
 	self->tid = 0;
-	UNLOCK(self->killlock);
+	UNLOCK(&__UADDR(self->killlock[0]));
 
 	for (;;) __syscall(SYS_exit, 0);
 }
@@ -181,17 +184,23 @@ struct start_args {
 static int start(void *p)
 {
 	struct start_args *args = p;
-	int state = args->control;
+	int state = __UADDR(args->control);
 	if (state) {
-		if (a_cas(&args->control, 1, 2)==1)
-			__wait(&args->control, 0, 2, 1);
-		if (args->control) {
-			__syscall(SYS_set_tid_address, &args->control);
+		if (a_cas(&__UADDR(args->control), 1, 2)==1)
+			__wait(&__UADDR(args->control), 0, 2, 1);
+		if (__UADDR(args->control)) {
+			__syscall(SYS_set_tid_address, &__UADDR(args->control));
 			for (;;) __syscall(SYS_exit, 0);
 		}
 	}
 	__syscall(SYS_rt_sigprocmask, SIG_SETMASK, &args->sig_mask, 0, _NSIG/8);
+
+#if 1
+	void* retval = args->start_func(args->start_arg);
+        __pthread_exit(retval);
+#else
 	__pthread_exit(args->start_func(args->start_arg));
+#endif
 	return 0;
 }
 
@@ -323,7 +332,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	struct start_args *args = (void *)stack;
 	args->start_func = entry;
 	args->start_arg = arg;
-	args->control = attr._a_sched ? 1 : 0;
+	__UADDR(args->control) = attr._a_sched ? 1 : 0;
 
 	/* Application signals (but not the synccall signal) must be
 	 * blocked before the thread list lock can be taken, to ensure
@@ -339,6 +348,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 
 	__tl_lock();
 	libc.threads_minus_1++;
+
 	ret = posix_clone((c11 ? start_c11 : start), stack, flags, args, &new->tid, TP_ADJ(new), &__UADDR(__thread_list_lock));
 
 	/* All clone failures translate to EAGAIN. If explicit scheduling
@@ -350,10 +360,10 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	} else if (attr._a_sched) {
 		ret = __syscall(SYS_sched_setscheduler,
 			new->tid, attr._a_policy, &attr._a_prio);
-		if (a_swap(&args->control, ret ? 3 : 0)==2)
-			__wake(&args->control, 1, 1);
+		if (a_swap(&__UADDR(args->control), ret ? 3 : 0)==2)
+			__wake(&__UADDR(args->control), 1, 1);
 		if (ret)
-			__wait(&args->control, 0, 3, 0);
+			__wait(&__UADDR(args->control), 0, 3, 0);
 	}
 
 	if (ret >= 0) {

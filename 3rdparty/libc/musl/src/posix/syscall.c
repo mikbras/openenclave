@@ -10,6 +10,7 @@
 #include <string.h>
 #include <pthread.h>
 #include <openenclave/corelibc/stdlib.h>
+#include <openenclave/corelibc/assert.h>
 #include "pthread_impl.h"
 #include "posix_syscall.h"
 #include "posix_mman.h"
@@ -412,11 +413,13 @@ static int _ioctl_tiocgwinsz(int fd, unsigned long request, long arg)
     return 0;
 }
 
+#if 0
 int posix_tkill(int tid, int sig)
 {
     /* ATTN: */
     return (int)posix_syscall2(SYS_tkill, tid, sig);
 }
+#endif
 
 #define TIOCGWINSZ 0x5413
 
@@ -434,7 +437,8 @@ long posix_syscall(long n, ...)
     va_end(ap);
 
 #if 1
-    posix_printf("SYSCALL{%s}\n", _syscall_name(n));
+    posix_printf("SYSCALL{%s}: tid=%d\n", _syscall_name(n), posix_gettid());
+    //posix_print_backtrace();
 #endif
 
     switch (n)
@@ -507,7 +511,8 @@ long posix_syscall(long n, ...)
         }
         case SYS_tkill:
         {
-            return (long)posix_tkill((int)x1, (int)x2);
+            /* ATTN */
+            return 0;
         }
         case SYS_rt_sigaction:
         {
@@ -520,10 +525,7 @@ long posix_syscall(long n, ...)
             size_t len = (size_t)x2;
             int prot = (int)x3;
 
-            if (addr && len && (prot & (PROT_READ|PROT_WRITE)))
-                return 0;
-
-            return -EACCES;
+            return posix_mprotect(addr, len, prot);
         }
         case SYS_mmap:
         {
@@ -539,9 +541,13 @@ long posix_syscall(long n, ...)
             {
                 uint8_t* ptr;
 
-                if (!(ptr = oe_calloc(1, length)))
+                if (!(ptr = oe_memalign(4096, length)))
+                {
+                    oe_assert("oe_memalign() failed" == NULL);
                     return -ENOMEM;
+                }
 
+                memset(ptr, 0, length);
                 return (long)ptr;
             }
 
@@ -552,8 +558,11 @@ long posix_syscall(long n, ...)
             void* addr = (void*)x1;
             size_t length = (size_t)x2;
 
-            memset(addr, 0, length);
-            oe_free(addr);
+            if (addr && length)
+            {
+                memset(addr, 0, length);
+                oe_free(addr);
+            }
 
             return 0;
         }
@@ -563,12 +572,12 @@ long posix_syscall(long n, ...)
             int op = (int)x2;
             int val = (int)x3;
 
-            if (op == FUTEX_WAIT || op == FUTEX_WAIT|FUTEX_PRIVATE)
+            if (op == FUTEX_WAIT || op == (FUTEX_WAIT|FUTEX_PRIVATE))
             {
                 const struct timespec* timeout = (const struct timespec*)x4;
                 return posix_futex_wait(uaddr, op, val, timeout);
             }
-            else if (op == FUTEX_WAKE || op == FUTEX_WAKE|FUTEX_PRIVATE)
+            else if (op == FUTEX_WAKE || op == (FUTEX_WAKE|FUTEX_PRIVATE))
             {
                 return posix_futex_wake(uaddr, op, val);
             }

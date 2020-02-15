@@ -2,6 +2,7 @@
 #include <string.h>
 #include <assert.h>
 #include "libc.h"
+#include "pthread_impl.h"
 #include "posix_thread.h"
 #include "posix_io.h"
 #include "posix_trace.h"
@@ -17,6 +18,7 @@ void posix_init(volatile int* uaddrs, size_t uaddrs_size)
     __sysinfo = 0;
     __environ = NULL;
     __hwcap = 0;
+    __default_stacksize = 4096;
 
     libc.auxv = aux;
     libc.page_size = PAGESIZE;

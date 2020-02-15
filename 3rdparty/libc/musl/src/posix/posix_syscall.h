@@ -3,6 +3,8 @@
 
 #include <syscall.h>
 
+#if 0
+
 static __inline__ long posix_syscall0(long n)
 {
     unsigned long ret;
@@ -109,5 +111,7 @@ static __inline__ long posix_syscall6(
 
     return (long)ret;
 }
+
+#endif
 
 #endif /* _POSIX_SYSCALL_H */

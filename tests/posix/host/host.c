@@ -35,7 +35,9 @@ void* _thread_func(void* arg)
         exit(1);
     }
 
+#if 0
     printf("_thread_func() exit...\n");
+#endif
     return NULL;
 }
 

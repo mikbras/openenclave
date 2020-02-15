@@ -4,8 +4,8 @@
 int pthread_setschedprio(pthread_t t, int prio)
 {
 	int r;
-	LOCK(t->killlock);
+	LOCK(&__UADDR(t->killlock[0]));
 	r = !t->tid ? ESRCH : -__syscall(SYS_sched_setparam, t->tid, &prio);
-	UNLOCK(t->killlock);
+	UNLOCK(&__UADDR(t->killlock[0]));
 	return r;
 }

@@ -13,4 +13,6 @@ int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...);
 
 void posix_exit(int status);
 
+int posix_gettid(void);
+
 #endif /* _POSIX_THREAD_H */

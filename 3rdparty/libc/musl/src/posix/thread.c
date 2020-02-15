@@ -126,6 +126,7 @@ int posix_run_thread_ecall(uint64_t cookie)
     thread_info_t* ti = (thread_info_t*)cookie;
     oe_thread_data_t* oetd = _get_oetd();
     int r;
+    int tid;
 
     if (!ti || !oe_is_within_enclave(ti, sizeof(ti)) || ti->magic != MAGIC)
         return -1;
@@ -136,29 +137,30 @@ int posix_run_thread_ecall(uint64_t cookie)
     _set_thread_info(oetd, ti);
 
     /* Set the TID */
-    a_swap(ti->ptid, posix_gettid());
+    tid = posix_gettid();
+    a_swap(ti->ptid, tid);
 
     if (setjmp(ti->jmpbuf) == 0)
     {
         /* Invoke the MUSL thread wrapper function. */
         r = (*ti->func)(ti->arg);
+
+        /* Never returns. */
+        posix_printf("unexpected\n");
+        abort();
     }
 
+#if 0
     posix_printf("posix_run_thread_ecall(): r=%d\n", r);
+#endif
 
     return 0;
-}
-
-void dump_tl(void)
-{
-    posix_printf("dump_tl(): __thread_list_lock=%d\n", __thread_list_lock);
 }
 
 int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
 {
     int ret = 0;
     va_list ap;
-
 
     va_start(ap, arg);
     pid_t* ptid = va_arg(ap, pid_t*);
@@ -226,13 +228,13 @@ void posix_exit(int status)
     if (ti->func)
     {
 #if 0
-        posix_printf("EXITING CHILD: %d\n", *ti->ctid);
+        posix_printf("EXITING CHILD: ptid=%d ctid=%d\n", *ti->ptid, *ti->ctid);
 #endif
 
         /* Clear ctid: */
         a_swap(ti->ctid, 0);
 
-        /* Wak the joiner. */
+        /* Wake the joiner. */
         posix_futex_wake(ti->ctid, FUTEX_WAKE, 1);
 
         /* Jump back to the thread routine */

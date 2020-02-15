@@ -1,6 +1,7 @@
 #include <aio.h>
 #include <errno.h>
 #include <time.h>
+#include <assert.h>
 #include "atomic.h"
 #include "pthread_impl.h"
 
@@ -49,7 +50,7 @@ int aio_suspend(const struct aiocb *const cbs[], int cnt, const struct timespec 
 			a_cas(pfut, EINPROGRESS, expect);
 			break;
 		default:
-			pfut = &__aio_fut;
+			pfut = &__UADDR(__aio_fut);
 			if (!tid) tid = __pthread_self()->tid;
 			expect = a_cas(pfut, 0, tid);
 			if (!expect) expect = tid;

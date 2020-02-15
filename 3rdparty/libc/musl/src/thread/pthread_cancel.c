@@ -30,8 +30,8 @@ long __syscall_cp_c(syscall_arg_t nr,
 	    && (st==PTHREAD_CANCEL_DISABLE || nr==SYS_close))
 		return __syscall(nr, u, v, w, x, y, z);
 
-	r = __syscall_cp_asm(&self->cancel, nr, u, v, w, x, y, z);
-	if (r==-EINTR && nr!=SYS_close && self->cancel &&
+	r = __syscall_cp_asm(&__UADDR(self->cancel), nr, u, v, w, x, y, z);
+	if (r==-EINTR && nr!=SYS_close && __UADDR(self->cancel) &&
 	    self->canceldisable != PTHREAD_CANCEL_DISABLE)
 		r = __cancel();
 	return r;
@@ -52,7 +52,7 @@ static void cancel_handler(int sig, siginfo_t *si, void *ctx)
 	uintptr_t pc = uc->uc_mcontext.MC_PC;
 
 	a_barrier();
-	if (!self->cancel || self->canceldisable == PTHREAD_CANCEL_DISABLE) return;
+	if (!__UADDR(self->cancel) || self->canceldisable == PTHREAD_CANCEL_DISABLE) return;
 
 	_sigaddset(&uc->uc_sigmask, SIGCANCEL);
 
@@ -70,7 +70,7 @@ static void cancel_handler(int sig, siginfo_t *si, void *ctx)
 void __testcancel()
 {
 	pthread_t self = __pthread_self();
-	if (self->cancel && !self->canceldisable)
+	if (__UADDR(self->cancel) && !self->canceldisable)
 		__cancel();
 }
 
@@ -91,7 +91,7 @@ int pthread_cancel(pthread_t t)
 		init_cancellation();
 		init = 1;
 	}
-	a_store(&t->cancel, 1);
+	a_store(&__UADDR(t->cancel), 1);
 	if (t == pthread_self()) {
 		if (t->canceldisable == PTHREAD_CANCEL_ENABLE && t->cancelasync)
 			pthread_exit(PTHREAD_CANCELED);

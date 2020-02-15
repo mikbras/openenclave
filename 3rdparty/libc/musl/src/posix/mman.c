@@ -2,6 +2,7 @@
 #include <errno.h>
 #include <sys/mman.h>
 #include <openenclave/internal/syscall/unistd.h>
+#include <openenclave/corelibc/assert.h>
 #include "posix_syscall.h"
 #include "posix_io.h"
 #include "posix_mman.h"
@@ -29,8 +30,11 @@ void* posix_brk(void* new_brk)
 
 int posix_mprotect(void* addr, size_t len, int prot)
 {
-    long x1 = (long)addr;
-    long x2 = (long)len;
-    long x3 = (long)prot;
-    return posix_syscall3(SYS_mprotect, x1, x2, x3);
+    if (addr && len && (prot & (PROT_READ|PROT_WRITE)))
+        return 0;
+
+    oe_assert("posix_mprotect(): panic" == NULL);
+
+    return -EACCES;
+
 }
