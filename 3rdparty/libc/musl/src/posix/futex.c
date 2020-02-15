@@ -6,9 +6,12 @@
 #include "posix_futex.h"
 #include "posix_io.h"
 #include "posix_spinlock.h"
+#include "posix_thread.h"
 #include "futex.h"
 #include "posix_trace.h"
 #include "posix_time.h"
+
+#include "posix_warnings.h"
 
 oe_result_t posix_futex_wait_ocall(
     int* retval,
@@ -53,7 +56,7 @@ volatile int* posix_futex_uaddr(volatile int* uaddr)
     {
         if (*uaddr < UADDR_OFFSET)
         {
-            if (_uaddrs_next_index != _uaddrs_size)
+            if (_uaddrs_next_index != (int)_uaddrs_size)
             {
                 _host_uaddrs[_uaddrs_next_index] = *uaddr;
                 *uaddr = _uaddrs_next_index + UADDR_OFFSET;
@@ -61,7 +64,7 @@ volatile int* posix_futex_uaddr(volatile int* uaddr)
                 _uaddrs_next_index++;
             }
         }
-        else if (*uaddr < _uaddrs_size)
+        else if (*uaddr < (int)_uaddrs_size + UADDR_OFFSET)
         {
             ptr = &_host_uaddrs[*uaddr - UADDR_OFFSET];
         }
@@ -84,7 +87,9 @@ int posix_futex_wait(
     int val,
     const struct timespec* timeout)
 {
-    if (futex_op == FUTEX_WAIT || futex_op == FUTEX_WAIT|FUTEX_PRIVATE)
+    // posix_printf("WAIT\n");
+
+    if (futex_op == FUTEX_WAIT || futex_op == (FUTEX_WAIT|FUTEX_PRIVATE))
     {
         int retval;
 
@@ -102,8 +107,11 @@ int posix_futex_wait(
             val,
             (const struct posix_timespec*)timeout) != OE_OK)
         {
+            oe_assert("unexpected" == NULL);
             return -EINVAL;
         }
+
+        posix_printf("WAKEUP=%d tid=%d\n", retval, posix_gettid());
 
         return retval;
     }
@@ -116,7 +124,9 @@ int posix_futex_wake(
     int futex_op,
     int val)
 {
-    if (futex_op == FUTEX_WAIT || futex_op == FUTEX_WAIT|FUTEX_PRIVATE)
+    // posix_printf("WAKE\n");
+
+    if (futex_op == FUTEX_WAKE || futex_op == (FUTEX_WAKE|FUTEX_PRIVATE))
     {
         int retval;
 
@@ -129,6 +139,7 @@ int posix_futex_wake(
 
         if (posix_futex_wake_ocall(&retval, uaddr, futex_op, val) != OE_OK)
         {
+            oe_assert("unexpected" == NULL);
             return -EINVAL;
         }
 

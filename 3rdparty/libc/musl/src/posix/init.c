@@ -7,6 +7,8 @@
 #include "posix_io.h"
 #include "posix_trace.h"
 
+#include "posix_warnings.h"
+
 void posix_init(volatile int* uaddrs, size_t uaddrs_size)
 {
     size_t aux[64];

@@ -19,6 +19,8 @@
 #include "posix_trace.h"
 #include "posix_futex.h"
 
+#include "posix_warnings.h"
+
 #define MAX_THREAD_INFO 1024
 
 #define MAGIC 0x6a25f0aa
@@ -145,6 +147,8 @@ int posix_run_thread_ecall(uint64_t cookie)
         /* Invoke the MUSL thread wrapper function. */
         r = (*ti->func)(ti->arg);
 
+        (void)r;
+
         /* Never returns. */
         posix_printf("unexpected\n");
         abort();
@@ -161,6 +165,8 @@ int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
 {
     int ret = 0;
     va_list ap;
+
+    (void)stack;
 
     va_start(ap, arg);
     pid_t* ptid = va_arg(ap, pid_t*);
@@ -219,6 +225,9 @@ void posix_exit(int status)
 {
     oe_thread_data_t* oetd = _get_oetd();
     thread_info_t* ti;
+
+    /* ATTN: ignored */
+    (void)status;
 
     assert(oetd);
 

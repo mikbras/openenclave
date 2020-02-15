@@ -7,10 +7,11 @@
 #include "posix_io.h"
 #include "posix_mman.h"
 
+#include "posix_warnings.h"
+
 void* posix_brk(void* new_brk)
 {
     uint8_t* current;
-    uint8_t* new;
 
     /* If argument is null, return current break value. */
     if (new_brk == NULL)

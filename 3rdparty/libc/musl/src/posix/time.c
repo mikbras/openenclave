@@ -4,6 +4,8 @@
 #include "posix_time.h"
 #include "posix_io.h"
 
+#include "posix_warnings.h"
+
 oe_result_t posix_nanosleep_ocall(
     int* retval,
     const struct posix_timespec* req,

@@ -22,6 +22,8 @@
 #include "posix_trace.h"
 #include "futex.h"
 
+#include "posix_warnings.h"
+
 static const char* _syscall_name(long n)
 {
     typedef struct _pair
@@ -393,6 +395,9 @@ static const char* _syscall_name(long n)
 
 static int _ioctl_tiocgwinsz(int fd, unsigned long request, long arg)
 {
+    (void)fd;
+    (void)request;
+
     struct winsize
     {
         unsigned short int ws_row;
@@ -536,6 +541,8 @@ long posix_syscall(long n, ...)
             int fd = (int)x5;
             off_t offset = (int)x6;
             const int FLAGS = MAP_PRIVATE | MAP_ANON;
+
+            (void)prot;
 
             if (!addr && fd == -1 && !offset && flags == FLAGS)
             {
