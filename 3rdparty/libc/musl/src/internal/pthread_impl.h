@@ -207,15 +207,16 @@ extern hidden unsigned __default_guardsize;
 volatile int* posix_futex_uaddr(volatile int* ptr);
 int posix_printf(const char* fmt, ...);
 
-int posix_cutex_lock(int* uaddr);
-int posix_cutex_unlock(int* uaddr);
+int posix_cutex_lock(volatile int* uaddr);
+int posix_cutex_unlock(volatile int* uaddr);
 
 #define __CUTEX_SCOPE(UADDR, EXPR) \
-    ({                             \
+    do                             \
+    {                              \
         posix_cutex_lock(UADDR);   \
-        int r = EXPR;              \
+        EXPR;                      \
         posix_cutex_unlock(UADDR); \
-        r;                         \
-    })
+    }                              \
+    while (0)
 
 #endif

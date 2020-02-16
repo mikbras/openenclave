@@ -16,6 +16,7 @@
 #include "posix_mman.h"
 #include "posix_trace.h"
 #include "posix_futex.h"
+#include "posix_cutex.h"
 #include "posix_warnings.h"
 
 #define MAGIC 0x6a25f0aa
@@ -240,10 +241,12 @@ void posix_exit(int status)
     }
 
     /* Clear ctid: */
+    posix_cutex_lock(ti->ctid);
     a_swap(ti->ctid, 0);
+    posix_cutex_unlock(ti->ctid);
 
     /* Wake the joiner */
-    posix_futex_wake((int*)ti->ctid, FUTEX_WAKE, 1);
+    posix_cutex_wake((int*)ti->ctid, FUTEX_WAKE, 1);
 
     /* Jump back to posix_run_thread_ecall() */
     longjmp(ti->jmpbuf, 1);

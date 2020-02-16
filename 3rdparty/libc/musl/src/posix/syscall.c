@@ -18,6 +18,7 @@
 #include "posix_thread.h"
 #include "posix_trace.h"
 #include "posix_futex.h"
+#include "posix_cutex.h"
 #include "posix_time.h"
 #include "posix_trace.h"
 #include "futex.h"
@@ -599,6 +600,33 @@ long posix_syscall(long n, ...)
             else if (op == FUTEX_WAKE || op == (FUTEX_WAKE|FUTEX_PRIVATE))
             {
                 return posix_futex_wake(uaddr, op, val);
+            }
+            else
+            {
+                posix_printf("unhandled futex op: %d\n", op);
+                assert(false);
+            }
+
+            break;
+        }
+        case SYS_cutex:
+        {
+            int* uaddr = (int*)x1;
+            int op = (int)x2;
+            int val = (int)x3;
+
+            if (op == FUTEX_WAIT || op == (FUTEX_WAIT|FUTEX_PRIVATE))
+            {
+                const struct timespec* timeout = (const struct timespec*)x4;
+
+                if (timeout)
+                    return -EINVAL;
+
+                return posix_cutex_wait(uaddr, op, val);
+            }
+            else if (op == FUTEX_WAKE || op == (FUTEX_WAKE|FUTEX_PRIVATE))
+            {
+                return posix_cutex_wake(uaddr, op, val);
             }
             else
             {

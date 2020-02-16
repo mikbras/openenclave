@@ -12,26 +12,30 @@
 #include <openenclave/internal/backtrace.h>
 #include "posix_t.h"
 
+void sleep_msec(uint64_t milliseconds)
+{
+    struct timespec ts;
+    const struct timespec* req = &ts;
+    struct timespec rem = {0, 0};
+    static const uint64_t _SEC_TO_MSEC = 1000UL;
+    static const uint64_t _MSEC_TO_NSEC = 1000000UL;
+
+    ts.tv_sec = (time_t)(milliseconds / _SEC_TO_MSEC);
+    ts.tv_nsec = (long)((milliseconds % _SEC_TO_MSEC) * _MSEC_TO_NSEC);
+
+    while (nanosleep(req, &rem) != 0 && errno == EINTR)
+    {
+        req = &rem;
+    }
+}
+
 static void* _thread_func(void* arg)
 {
-#if 0
-    for (size_t i = 0; i < 1000; i++)
-    {
-        printf("_thread_func: %zu\n", i);
-    }
+    uint64_t secs = (size_t)arg;
+    uint64_t msecs = secs * 1000;
 
-    //printf("_thread_func(): arg=%lu\n", (uint64_t)arg);
-#endif
-    printf("thread{%p}\n", (void*)pthread_self());
-    //sleep(1);
-
-#if 0
-    struct timespec ts;
-    ts.tv_sec = 0;
-    ts.tv_nsec = 1000;
-    nanosleep(&ts, NULL);
-#endif
-    //printf("after sleep\n");
+    oe_host_printf("_thread_func()\n");
+    sleep_msec(msecs / 10);
 
     return arg;
 }
@@ -61,7 +65,7 @@ void posix_test_ecall(void)
     /* Create threads */
     for (size_t i = 0; i < NUM_THREADS; i++)
     {
-        if (pthread_create(&threads[i], NULL, _thread_func, (void*)12345) != 0)
+        if (pthread_create(&threads[i], NULL, _thread_func, (void*)i) != 0)
         {
             fprintf(stderr, "EEE: pthread_create() failed\n");
             abort();
@@ -73,21 +77,15 @@ void posix_test_ecall(void)
     {
         void* retval;
 
-#if 0
-        printf("T1.JOINING...\n");
-#endif
-
         if (pthread_join(threads[i], &retval) != 0)
         {
             fprintf(stderr, "pthread_join() failed\n");
             abort();
         }
 
-#if 0
-        printf("T1.JOININED...\n");
-#endif
+        oe_host_printf("joined...\n");
 
-        OE_TEST((uint64_t)retval == 12345);
+        OE_TEST((uint64_t)retval == i);
     }
 
     printf("=== posix_test()\n");

@@ -112,6 +112,7 @@ int posix_cutex_wait(int* uaddr, int op, int val)
     int ret = 0;
     cutex_t* cutex = NULL;
 
+
     if (!uaddr || (op != FUTEX_WAIT && op != (FUTEX_WAIT|FUTEX_PRIVATE)))
     {
         ret = -EINVAL;
@@ -139,6 +140,7 @@ int posix_cutex_wait(int* uaddr, int op, int val)
             goto done;
         }
     }
+
     oe_mutex_unlock(&cutex->mutex);
 
 done:
@@ -150,6 +152,7 @@ int posix_cutex_wake(int* uaddr, int op, int val)
 {
     int ret = 0;
     cutex_t* cutex = NULL;
+
 
     if (!uaddr || (op != FUTEX_WAKE && op != (FUTEX_WAKE|FUTEX_PRIVATE)))
     {
@@ -188,11 +191,11 @@ done:
     return ret;
 }
 
-int posix_cutex_lock(int* uaddr)
+int posix_cutex_lock(volatile int* uaddr)
 {
     cutex_t* cutex = NULL;
 
-    if (!(cutex = _get(uaddr)))
+    if (!(cutex = _get((int*)uaddr)))
         return -1;
 
     if (oe_mutex_lock(&cutex->mutex) != OE_OK)
@@ -201,11 +204,11 @@ int posix_cutex_lock(int* uaddr)
     return 0;
 }
 
-int posix_cutex_unlock(int* uaddr)
+int posix_cutex_unlock(volatile int* uaddr)
 {
     cutex_t* cutex = NULL;
 
-    if (!(cutex = _get(uaddr)))
+    if (!(cutex = _get((int*)uaddr)))
         return -1;
 
     if (oe_mutex_unlock(&cutex->mutex) != OE_OK)
