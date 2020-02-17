@@ -39,7 +39,7 @@ void __lock(volatile int *l)
 		/* We can only go into wait, if we know that somebody holds the
 		 * lock and will eventually wake us up, again. */
 		if (current < 0) {
-			__futexwait(l, current, 1);
+			__cutexwait(l, current, 1);
 			current -= INT_MIN + 1;
 		}
 		/* assertion: current > 0, the count includes us already. */
@@ -53,8 +53,10 @@ void __unlock(volatile int *l)
 {
 	/* Check l[0] to see if we are multi-threaded. */
 	if (l[0] < 0) {
+                __CUTEX_LOCK(l);
 		if (a_fetch_add(l, -(INT_MIN + 1)) != (INT_MIN + 1)) {
-			__wake(l, 1, 1);
+			__cwake(l, 1, 1);
 		}
+                __CUTEX_UNLOCK(l);
 	}
 }
