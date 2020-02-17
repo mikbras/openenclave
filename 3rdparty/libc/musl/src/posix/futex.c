@@ -7,6 +7,7 @@
 
 #define OE_BUILD_ENCLAVE
 #include <openenclave/internal/thread.h>
+#include <openenclave/internal/sgxtypes.h>
 
 #include "futex.h"
 
@@ -107,6 +108,20 @@ done:
 }
 #endif
 
+static bool _is_ownwer(oe_mutex_t* m)
+{
+    /* ATTN: depends on layout of OE mutex. */
+    struct mutex
+    {
+        oe_spinlock_t lock;
+        unsigned int refs;
+        oe_thread_data_t* owner;
+        /* partial */
+    };
+
+    return oe_get_thread_data() == ((struct mutex*)m)->owner;
+}
+
 int posix_futex_wait(
     int* uaddr,
     int op,
@@ -174,6 +189,13 @@ int posix_futex_wake(int* uaddr, int op, int val)
     {
         ret = -ENOMEM;
         goto done;
+    }
+
+    if (!_is_ownwer(&futex->mutex))
+    {
+        posix_printf("posix_futex_wake(): caller does not own this mutex\n");
+        posix_print_backtrace();
+        oe_abort();
     }
 
     if (val == INT_MAX)

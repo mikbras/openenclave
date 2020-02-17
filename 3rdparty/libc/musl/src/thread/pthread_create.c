@@ -43,10 +43,10 @@ void __tl_unlock(void)
 		tl_lock_count--;
 		return;
 	}
-        __CUTEX_LOCK(&__thread_list_lock);
+        __LOCK_UADDR(&__thread_list_lock);
 	a_store(&__thread_list_lock, 0);
 	if (tl_lock_waiters) __wake(&__thread_list_lock, 1, 0);
-        __CUTEX_UNLOCK(&__thread_list_lock);
+        __UNLOCK_UADDR(&__thread_list_lock);
 }
 
 void __tl_sync(pthread_t td)
@@ -130,6 +130,7 @@ _Noreturn void __pthread_exit(void *result)
 
 	/* This atomic potentially competes with a concurrent pthread_detach
 	 * call; the loser is responsible for freeing thread resources. */
+        __LOCK_UADDR(&self->detach_state);
 	int state = a_cas(&self->detach_state, DT_JOINABLE, DT_EXITING);
 
 	if (state==DT_DETACHED && self->map_base) {
@@ -154,6 +155,7 @@ _Noreturn void __pthread_exit(void *result)
 
 	/* Wake any joiner. */
 	__wake(&self->detach_state, 1, 1);
+        __UNLOCK_UADDR(&self->detach_state);
 
 	/* After the kernel thread exits, its tid may be reused. Clear it
 	 * to prevent inadvertent use and inform functions that would use

@@ -53,10 +53,10 @@ void __unlock(volatile int *l)
 {
 	/* Check l[0] to see if we are multi-threaded. */
 	if (l[0] < 0) {
-                __CUTEX_LOCK(l);
+                __LOCK_UADDR(l);
 		if (a_fetch_add(l, -(INT_MIN + 1)) != (INT_MIN + 1)) {
 			__wake(l, 1, 1);
 		}
-                __CUTEX_UNLOCK(l);
+                __UNLOCK_UADDR(l);
 	}
 }

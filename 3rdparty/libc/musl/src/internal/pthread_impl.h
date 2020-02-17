@@ -190,7 +190,7 @@ extern hidden unsigned __default_guardsize;
 int posix_printf(const char* fmt, ...);
 int posix_futex_lock(volatile int* uaddr);
 int posix_futex_unlock(volatile int* uaddr);
-#define __CUTEX_LOCK(UADDR) posix_futex_lock(UADDR)
-#define __CUTEX_UNLOCK(UADDR) posix_futex_unlock(UADDR)
+#define __LOCK_UADDR(UADDR) posix_futex_lock(UADDR)
+#define __UNLOCK_UADDR(UADDR) posix_futex_unlock(UADDR)
 
 #endif

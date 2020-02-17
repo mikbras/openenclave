@@ -246,7 +246,9 @@ void posix_exit(int status)
     posix_futex_unlock(ti->ctid);
 
     /* Wake the joiner */
+    posix_futex_lock((volatile int*)ti->ctid);
     posix_futex_wake((int*)ti->ctid, FUTEX_WAKE, 1);
+    posix_futex_unlock((volatile int*)ti->ctid);
 
     /* Jump back to posix_run_thread_ecall() */
     longjmp(ti->jmpbuf, 1);
