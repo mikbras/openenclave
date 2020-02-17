@@ -210,13 +210,7 @@ int posix_printf(const char* fmt, ...);
 int posix_cutex_lock(volatile int* uaddr);
 int posix_cutex_unlock(volatile int* uaddr);
 
-#define __CUTEX_SCOPE(UADDR, EXPR) \
-    do                             \
-    {                              \
-        posix_cutex_lock(UADDR);   \
-        EXPR;                      \
-        posix_cutex_unlock(UADDR); \
-    }                              \
-    while (0)
+#define __CUTEX_LOCK(UADDR) posix_cutex_lock(UADDR)
+#define __CUTEX_UNLOCK(UADDR) posix_cutex_unlock(UADDR)
 
 #endif

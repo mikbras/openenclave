@@ -43,8 +43,10 @@ void __tl_unlock(void)
 		tl_lock_count--;
 		return;
 	}
-	__CUTEX_SCOPE(&__thread_list_lock, a_store(&__thread_list_lock, 0));
+        __CUTEX_LOCK(&__thread_list_lock);
+	a_store(&__thread_list_lock, 0);
 	if (tl_lock_waiters) __cwake(&__thread_list_lock, 1, 0);
+        __CUTEX_UNLOCK(&__thread_list_lock);
 }
 
 void __tl_sync(pthread_t td)

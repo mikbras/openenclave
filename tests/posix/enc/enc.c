@@ -35,7 +35,8 @@ static void* _thread_func(void* arg)
     uint64_t msecs = secs * 1000;
 
     oe_host_printf("_thread_func()\n");
-    sleep_msec(msecs / 10);
+    //sleep_msec(msecs / 10);
+    sleep_msec(msecs);
 
     return arg;
 }
