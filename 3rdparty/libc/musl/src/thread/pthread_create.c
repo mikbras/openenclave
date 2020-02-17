@@ -197,12 +197,7 @@ static int start(void *p)
 	}
 	__syscall(SYS_rt_sigprocmask, SIG_SETMASK, &args->sig_mask, 0, _NSIG/8);
 
-#if 1
-	void* retval = args->start_func(args->start_arg);
-        __pthread_exit(retval);
-#else
 	__pthread_exit(args->start_func(args->start_arg));
-#endif
 	return 0;
 }
 
