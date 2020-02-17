@@ -65,7 +65,7 @@ int __pthread_cond_timedwait(pthread_cond_t *restrict c, pthread_mutex_t *restri
 	int e, seq, clock = c->_c_clock, cs, shared=0, oldstate, tmp;
 	volatile int *fut;
 
-	if ((m->_m_type&15) && (__UADDR(m->_m_lock)&INT_MAX) != __pthread_self()->tid)
+	if ((m->_m_type&15) && (m->_m_lock&INT_MAX) != __pthread_self()->tid)
 		return EPERM;
 
 	if (ts && ts->tv_nsec >= 1000000000UL)
@@ -79,7 +79,7 @@ int __pthread_cond_timedwait(pthread_cond_t *restrict c, pthread_mutex_t *restri
 		seq = c->_c_seq;
 		a_inc(&c->_c_waiters);
 	} else {
-		lock(&__UADDR(c->_c_lock));
+		lock(&c->_c_lock);
 
 		seq = node.barrier = 2;
 		fut = &node.barrier;
@@ -89,7 +89,7 @@ int __pthread_cond_timedwait(pthread_cond_t *restrict c, pthread_mutex_t *restri
 		if (!c->_c_tail) c->_c_tail = &node;
 		else node.next->prev = &node;
 
-		unlock(&__UADDR(c->_c_lock));
+		unlock(&c->_c_lock);
 	}
 
 	__pthread_mutex_unlock(m);
@@ -120,14 +120,14 @@ int __pthread_cond_timedwait(pthread_cond_t *restrict c, pthread_mutex_t *restri
 		 * after seeing a LEAVING waiter without getting notified
 		 * via the futex notify below. */
 
-		lock(&__UADDR(c->_c_lock));
+		lock(&c->_c_lock);
 		
 		if (c->_c_head == &node) c->_c_head = node.next;
 		else if (node.prev) node.prev->next = node.next;
 		if (c->_c_tail == &node) c->_c_tail = node.prev;
 		else if (node.next) node.next->prev = node.prev;
 		
-		unlock(&__UADDR(c->_c_lock));
+		unlock(&c->_c_lock);
 
 		if (node.notify) {
 			if (a_fetch_add(node.notify, -1)==1)
@@ -151,7 +151,7 @@ relock:
 	/* Unlock the barrier that's holding back the next waiter, and
 	 * either wake it or requeue it to the mutex. */
 	if (node.prev)
-		unlock_requeue(&node.prev->barrier, &__UADDR(m->_m_lock), m->_m_type & 128);
+		unlock_requeue(&node.prev->barrier, &m->_m_lock, m->_m_type & 128);
 	else
 		a_dec(&m->_m_waiters);
 
@@ -175,7 +175,7 @@ int __private_cond_signal(pthread_cond_t *c, int n)
 	volatile int ref = 0;
 	int cur;
 
-	lock(&__UADDR(c->_c_lock));
+	lock(&c->_c_lock);
 	for (p=c->_c_tail; n && p; p=p->prev) {
 		if (a_cas(&p->state, WAITING, SIGNALED) != WAITING) {
 			ref++;
@@ -193,7 +193,7 @@ int __private_cond_signal(pthread_cond_t *c, int n)
 		c->_c_head = 0;
 	}
 	c->_c_tail = p;
-	unlock(&__UADDR(c->_c_lock));
+	unlock(&c->_c_lock);
 
 	/* Wait for any waiters in the LEAVING state to remove
 	 * themselves from the list before returning or allowing

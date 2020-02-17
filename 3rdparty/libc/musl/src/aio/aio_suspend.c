@@ -50,7 +50,7 @@ int aio_suspend(const struct aiocb *const cbs[], int cnt, const struct timespec 
 			a_cas(pfut, EINPROGRESS, expect);
 			break;
 		default:
-			pfut = &__UADDR(__aio_fut);
+			pfut = &__aio_fut;
 			if (!tid) tid = __pthread_self()->tid;
 			expect = a_cas(pfut, 0, tid);
 			if (!expect) expect = tid;

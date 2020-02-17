@@ -1,7 +1,12 @@
 #include <errno.h>
 
+#include <limits.h>
+
 #include <openenclave/enclave.h>
 #include <openenclave/corelibc/stdlib.h>
+
+#define OE_BUILD_ENCLAVE
+#include <openenclave/internal/thread.h>
 
 #include "futex.h"
 
@@ -12,132 +17,212 @@
 #include "posix_trace.h"
 #include "posix_time.h"
 
-#define UADDR_OFFSET 1024
+#define NUM_CHAINS 1024
 
-oe_result_t posix_futex_wait_ocall(
-    int* retval,
-    int* uaddr,
-    int futex_op,
-    int val,
-    const struct posix_timespec* timeout);
+typedef struct _futex futex_t;
 
-oe_result_t posix_futex_wake_ocall(
-    int* retval,
-    int* uaddr,
-    int futex_op,
-    int val);
-
-static volatile int* _host_uaddrs;
-static size_t _uaddrs_size;
-static size_t _uaddrs_next_index;
-static posix_spinlock_t _lock;
-
-OE_INLINE bool _is_host_uaddr(volatile int* uaddr)
+struct _futex
 {
-    return uaddr >= _host_uaddrs && uaddr < &_host_uaddrs[_uaddrs_size];
-}
+    futex_t* next;
+    size_t refs;
+    int* uaddr;
+    oe_cond_t cond;
+    oe_mutex_t mutex;
+};
 
-void posix_init_uaddrs(volatile int* uaddrs, size_t uaddrs_size)
+static futex_t* _chains[NUM_CHAINS];
+static oe_spinlock_t _lock = OE_SPINLOCK_INITIALIZER;
+
+static futex_t* _get(int* uaddr)
 {
-    oe_assert(uaddrs != NULL);
-    oe_assert(uaddrs_size > 0);
+    futex_t* ret = NULL;
+    uint64_t index = ((uint64_t)uaddr >> 4) % NUM_CHAINS;
+    futex_t* futex;
 
-    _host_uaddrs = uaddrs;
-    _uaddrs_size = uaddrs_size;
-}
+    oe_spin_lock(&_lock);
 
-volatile int* posix_futex_uaddr(volatile int* uaddr)
-{
-    volatile int* ptr = NULL;
-
-    /* Map the enclave address to a host address */
-    posix_spin_lock(&_lock);
+    for (futex_t* p = _chains[index]; p; p = p->next)
     {
-        if (*uaddr < UADDR_OFFSET)
+        if (p->uaddr == uaddr)
         {
-            if (_uaddrs_next_index != _uaddrs_size)
-            {
-                _host_uaddrs[_uaddrs_next_index] = *uaddr;
-                *uaddr = (int)_uaddrs_next_index + UADDR_OFFSET;
-                ptr = &_host_uaddrs[_uaddrs_next_index];
-                _uaddrs_next_index++;
-            }
-        }
-        else if (*uaddr < (int)_uaddrs_size + UADDR_OFFSET)
-        {
-            ptr = &_host_uaddrs[*uaddr - UADDR_OFFSET];
+            p->refs++;
+            ret = p;
+            goto done;
         }
     }
-    posix_spin_unlock(&_lock);
 
-    if (!ptr)
+    if (!(futex = oe_calloc(1, sizeof(futex_t))))
+        goto done;
+
+    futex->refs = 1;
+    futex->uaddr = uaddr;
+    futex->next = _chains[index];
+    _chains[index] = futex;
+
+    ret = futex;
+
+done:
+
+    oe_spin_unlock(&_lock);
+
+    return ret;
+}
+
+#if 0
+static int _put(int* uaddr)
+{
+    int ret = -1;
+    uint64_t index = ((uint64_t)uaddr >> 2) % NUM_CHAINS;
+    futex_t* prev = NULL;
+
+    oe_spin_lock(&_lock);
+
+    for (futex_t* p = _chains[index]; p; p = p->next)
     {
-        posix_printf("posix_futex_uaddr() panic");
+        if (p->uaddr == uaddr)
+        {
+            p->refs--;
+
+            if (p->refs == 0)
+            {
+                if (prev)
+                    prev->next = p->next;
+                else
+                    _chains[index] = p->next;
+
+                oe_free(p);
+            }
+
+            ret = 0;
+            goto done;
+        }
+
+        prev = p;
+    }
+
+done:
+    oe_spin_unlock(&_lock);
+
+    return ret;
+}
+#endif
+
+int posix_futex_wait(
+    int* uaddr,
+    int op,
+    int val,
+    const struct timespec *timeout)
+{
+    int ret = 0;
+    futex_t* futex = NULL;
+
+    if (timeout)
+    {
+        posix_printf("posix_futex_wait(): timeout not supported yet\n");
         posix_print_backtrace();
         oe_abort();
     }
 
-    return ptr;
-}
-
-int posix_futex_wait(
-    int* uaddr,
-    int futex_op,
-    int val,
-    const struct timespec* timeout)
-{
-    if (futex_op == FUTEX_WAIT || futex_op == (FUTEX_WAIT|FUTEX_PRIVATE))
+    if (!uaddr || (op != FUTEX_WAIT && op != (FUTEX_WAIT|FUTEX_PRIVATE)))
     {
-        int retval;
-
-        if (!_is_host_uaddr(uaddr))
-        {
-            posix_printf("posix_futex_wait(): bad uaddr\n");
-            posix_print_backtrace();
-            oe_abort();
-        }
-
-        if (posix_futex_wait_ocall(
-            &retval,
-            uaddr,
-            futex_op,
-            val,
-            (const struct posix_timespec*)timeout) != OE_OK)
-        {
-            oe_assert("unexpected" == NULL);
-            return -EINVAL;
-        }
-
-        return retval;
+        ret = -EINVAL;
+        goto done;
     }
 
-    return -EINVAL;
-}
-
-int posix_futex_wake(
-    int* uaddr,
-    int futex_op,
-    int val)
-{
-    if (futex_op == FUTEX_WAKE || futex_op == (FUTEX_WAKE|FUTEX_PRIVATE))
+    if (!(futex = _get(uaddr)))
     {
-        int retval;
-
-        if (!_is_host_uaddr(uaddr))
-        {
-            posix_printf("posix_futex_wake(): bad uaddr\n");
-            posix_print_backtrace();
-            oe_abort();
-        }
-
-        if (posix_futex_wake_ocall(&retval, uaddr, futex_op, val) != OE_OK)
-        {
-            oe_assert("unexpected" == NULL);
-            return -EINVAL;
-        }
-
-        return retval;
+        ret = -ENOMEM;
+        goto done;
     }
 
-    return -EINVAL;
+    oe_mutex_lock(&futex->mutex);
+    {
+        if (*uaddr != val)
+        {
+            oe_mutex_unlock(&futex->mutex);
+            ret = EAGAIN;
+            goto done;
+        }
+
+        if (oe_cond_wait(&futex->cond, &futex->mutex) != OE_OK)
+        {
+            ret = ENOSYS;
+            goto done;
+        }
+    }
+
+    oe_mutex_unlock(&futex->mutex);
+
+done:
+
+    return ret;
+}
+
+int posix_futex_wake(int* uaddr, int op, int val)
+{
+    int ret = 0;
+    futex_t* futex = NULL;
+
+
+    if (!uaddr || (op != FUTEX_WAKE && op != (FUTEX_WAKE|FUTEX_PRIVATE)))
+    {
+        ret = -EINVAL;
+        goto done;
+    }
+
+    if (!(futex = _get(uaddr)))
+    {
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    if (val == INT_MAX)
+    {
+        if (oe_cond_broadcast(&futex->cond) != OE_OK)
+        {
+            ret = -ENOSYS;
+            goto done;
+        }
+    }
+    else
+    {
+        for (int i = 0; i < val; i++)
+        {
+            if (oe_cond_signal(&futex->cond) != OE_OK)
+            {
+                ret = -ENOSYS;
+                goto done;
+            }
+        }
+    }
+
+done:
+
+    return ret;
+}
+
+int posix_futex_lock(volatile int* uaddr)
+{
+    futex_t* futex = NULL;
+
+    if (!(futex = _get((int*)uaddr)))
+        return -1;
+
+    if (oe_mutex_lock(&futex->mutex) != OE_OK)
+        return -1;
+
+    return 0;
+}
+
+int posix_futex_unlock(volatile int* uaddr)
+{
+    futex_t* futex = NULL;
+
+    if (!(futex = _get((int*)uaddr)))
+        return -1;
+
+    if (oe_mutex_unlock(&futex->mutex) != OE_OK)
+        return -1;
+
+    return 0;
 }

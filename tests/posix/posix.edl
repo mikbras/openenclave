@@ -11,10 +11,6 @@ enclave
 
     trusted
     {
-        public void posix_init_ecall(
-            [user_check] int* uaddrs,
-            size_t uaddrs_size);
-
         public void posix_test_ecall();
 
         public int posix_run_thread_ecall(uint64_t cookie);

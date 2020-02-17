@@ -40,34 +40,25 @@ static void* _thread_func(void* arg)
     return arg;
 }
 
-static volatile int* _uaddrs;
-static size_t _uaddrs_size;
-
-void posix_init_ecall(int* uaddrs, size_t uaddrs_size)
-{
-    _uaddrs = (volatile int*)uaddrs;
-    _uaddrs_size = uaddrs_size;
-}
-
-void posix_init(volatile int* uaddrs, size_t uaddrs_size);
+void posix_init(void);
 
 extern bool oe_disable_debug_malloc_check;
 
 void posix_test_ecall(void)
 {
-    oe_disable_debug_malloc_check = true;
-
     pthread_t threads[16];
     const size_t NUM_THREADS = OE_COUNTOF(threads);
 
-    posix_init(_uaddrs, _uaddrs_size);
+    oe_disable_debug_malloc_check = true;
+
+    posix_init();
 
     /* Create threads */
     for (size_t i = 0; i < NUM_THREADS; i++)
     {
         if (pthread_create(&threads[i], NULL, _thread_func, (void*)i) != 0)
         {
-            fprintf(stderr, "EEE: pthread_create() failed\n");
+            fprintf(stderr, "pthread_create() failed\n");
             abort();
         }
     }

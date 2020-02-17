@@ -16,7 +16,7 @@
 #include "posix_mman.h"
 #include "posix_trace.h"
 #include "posix_futex.h"
-#include "posix_cutex.h"
+#include "posix_futex.h"
 #include "posix_warnings.h"
 
 #define MAGIC 0x6a25f0aa
@@ -45,7 +45,7 @@ typedef struct _thread_info
     /* The ptid parameter from posix_clone() */
     pid_t* ptid;
 
-    /* The ctid parameter from posix_clone() (__UADDR(__thread_list_lock) */
+    /* The ctid parameter from posix_clone() (__thread_list_lock) */
     volatile pid_t* ctid;
 
     /* Used to jump from posix_exit() back to posix_run_thread_ecall() */
@@ -241,12 +241,12 @@ void posix_exit(int status)
     }
 
     /* Clear ctid: */
-    posix_cutex_lock(ti->ctid);
+    posix_futex_lock(ti->ctid);
     a_swap(ti->ctid, 0);
-    posix_cutex_unlock(ti->ctid);
+    posix_futex_unlock(ti->ctid);
 
     /* Wake the joiner */
-    posix_cutex_wake((int*)ti->ctid, FUTEX_WAKE, 1);
+    posix_futex_wake((int*)ti->ctid, FUTEX_WAKE, 1);
 
     /* Jump back to posix_run_thread_ecall() */
     longjmp(ti->jmpbuf, 1);

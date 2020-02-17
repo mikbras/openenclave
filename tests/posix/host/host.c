@@ -114,9 +114,6 @@ int main(int argc, const char* argv[])
     result = oe_create_posix_enclave(argv[1], type, flags, NULL, 0, &enclave);
     OE_TEST(result == OE_OK);
 
-    result = posix_init_ecall(enclave, _uaddrs, OE_COUNTOF(_uaddrs));
-    OE_TEST(result == OE_OK);
-
     result = posix_test_ecall(enclave);
     OE_TEST(result == OE_OK);
 

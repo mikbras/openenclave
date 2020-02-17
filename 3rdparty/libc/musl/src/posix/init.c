@@ -9,12 +9,10 @@
 
 #include "posix_warnings.h"
 
-void posix_init(volatile int* uaddrs, size_t uaddrs_size)
+void posix_init(void)
 {
     size_t aux[64];
     memset(aux, 0, sizeof(aux));
-
-    posix_init_uaddrs(uaddrs, uaddrs_size);
 
     __progname = "unknown";
     __sysinfo = 0;

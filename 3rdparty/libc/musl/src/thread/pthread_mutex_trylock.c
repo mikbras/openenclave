@@ -7,7 +7,7 @@ int __pthread_mutex_trylock_owner(pthread_mutex_t *m)
 	pthread_t self = __pthread_self();
 	int tid = self->tid;
 
-	old = __UADDR(m->_m_lock);
+	old = m->_m_lock;
 	own = old & 0x3fffffff;
 	if (own == tid) {
 		if ((type&8) && m->_m_count<0) {
@@ -26,7 +26,7 @@ int __pthread_mutex_trylock_owner(pthread_mutex_t *m)
 
 	if (type & 128) {
 		if (!self->robust_list.off) {
-			self->robust_list.off = (char*)&__UADDR(m->_m_lock)-(char *)&m->_m_next;
+			self->robust_list.off = (char*)&m->_m_lock-(char *)&m->_m_next;
 			__syscall(SYS_set_robust_list, &self->robust_list, 3*sizeof(long));
 		}
 		if (m->_m_waiters) tid |= 0x80000000;
@@ -34,7 +34,7 @@ int __pthread_mutex_trylock_owner(pthread_mutex_t *m)
 	}
 	tid |= old & 0x40000000;
 
-	if (a_cas(&__UADDR(m->_m_lock), old, tid) != old) {
+	if (a_cas(&m->_m_lock, old, tid) != old) {
 		self->robust_list.pending = 0;
 		if ((type&12)==12 && m->_m_waiters) return ENOTRECOVERABLE;
 		return EBUSY;
@@ -43,7 +43,7 @@ int __pthread_mutex_trylock_owner(pthread_mutex_t *m)
 success:
 	if ((type&8) && m->_m_waiters) {
 		int priv = (type & 128) ^ 128;
-		__syscall(SYS_futex, &__UADDR(m->_m_lock), FUTEX_UNLOCK_PI|priv);
+		__syscall(SYS_futex, &m->_m_lock, FUTEX_UNLOCK_PI|priv);
 		self->robust_list.pending = 0;
 		return (type&4) ? ENOTRECOVERABLE : EBUSY;
 	}
@@ -67,7 +67,7 @@ success:
 int __pthread_mutex_trylock(pthread_mutex_t *m)
 {
 	if ((m->_m_type&15) == PTHREAD_MUTEX_NORMAL)
-		return a_cas(&__UADDR(m->_m_lock), 0, EBUSY) & EBUSY;
+		return a_cas(&m->_m_lock, 0, EBUSY) & EBUSY;
 	return __pthread_mutex_trylock_owner(m);
 }
 

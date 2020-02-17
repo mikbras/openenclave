@@ -34,7 +34,7 @@ void __tl_lock(void)
 		return;
 	}
 	while ((val = a_cas(&__thread_list_lock, 0, tid)))
-		__cwait(&__thread_list_lock, &tl_lock_waiters, val, 0);
+		__wait(&__thread_list_lock, &tl_lock_waiters, val, 0);
 }
 
 void __tl_unlock(void)
@@ -45,7 +45,7 @@ void __tl_unlock(void)
 	}
         __CUTEX_LOCK(&__thread_list_lock);
 	a_store(&__thread_list_lock, 0);
-	if (tl_lock_waiters) __cwake(&__thread_list_lock, 1, 0);
+	if (tl_lock_waiters) __wake(&__thread_list_lock, 1, 0);
         __CUTEX_UNLOCK(&__thread_list_lock);
 }
 
@@ -54,8 +54,8 @@ void __tl_sync(pthread_t td)
 	a_barrier();
 	int val = __thread_list_lock;
 	if (!val) return;
-	__cwait(&__thread_list_lock, &tl_lock_waiters, val, 0);
-	if (tl_lock_waiters) __cwake(&__thread_list_lock, 1, 0);
+	__wait(&__thread_list_lock, &tl_lock_waiters, val, 0);
+	if (tl_lock_waiters) __wake(&__thread_list_lock, 1, 0);
 }
 
 _Noreturn void __pthread_exit(void *result)
@@ -118,10 +118,10 @@ _Noreturn void __pthread_exit(void *result)
 		int priv = (m->_m_type & 128) ^ 128;
 		self->robust_list.pending = rp;
 		self->robust_list.head = *rp;
-		int cont = a_swap(&__UADDR(m->_m_lock), 0x40000000);
+		int cont = a_swap(&m->_m_lock, 0x40000000);
 		self->robust_list.pending = 0;
 		if (cont < 0 || waiters)
-			__wake(&__UADDR(m->_m_lock), 1, priv);
+			__wake(&m->_m_lock, 1, priv);
 	}
 	__vm_unlock();
 
@@ -130,7 +130,7 @@ _Noreturn void __pthread_exit(void *result)
 
 	/* This atomic potentially competes with a concurrent pthread_detach
 	 * call; the loser is responsible for freeing thread resources. */
-	int state = a_cas(&__UADDR(self->detach_state), DT_JOINABLE, DT_EXITING);
+	int state = a_cas(&self->detach_state, DT_JOINABLE, DT_EXITING);
 
 	if (state==DT_DETACHED && self->map_base) {
 		/* Detached threads must block even implementation-internal
@@ -153,7 +153,7 @@ _Noreturn void __pthread_exit(void *result)
 	}
 
 	/* Wake any joiner. */
-	__wake(&__UADDR(self->detach_state), 1, 1);
+	__wake(&self->detach_state, 1, 1);
 
 	/* After the kernel thread exits, its tid may be reused. Clear it
 	 * to prevent inadvertent use and inform functions that would use
@@ -186,12 +186,12 @@ struct start_args {
 static int start(void *p)
 {
 	struct start_args *args = p;
-	int state = __UADDR(args->control);
+	int state = args->control;
 	if (state) {
-		if (a_cas(&__UADDR(args->control), 1, 2)==1)
-			__wait(&__UADDR(args->control), 0, 2, 1);
-		if (__UADDR(args->control)) {
-			__syscall(SYS_set_tid_address, &__UADDR(args->control));
+		if (a_cas(&args->control, 1, 2)==1)
+			__wait(&args->control, 0, 2, 1);
+		if (args->control) {
+			__syscall(SYS_set_tid_address, &args->control);
 			for (;;) __syscall(SYS_exit, 0);
 		}
 	}
@@ -224,7 +224,7 @@ weak_alias(dummy_file, __stderr_used);
 
 static void init_file_lock(FILE *f)
 {
-	if (f && __UADDR(f->lock)<0) __UADDR(f->lock) = 0;
+	if (f && f->lock<0) f->lock = 0;
 }
 
 int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict attrp, void *(*entry)(void *), void *restrict arg)
@@ -313,9 +313,9 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	new->tsd = (void *)tsd;
 	new->locale = &libc.global_locale;
 	if (attr._a_detach) {
-		__UADDR(new->detach_state) = DT_DETACHED;
+		new->detach_state = DT_DETACHED;
 	} else {
-		__UADDR(new->detach_state) = DT_JOINABLE;
+		new->detach_state = DT_JOINABLE;
 	}
 	new->robust_list.head = &new->robust_list.head;
 	new->CANARY = self->CANARY;
@@ -329,7 +329,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	struct start_args *args = (void *)stack;
 	args->start_func = entry;
 	args->start_arg = arg;
-	__UADDR(args->control) = attr._a_sched ? 1 : 0;
+	args->control = attr._a_sched ? 1 : 0;
 
 	/* Application signals (but not the synccall signal) must be
 	 * blocked before the thread list lock can be taken, to ensure
@@ -357,10 +357,10 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	} else if (attr._a_sched) {
 		ret = __syscall(SYS_sched_setscheduler,
 			new->tid, attr._a_policy, &attr._a_prio);
-		if (a_swap(&__UADDR(args->control), ret ? 3 : 0)==2)
-			__wake(&__UADDR(args->control), 1, 1);
+		if (a_swap(&args->control, ret ? 3 : 0)==2)
+			__wake(&args->control, 1, 1);
 		if (ret)
-			__wait(&__UADDR(args->control), 0, 3, 0);
+			__wait(&args->control, 0, 3, 0);
 	}
 
 	if (ret >= 0) {

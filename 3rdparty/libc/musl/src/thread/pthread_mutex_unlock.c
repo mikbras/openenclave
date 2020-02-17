@@ -12,7 +12,7 @@ int __pthread_mutex_unlock(pthread_mutex_t *m)
 
 	if (type != PTHREAD_MUTEX_NORMAL) {
 		self = __pthread_self();
-		old = __UADDR(m->_m_lock);
+		old = m->_m_lock;
 		int own = old & 0x3fffffff;
 		if (own != self->tid)
 			return EPERM;
@@ -31,21 +31,21 @@ int __pthread_mutex_unlock(pthread_mutex_t *m)
 			((char *)next - sizeof(void *)) = prev;
 	}
 	if (type&8) {
-		if (old<0 || a_cas(&__UADDR(m->_m_lock), old, new)!=old) {
+		if (old<0 || a_cas(&m->_m_lock, old, new)!=old) {
 			if (new) a_store(&m->_m_waiters, -1);
-			__syscall(SYS_futex, &__UADDR(m->_m_lock), FUTEX_UNLOCK_PI|priv);
+			__syscall(SYS_futex, &m->_m_lock, FUTEX_UNLOCK_PI|priv);
 		}
 		cont = 0;
 		waiters = 0;
 	} else {
-		cont = a_swap(&__UADDR(m->_m_lock), new);
+		cont = a_swap(&m->_m_lock, new);
 	}
 	if (type != PTHREAD_MUTEX_NORMAL && !priv) {
 		self->robust_list.pending = 0;
 		__vm_unlock();
 	}
 	if (waiters || cont<0)
-		__wake(&__UADDR(m->_m_lock), 1, priv);
+		__wake(&m->_m_lock, 1, priv);
 	return 0;
 }
 

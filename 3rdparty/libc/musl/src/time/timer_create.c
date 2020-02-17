@@ -24,7 +24,7 @@ static void cleanup_fromsig(void *p)
 {
 	pthread_t self = __pthread_self();
 	__pthread_tsd_run_dtors();
-	__UADDR(self->cancel) = 0;
+	self->cancel = 0;
 	self->cancelbuf = 0;
 	self->canceldisable = 0;
 	self->cancelasync = 0;

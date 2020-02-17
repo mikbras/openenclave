@@ -4,16 +4,10 @@
 #include <stdio.h>
 #include "syscall.h"
 
-#ifndef __UADDR
-#define __UADDR(LOCK) posix_futex_uaddr(&LOCK)[0]
-#endif
-volatile int* posix_futex_uaddr(volatile int* ptr);
-int posix_printf(const char* fmt, ...);
-
 #define UNGET 8
 
-#define FFINALLOCK(f) (__UADDR((f)->lock)>=0 ? __lockfile((f)) : 0)
-#define FLOCK(f) int __need_unlock = (__UADDR((f)->lock)>=0 ? __lockfile((f)) : 0)
+#define FFINALLOCK(f) ((f)->lock>=0 ? __lockfile((f)) : 0)
+#define FLOCK(f) int __need_unlock = ((f)->lock>=0 ? __lockfile((f)) : 0)
 #define FUNLOCK(f) do { if (__need_unlock) __unlockfile((f)); } while (0)
 
 #define F_PERM 1

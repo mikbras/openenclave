@@ -8,14 +8,14 @@ int __pthread_rwlock_timedrdlock(pthread_rwlock_t *restrict rw, const struct tim
 	if (r != EBUSY) return r;
 	
 	int spins = 100;
-	while (spins-- && __UADDR(rw->_rw_lock) && !rw->_rw_waiters) a_spin();
+	while (spins-- && rw->_rw_lock && !rw->_rw_waiters) a_spin();
 
 	while ((r=__pthread_rwlock_tryrdlock(rw))==EBUSY) {
-		if (!(r=__UADDR(rw->_rw_lock)) || (r&0x7fffffff)!=0x7fffffff) continue;
+		if (!(r=rw->_rw_lock) || (r&0x7fffffff)!=0x7fffffff) continue;
 		t = r | 0x80000000;
 		a_inc(&rw->_rw_waiters);
-		a_cas(&__UADDR(rw->_rw_lock), r, t);
-		r = __timedwait(&__UADDR(rw->_rw_lock), t, CLOCK_REALTIME, at, rw->_rw_shared^128);
+		a_cas(&rw->_rw_lock, r, t);
+		r = __timedwait(&rw->_rw_lock, t, CLOCK_REALTIME, at, rw->_rw_shared^128);
 		a_dec(&rw->_rw_waiters);
 		if (r && r != EINTR) return r;
 	}
