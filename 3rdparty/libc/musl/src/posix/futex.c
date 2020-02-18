@@ -147,7 +147,7 @@ int posix_futex_wait(
             goto done;
         }
 
-        if (posix_cond_wait(&futex->cond, &futex->mutex) != OE_OK)
+        if (posix_cond_wait(&futex->cond, &futex->mutex) != 0)
         {
             ret = ENOSYS;
             goto done;
@@ -188,7 +188,7 @@ int posix_futex_wake(int* uaddr, int op, int val)
 
     if (val == INT_MAX)
     {
-        if (posix_cond_broadcast(&futex->cond) != OE_OK)
+        if (posix_cond_broadcast(&futex->cond) != 0)
         {
             ret = -ENOSYS;
             goto done;
@@ -198,7 +198,7 @@ int posix_futex_wake(int* uaddr, int op, int val)
     {
         for (int i = 0; i < val; i++)
         {
-            if (posix_cond_signal(&futex->cond) != OE_OK)
+            if (posix_cond_signal(&futex->cond) != 0)
             {
                 ret = -ENOSYS;
                 goto done;
@@ -218,7 +218,7 @@ int posix_futex_acquire(volatile int* uaddr)
     if (!(futex = _get((int*)uaddr)))
         return -1;
 
-    if (posix_mutex_lock(&futex->mutex) != OE_OK)
+    if (posix_mutex_lock(&futex->mutex) != 0)
         return -1;
 
     return 0;

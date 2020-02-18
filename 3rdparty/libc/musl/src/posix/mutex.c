@@ -4,7 +4,6 @@
 #include "posix_mutex.h"
 #include "posix_thread.h"
 #include "posix_ocalls.h"
-
 #include "posix_warnings.h"
 
 int posix_mutex_init(posix_mutex_t* m)
@@ -116,7 +115,7 @@ int posix_mutex_trylock(posix_mutex_t* mutex)
     }
     posix_spin_unlock(&m->lock);
 
-    return OE_BUSY;
+    return EBUSY;
 }
 
 int __posix_mutex_unlock(posix_mutex_t* mutex, posix_thread_t** waiter)
@@ -156,7 +155,7 @@ int posix_mutex_unlock(posix_mutex_t* m)
         return EINVAL;
 
     if (__posix_mutex_unlock(m, &waiter) != 0)
-        return OE_NOT_OWNER;
+        return EPERM;
 
     if (waiter)
     {
@@ -174,7 +173,7 @@ int posix_mutex_destroy(posix_mutex_t* mutex)
     if (!m)
         return EINVAL;
 
-    int ret = OE_BUSY;
+    int ret = EBUSY;
 
     posix_spin_lock(&m->lock);
     {
