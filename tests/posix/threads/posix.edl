@@ -43,6 +43,8 @@ enclave
 
         void posix_wake_ocall([user_check] int* host_uaddr);
 
-        void posix_wake_wait_ocall([user_check] int* host_uaddr);
+        void posix_wake_wait_ocall(
+            [user_check] int* waiter_host_uaddr,
+            [user_check] int* self_host_uaddr);
     };
 };

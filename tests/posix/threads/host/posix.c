@@ -131,8 +131,8 @@ void posix_wake_ocall(int* host_uaddr)
     }
 }
 
-void posix_wake_wait_ocall(int* host_uaddr)
+void posix_wake_wait_ocall(int* waiter_host_uaddr, int* self_host_uaddr)
 {
-    posix_wake_ocall(host_uaddr);
-    posix_wait_ocall(host_uaddr);
+    posix_wake_ocall(waiter_host_uaddr);
+    posix_wait_ocall(self_host_uaddr);
 }
