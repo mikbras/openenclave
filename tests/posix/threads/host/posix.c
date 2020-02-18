@@ -104,38 +104,35 @@ int posix_futex_wake_ocall(
     return 0;
 }
 
-#if 0
-int posix_wait(oe_enclave_t* enclave, uint64_t arg_in)
+void posix_wait_ocall(int* host_uaddr)
 {
-    const uint64_t tcs = arg_in;
-    EnclaveEvent* event = GetEnclaveEvent(enclave, tcs);
-    assert(event);
-
-#if defined(__linux__)
-
-    if (__sync_fetch_and_add(&event->value, (uint32_t)-1) == 0)
+    if (__sync_fetch_and_add(host_uaddr, -1) == 0)
     {
         do
         {
             syscall(
-                __NR_futex,
-                &event->value,
+                SYS_futex,
+                host_uaddr,
                 FUTEX_WAIT_PRIVATE,
                 -1,
                 NULL,
                 NULL,
                 0);
-            // If event->value is still -1, then this is a spurious-wake.
-            // Spurious-wakes are ignored by going back to FUTEX_WAIT.
-            // Since FUTEX_WAIT uses atomic instructions to load event->value,
-            // it is safe to use a non-atomic operation here.
-        } while (event->value == (uint32_t)-1);
+        }
+        while (*host_uaddr == -1);
     }
-
-#elif defined(_WIN32)
-
-    WaitForSingleObject(event->handle, INFINITE);
-
-#endif
 }
-#endif
+
+void posix_wake_ocall(int* host_uaddr)
+{
+    if (__sync_fetch_and_add(host_uaddr, 1) != 0)
+    {
+        syscall(SYS_futex, host_uaddr, FUTEX_WAKE_PRIVATE, 1, NULL, NULL, 0);
+    }
+}
+
+void posix_wake_wait_ocall(int* host_uaddr)
+{
+    posix_wake_ocall(host_uaddr);
+    posix_wait_ocall(host_uaddr);
+}

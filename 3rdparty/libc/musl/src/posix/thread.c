@@ -1,7 +1,6 @@
 #include <stdarg.h>
 #include <errno.h>
 #include <string.h>
-#include <setjmp.h>
 
 #include <openenclave/enclave.h>
 #include <openenclave/internal/sgxtypes.h>
@@ -25,39 +24,8 @@ oe_result_t posix_start_thread_ocall(int* retval, uint64_t cookie);
 
 oe_result_t posix_gettid_ocall(int* retval);
 
-typedef struct _thread_info
-{
-    /* Should contain MAGIC */
-    uint32_t magic;
-
-    /* Pointer to MUSL pthread structure */
-    struct pthread* td;
-
-    /* The fn parameter from posix_clone() */
-    int (*fn)(void*);
-
-    /* The arg parameter from posix_clone() */
-    void* arg;
-
-    /* The flags parameter from posix_clone() */
-    int flags;
-
-    /* The ptid parameter from posix_clone() */
-    pid_t* ptid;
-
-    /* The ctid parameter from posix_clone() (__thread_list_lock) */
-    volatile pid_t* ctid;
-
-    /* Used to jump from posix_exit() back to posix_run_thread_ecall() */
-    jmp_buf jmpbuf;
-
-    /* Address of the host thread's futex uaddr. */
-    int* host_uaddr;
-}
-thread_info_t;
-
 /* The thread info structure for the main thread */
-static thread_info_t _main_thread_info;
+static posix_thread_info_t _main_thread_info;
 
 static oe_thread_data_t* _get_oetd(void)
 {
@@ -68,17 +36,17 @@ static oe_thread_data_t* _get_oetd(void)
     return oetd;
 }
 
-static thread_info_t* _get_thread_info(void)
+static posix_thread_info_t* _get_thread_info(void)
 {
     oe_thread_data_t* oetd;
 
     if (!(oetd = _get_oetd()))
         return NULL;
 
-    return (thread_info_t*)(oetd->__reserved_0);
+    return (posix_thread_info_t*)(oetd->__reserved_0);
 }
 
-static int _set_thread_info(thread_info_t* ti)
+static int _set_thread_info(posix_thread_info_t* ti)
 {
     oe_thread_data_t* oetd;
 
@@ -103,7 +71,7 @@ extern int* __posix_init_host_uaddr;
 
 int posix_set_tid_address(int* tidptr)
 {
-    thread_info_t* ti;
+    posix_thread_info_t* ti;
 
     if (!(ti = _get_thread_info()))
     {
@@ -130,7 +98,7 @@ int posix_set_thread_area(void* p)
 
 struct pthread* posix_pthread_self(void)
 {
-    thread_info_t* ti;
+    posix_thread_info_t* ti;
 
     if (!(ti = _get_thread_info()))
         return NULL;
@@ -140,7 +108,7 @@ struct pthread* posix_pthread_self(void)
 
 int posix_run_thread_ecall(uint64_t cookie, int* host_uaddr)
 {
-    thread_info_t* ti = (thread_info_t*)cookie;
+    posix_thread_info_t* ti = (posix_thread_info_t*)cookie;
 
     if (!ti || !oe_is_within_enclave(ti, sizeof(ti)) || ti->magic != MAGIC)
     {
@@ -191,9 +159,9 @@ int posix_clone(
     oe_assert(td->self == td);
 
     /* Create the thread info structure for the new thread */
-    thread_info_t* ti;
+    posix_thread_info_t* ti;
     {
-        if (!(ti = oe_calloc(1, sizeof(thread_info_t))))
+        if (!(ti = oe_calloc(1, sizeof(posix_thread_info_t))))
         {
             ret = -ENOMEM;
             goto done;
@@ -233,7 +201,7 @@ done:
 
 void posix_exit(int status)
 {
-    thread_info_t* ti;
+    posix_thread_info_t* ti;
 
     /* ATTN: ignored */
     (void)status;
