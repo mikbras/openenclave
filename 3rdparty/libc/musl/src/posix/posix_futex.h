@@ -11,8 +11,8 @@ int posix_futex_wait(
 
 int posix_futex_wake(int* uaddr, int futex_op, int val);
 
-int posix_futex_lock(volatile int* uaddr);
+int posix_futex_acquire(volatile int* uaddr);
 
-int posix_futex_unlock(volatile int* uaddr);
+int posix_futex_release(volatile int* uaddr);
 
 #endif /* _POSIX_FUTEX_H */

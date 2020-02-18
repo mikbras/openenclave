@@ -188,9 +188,9 @@ extern hidden unsigned __default_guardsize;
 #define __ATTRP_C11_THREAD ((void*)(uintptr_t)-1)
 
 int posix_printf(const char* fmt, ...);
-int posix_futex_lock(volatile int* uaddr);
-int posix_futex_unlock(volatile int* uaddr);
-#define __LOCK_UADDR(UADDR) posix_futex_lock(UADDR)
-#define __UNLOCK_UADDR(UADDR) posix_futex_unlock(UADDR)
+int posix_futex_acquire(volatile int* uaddr);
+int posix_futex_release(volatile int* uaddr);
+#define ACQUIRE_FUTEX(UADDR) posix_futex_acquire(UADDR)
+#define RELEASE_FUTEX(UADDR) posix_futex_release(UADDR)
 
 #endif

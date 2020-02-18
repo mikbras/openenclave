@@ -241,14 +241,14 @@ void posix_exit(int status)
     }
 
     /* Clear ctid: */
-    posix_futex_lock(ti->ctid);
+    posix_futex_acquire(ti->ctid);
     a_swap(ti->ctid, 0);
-    posix_futex_unlock(ti->ctid);
+    posix_futex_release(ti->ctid);
 
     /* Wake the joiner */
-    posix_futex_lock((volatile int*)ti->ctid);
+    posix_futex_acquire((volatile int*)ti->ctid);
     posix_futex_wake((int*)ti->ctid, FUTEX_WAKE, 1);
-    posix_futex_unlock((volatile int*)ti->ctid);
+    posix_futex_release((volatile int*)ti->ctid);
 
     /* Jump back to posix_run_thread_ecall() */
     longjmp(ti->jmpbuf, 1);

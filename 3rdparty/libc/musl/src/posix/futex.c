@@ -223,7 +223,7 @@ done:
     return ret;
 }
 
-int posix_futex_lock(volatile int* uaddr)
+int posix_futex_acquire(volatile int* uaddr)
 {
     futex_t* futex = NULL;
 
@@ -236,7 +236,7 @@ int posix_futex_lock(volatile int* uaddr)
     return 0;
 }
 
-int posix_futex_unlock(volatile int* uaddr)
+int posix_futex_release(volatile int* uaddr)
 {
     futex_t* futex = NULL;
 

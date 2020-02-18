@@ -18,6 +18,8 @@ int __lockfile(FILE *f)
 
 void __unlockfile(FILE *f)
 {
+        ACQUIRE_FUTEX(&f->lock);
 	if (a_swap(&f->lock, 0) & MAYBE_WAITERS)
 		__wake(&f->lock, 1, 1);
+        RELEASE_FUTEX(&f->lock);
 }

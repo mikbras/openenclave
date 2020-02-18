@@ -30,6 +30,7 @@ int __pthread_mutex_unlock(pthread_mutex_t *m)
 		if (next != &self->robust_list.head) *(volatile void *volatile *)
 			((char *)next - sizeof(void *)) = prev;
 	}
+        ACQUIRE_FUTEX(&m->_m_lock);
 	if (type&8) {
 		if (old<0 || a_cas(&m->_m_lock, old, new)!=old) {
 			if (new) a_store(&m->_m_waiters, -1);
@@ -46,6 +47,7 @@ int __pthread_mutex_unlock(pthread_mutex_t *m)
 	}
 	if (waiters || cont<0)
 		__wake(&m->_m_lock, 1, priv);
+        RELEASE_FUTEX(&m->_m_lock);
 	return 0;
 }
 

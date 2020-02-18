@@ -16,8 +16,8 @@ void __vm_lock()
 
 void __vm_unlock()
 {
-        __LOCK_UADDR(vmlock);
+        ACQUIRE_FUTEX(vmlock);
         if (a_fetch_add(vmlock, -1)==1 && vmlock[1])
                 __wake(vmlock, -1, 1);
-        __UNLOCK_UADDR(vmlock);
+        RELEASE_FUTEX(vmlock);
 }
