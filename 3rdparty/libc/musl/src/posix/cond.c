@@ -116,13 +116,14 @@ int posix_cond_broadcast(posix_cond_t* c)
     }
     posix_spin_unlock(&c->lock);
 
-    posix_thread_t* p_next = NULL;
-    for (posix_thread_t* p = waiters.front; p; p = p_next)
+    posix_thread_t* next = NULL;
+
+    for (posix_thread_t* p = waiters.front; p; p = next)
     {
         // p could wake up and immediately use a synchronization
         // primitive that could modify the next field.
         // Therefore fetch the next thread before waking up p.
-        p_next = p->next;
+        next = p->next;
         posix_wake_ocall(p->host_uaddr);
     }
 
