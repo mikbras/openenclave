@@ -11,9 +11,11 @@ enclave
 
     trusted
     {
-        public void posix_test_ecall();
+        public void posix_test_ecall([user_check] int* host_uaddr);
 
-        public int posix_run_thread_ecall(uint64_t cookie);
+        public int posix_run_thread_ecall(
+            uint64_t cookie,
+            [user_check] int* host_uaddr);
     };
 
     untrusted

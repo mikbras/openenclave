@@ -9,11 +9,16 @@
 
 #include "posix_warnings.h"
 
-void posix_init(void)
+#include <openenclave/enclave.h>
+
+int* __posix_init_host_uaddr;
+
+void posix_init(int* host_uaddr)
 {
     size_t aux[64];
     memset(aux, 0, sizeof(aux));
 
+    __posix_init_host_uaddr = host_uaddr;
     __progname = "unknown";
     __sysinfo = 0;
     __environ = NULL;

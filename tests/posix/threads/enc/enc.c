@@ -12,7 +12,7 @@
 #include <openenclave/internal/backtrace.h>
 #include "posix_t.h"
 
-void posix_init(void);
+void posix_init(int* host_uaddr);
 
 extern bool oe_disable_debug_malloc_check;
 
@@ -130,11 +130,11 @@ void test_mutexes(void)
     printf("=== %s()\n", __FUNCTION__);
 }
 
-void posix_test_ecall(void)
+void posix_test_ecall(int* host_uaddr)
 {
     oe_disable_debug_malloc_check = true;
 
-    posix_init();
+    posix_init(host_uaddr);
 
     test_create_thread();
 

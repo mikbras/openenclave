@@ -50,6 +50,9 @@ typedef struct _thread_info
 
     /* Used to jump from posix_exit() back to posix_run_thread_ecall() */
     jmp_buf jmpbuf;
+
+    /* Address of the host thread's futex uaddr. */
+    int* host_uaddr;
 }
 thread_info_t;
 
@@ -96,6 +99,8 @@ int posix_gettid(void)
     return retval;
 }
 
+extern int* __posix_init_host_uaddr;
+
 int posix_set_tid_address(int* tidptr)
 {
     thread_info_t* ti;
@@ -117,6 +122,7 @@ int posix_set_thread_area(void* p)
     memset(&_main_thread_info, 0, sizeof(_main_thread_info));
     _main_thread_info.magic = MAGIC;
     _main_thread_info.td = (pthread_t)p;
+    _main_thread_info.host_uaddr = __posix_init_host_uaddr;
     _set_thread_info(&_main_thread_info);
 
     return 0;
@@ -132,7 +138,7 @@ struct pthread* posix_pthread_self(void)
     return ti->td;
 }
 
-int posix_run_thread_ecall(uint64_t cookie)
+int posix_run_thread_ecall(uint64_t cookie, int* host_uaddr)
 {
     thread_info_t* ti = (thread_info_t*)cookie;
 
@@ -141,6 +147,8 @@ int posix_run_thread_ecall(uint64_t cookie)
         oe_assert(false);
         return -1;
     }
+
+    ti->host_uaddr = host_uaddr;
 
     _set_thread_info(ti);
 
