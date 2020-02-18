@@ -25,7 +25,7 @@ oe_result_t posix_start_thread_ocall(int* retval, uint64_t cookie);
 oe_result_t posix_gettid_ocall(int* retval);
 
 /* The thread info structure for the main thread */
-static posix_thread_t _main_thread_info;
+static posix_thread_t _main_thread;
 
 static oe_thread_data_t* _get_oetd(void)
 {
@@ -46,14 +46,14 @@ posix_thread_t* posix_self(void)
     return (posix_thread_t*)(oetd->__reserved_0);
 }
 
-static int _set_thread_info(posix_thread_t* ti)
+static int _set_thread_info(posix_thread_t* thread)
 {
     oe_thread_data_t* oetd;
 
     if (!(oetd = _get_oetd()))
         return -1;
 
-    oetd->__reserved_0 = (uint64_t)ti;
+    oetd->__reserved_0 = (uint64_t)thread;
     return 0;
 }
 
@@ -71,15 +71,15 @@ extern int* __posix_init_host_uaddr;
 
 int posix_set_tid_address(int* tidptr)
 {
-    posix_thread_t* ti;
+    posix_thread_t* thread;
 
-    if (!(ti = posix_self()))
+    if (!(thread = posix_self()))
     {
         oe_assert(false);
         return -EINVAL;
     }
 
-    ti->ctid = tidptr;
+    thread->ctid = tidptr;
 
     return posix_gettid();
 }
@@ -87,46 +87,47 @@ int posix_set_tid_address(int* tidptr)
 /* This is called only by the main thread. */
 int posix_set_thread_area(void* p)
 {
-    memset(&_main_thread_info, 0, sizeof(_main_thread_info));
-    _main_thread_info.magic = MAGIC;
-    _main_thread_info.td = (pthread_t)p;
-    _main_thread_info.host_uaddr = __posix_init_host_uaddr;
-    _set_thread_info(&_main_thread_info);
+    memset(&_main_thread, 0, sizeof(_main_thread));
+    _main_thread.magic = MAGIC;
+    _main_thread.td = (pthread_t)p;
+    _main_thread.host_uaddr = __posix_init_host_uaddr;
+
+    _set_thread_info(&_main_thread);
 
     return 0;
 }
 
 struct pthread* posix_pthread_self(void)
 {
-    posix_thread_t* ti;
+    posix_thread_t* thread;
 
-    if (!(ti = posix_self()))
+    if (!(thread = posix_self()))
         return NULL;
 
-    return ti->td;
+    return thread->td;
 }
 
 int posix_run_thread_ecall(uint64_t cookie, int* host_uaddr)
 {
-    posix_thread_t* ti = (posix_thread_t*)cookie;
+    posix_thread_t* thread = (posix_thread_t*)cookie;
 
-    if (!ti || !oe_is_within_enclave(ti, sizeof(ti)) || ti->magic != MAGIC)
+    if (!thread || !oe_is_within_enclave(thread, sizeof(thread)) || thread->magic != MAGIC)
     {
         oe_assert(false);
         return -1;
     }
 
-    ti->host_uaddr = host_uaddr;
+    thread->host_uaddr = host_uaddr;
 
-    _set_thread_info(ti);
+    _set_thread_info(thread);
 
     /* Set the TID for this thread */
-    a_swap(ti->ptid, posix_gettid());
+    a_swap(thread->ptid, posix_gettid());
 
-    if (setjmp(ti->jmpbuf) == 0)
+    if (setjmp(thread->jmpbuf) == 0)
     {
         /* Invoke the MUSL thread wrapper function. */
-        (*ti->fn)(ti->arg);
+        (*thread->fn)(thread->arg);
 
         /* Never returns. */
         posix_printf("unexpected\n");
@@ -159,27 +160,27 @@ int posix_clone(
     oe_assert(td->self == td);
 
     /* Create the thread info structure for the new thread */
-    posix_thread_t* ti;
+    posix_thread_t* thread;
     {
-        if (!(ti = oe_calloc(1, sizeof(posix_thread_t))))
+        if (!(thread = oe_calloc(1, sizeof(posix_thread_t))))
         {
             ret = -ENOMEM;
             goto done;
         }
 
-        ti->magic = MAGIC;
-        ti->td = td;
-        ti->fn = fn;
-        ti->arg = arg;
-        ti->flags = flags;
-        ti->ptid = ptid;
-        ti->ctid = ctid;
+        thread->magic = MAGIC;
+        thread->td = td;
+        thread->fn = fn;
+        thread->arg = arg;
+        thread->flags = flags;
+        thread->ptid = ptid;
+        thread->ctid = ctid;
     }
 
     /* Ask the host to call posix_run_thread_ecall() on a new thread */
     {
         int retval = -1;
-        uint64_t cookie = (uint64_t)ti;
+        uint64_t cookie = (uint64_t)thread;
 
         if (posix_start_thread_ocall(&retval, cookie) != OE_OK)
         {
@@ -201,31 +202,31 @@ done:
 
 void posix_exit(int status)
 {
-    posix_thread_t* ti;
+    posix_thread_t* thread;
 
     /* ATTN: ignored */
     (void)status;
 
-    ti = posix_self();
-    oe_assert(ti);
+    thread = posix_self();
+    oe_assert(thread);
 
     /* ATTN: handle main thread exits */
-    if (!ti->fn)
+    if (!thread->fn)
     {
         posix_printf("posix_exit() called from main thread\n");
         oe_abort();
     }
 
     /* Clear ctid: */
-    posix_futex_acquire(ti->ctid);
-    a_swap(ti->ctid, 0);
-    posix_futex_release(ti->ctid);
+    posix_futex_acquire(thread->ctid);
+    a_swap(thread->ctid, 0);
+    posix_futex_release(thread->ctid);
 
     /* Wake the joiner */
-    posix_futex_acquire((volatile int*)ti->ctid);
-    posix_futex_wake((int*)ti->ctid, FUTEX_WAKE, 1);
-    posix_futex_release((volatile int*)ti->ctid);
+    posix_futex_acquire((volatile int*)thread->ctid);
+    posix_futex_wake((int*)thread->ctid, FUTEX_WAKE, 1);
+    posix_futex_release((volatile int*)thread->ctid);
 
     /* Jump back to posix_run_thread_ecall() */
-    longjmp(ti->jmpbuf, 1);
+    longjmp(thread->jmpbuf, 1);
 }

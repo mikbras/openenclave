@@ -6,6 +6,7 @@
 
 #include "posix_thread.h"
 #include "posix_spinlock.h"
+#include "posix_mutex.h"
 
 typedef struct _posix_cond
 {
@@ -13,5 +14,15 @@ typedef struct _posix_cond
     posix_thread_queue_t queue;
 }
 posix_cond_t;
+
+int posix_cond_init(posix_cond_t* c);
+
+int posix_cond_destroy(posix_cond_t* c);
+
+int posix_cond_wait(posix_cond_t* c, posix_mutex_t* mutex);
+
+int posix_cond_signal(posix_cond_t* c);
+
+int posix_cond_broadcast(posix_cond_t* c);
 
 #endif //_POSIX_COND_H
