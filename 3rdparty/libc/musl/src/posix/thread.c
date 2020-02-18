@@ -25,7 +25,7 @@ oe_result_t posix_start_thread_ocall(int* retval, uint64_t cookie);
 oe_result_t posix_gettid_ocall(int* retval);
 
 /* The thread info structure for the main thread */
-static posix_thread_info_t _main_thread_info;
+static posix_thread_t _main_thread_info;
 
 static oe_thread_data_t* _get_oetd(void)
 {
@@ -36,17 +36,17 @@ static oe_thread_data_t* _get_oetd(void)
     return oetd;
 }
 
-static posix_thread_info_t* _get_thread_info(void)
+posix_thread_t* posix_self(void)
 {
     oe_thread_data_t* oetd;
 
     if (!(oetd = _get_oetd()))
         return NULL;
 
-    return (posix_thread_info_t*)(oetd->__reserved_0);
+    return (posix_thread_t*)(oetd->__reserved_0);
 }
 
-static int _set_thread_info(posix_thread_info_t* ti)
+static int _set_thread_info(posix_thread_t* ti)
 {
     oe_thread_data_t* oetd;
 
@@ -71,9 +71,9 @@ extern int* __posix_init_host_uaddr;
 
 int posix_set_tid_address(int* tidptr)
 {
-    posix_thread_info_t* ti;
+    posix_thread_t* ti;
 
-    if (!(ti = _get_thread_info()))
+    if (!(ti = posix_self()))
     {
         oe_assert(false);
         return -EINVAL;
@@ -98,9 +98,9 @@ int posix_set_thread_area(void* p)
 
 struct pthread* posix_pthread_self(void)
 {
-    posix_thread_info_t* ti;
+    posix_thread_t* ti;
 
-    if (!(ti = _get_thread_info()))
+    if (!(ti = posix_self()))
         return NULL;
 
     return ti->td;
@@ -108,7 +108,7 @@ struct pthread* posix_pthread_self(void)
 
 int posix_run_thread_ecall(uint64_t cookie, int* host_uaddr)
 {
-    posix_thread_info_t* ti = (posix_thread_info_t*)cookie;
+    posix_thread_t* ti = (posix_thread_t*)cookie;
 
     if (!ti || !oe_is_within_enclave(ti, sizeof(ti)) || ti->magic != MAGIC)
     {
@@ -159,9 +159,9 @@ int posix_clone(
     oe_assert(td->self == td);
 
     /* Create the thread info structure for the new thread */
-    posix_thread_info_t* ti;
+    posix_thread_t* ti;
     {
-        if (!(ti = oe_calloc(1, sizeof(posix_thread_info_t))))
+        if (!(ti = oe_calloc(1, sizeof(posix_thread_t))))
         {
             ret = -ENOMEM;
             goto done;
@@ -201,12 +201,12 @@ done:
 
 void posix_exit(int status)
 {
-    posix_thread_info_t* ti;
+    posix_thread_t* ti;
 
     /* ATTN: ignored */
     (void)status;
 
-    ti = _get_thread_info();
+    ti = posix_self();
     oe_assert(ti);
 
     /* ATTN: handle main thread exits */

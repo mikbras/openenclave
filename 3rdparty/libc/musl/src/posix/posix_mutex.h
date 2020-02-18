@@ -11,8 +11,8 @@ typedef struct _posix_mutex
 {
     posix_spinlock_t lock;
     uint64_t refs;
-    posix_thread_info_t* owner;
-    posix_thread_info_queue_t queue;
+    posix_thread_t* owner;
+    posix_thread_queue_t queue;
 }
 posix_mutex_t;
 

@@ -4,16 +4,17 @@
 #include <stdint.h>
 #include <setjmp.h>
 #include <unistd.h>
+#include <stdbool.h>
 
-typedef struct _posix_thread_info posix_thread_info_t;
+typedef struct _posix_thread posix_thread_t;
 
-struct _posix_thread_info
+struct _posix_thread
 {
     /* Should contain MAGIC */
     uint32_t magic;
 
-    posix_thread_info_t* next;
-    posix_thread_info_t* prev;
+    posix_thread_t* next;
+    posix_thread_t* prev;
 
     /* Pointer to MUSL pthread structure */
     struct pthread* td;
@@ -40,15 +41,15 @@ struct _posix_thread_info
     int* host_uaddr;
 };
 
-typedef struct _posix_thread_info_queue
+typedef struct _posix_thread_queue
 {
-    posix_thread_info_t* front;
-    posix_thread_info_t* back;
-} posix_thread_info_queue_t;
+    posix_thread_t* front;
+    posix_thread_t* back;
+} posix_thread_queue_t;
 
-static __inline__ void posix_thread_info_queue_push_back(
-    posix_thread_info_queue_t* queue,
-    posix_thread_info_t* thread)
+static __inline__ void posix_thread_queue_push_back(
+    posix_thread_queue_t* queue,
+    posix_thread_t* thread)
 {
     thread->next = NULL;
 
@@ -60,10 +61,10 @@ static __inline__ void posix_thread_info_queue_push_back(
     queue->back = thread;
 }
 
-static __inline__ posix_thread_info_t* posix_thread_info_queue_pop_front(
-    posix_thread_info_queue_t* queue)
+static __inline__ posix_thread_t* posix_thread_queue_pop_front(
+    posix_thread_queue_t* queue)
 {
-    posix_thread_info_t* thread = queue->front;
+    posix_thread_t* thread = queue->front;
 
     if (thread)
     {
@@ -76,11 +77,11 @@ static __inline__ posix_thread_info_t* posix_thread_info_queue_pop_front(
     return thread;
 }
 
-static __inline__ bool posix_thread_info_queue_contains(
-    posix_thread_info_queue_t* queue,
-    posix_thread_info_t* thread)
+static __inline__ bool posix_thread_queue_contains(
+    posix_thread_queue_t* queue,
+    posix_thread_t* thread)
 {
-    posix_thread_info_t* p;
+    posix_thread_t* p;
 
     for (p = queue->front; p; p = p->next)
     {
@@ -91,11 +92,13 @@ static __inline__ bool posix_thread_info_queue_contains(
     return false;
 }
 
-static __inline__ bool posix_thread_info_queue_empty(
-    posix_thread_info_queue_t* queue)
+static __inline__ bool posix_thread_queue_empty(
+    posix_thread_queue_t* queue)
 {
     return queue->front ? false : true;
 }
+
+posix_thread_t* posix_self(void);
 
 int posix_set_tid_address(int* tidptr);
 
