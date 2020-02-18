@@ -44,14 +44,10 @@ void posix_init(void);
 
 extern bool oe_disable_debug_malloc_check;
 
-void posix_test_ecall(void)
+void test_create_thread(void)
 {
     pthread_t threads[16];
     const size_t NUM_THREADS = OE_COUNTOF(threads);
-
-    oe_disable_debug_malloc_check = true;
-
-    posix_init();
 
     /* Create threads */
     for (size_t i = 0; i < NUM_THREADS; i++)
@@ -79,7 +75,16 @@ void posix_test_ecall(void)
         OE_TEST((uint64_t)retval == i);
     }
 
-    printf("=== posix_test()\n");
+    printf("=== test_create_thread()\n");
+}
+
+void posix_test_ecall(void)
+{
+    oe_disable_debug_malloc_check = true;
+
+    posix_init();
+
+    test_create_thread();
 }
 
 OE_SET_ENCLAVE_SGX(
