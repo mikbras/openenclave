@@ -39,15 +39,19 @@ enclave
 
         int posix_gettid_ocall();
 
-        void posix_wait_ocall(
+        int posix_wait_ocall(
             [user_check] int* host_uaddr,
             [in, count=1] const struct posix_timespec* timeout);
 
         void posix_wake_ocall([user_check] int* host_uaddr);
 
-        void posix_wake_wait_ocall(
+        int posix_wake_wait_ocall(
             [user_check] int* waiter_host_uaddr,
             [user_check] int* self_host_uaddr,
             [in, count=1] const struct posix_timespec* timeout);
+
+        int posix_clock_gettime_ocall(
+            int clk_id,
+            [out, count=1] struct posix_timespec* tp);
     };
 };

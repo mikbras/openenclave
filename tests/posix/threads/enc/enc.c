@@ -5,6 +5,7 @@
 #include <openenclave/enclave.h>
 #include <stdio.h>
 #include <errno.h>
+#include <string.h>
 #include <openenclave/internal/print.h>
 #include <openenclave/internal/tests.h>
 #include <pthread.h>
@@ -49,6 +50,8 @@ void test_create_thread(void)
     pthread_t threads[16];
     const size_t NUM_THREADS = OE_COUNTOF(threads);
 
+    printf("=== %s()\n", __FUNCTION__);
+
     /* Create threads */
     for (size_t i = 0; i < NUM_THREADS; i++)
     {
@@ -75,7 +78,7 @@ void test_create_thread(void)
         OE_TEST((uint64_t)retval == i);
     }
 
-    printf("=== %s()\n", __FUNCTION__);
+    printf("=== %s() passed\n", __FUNCTION__);
 }
 
 static uint64_t _shared_integer = 0;
@@ -102,6 +105,8 @@ void test_mutexes(void)
     const size_t NUM_THREADS = OE_COUNTOF(threads);
     size_t integer = 0;
 
+    printf("=== %s()\n", __FUNCTION__);
+
     /* Create threads */
     for (size_t i = 0; i < NUM_THREADS; i++)
     {
@@ -127,21 +132,41 @@ void test_mutexes(void)
 
     OE_TEST(integer == _shared_integer);
 
-    printf("=== %s()\n", __FUNCTION__);
+    printf("=== %s() passed\n", __FUNCTION__);
 }
 
 static pthread_mutex_t _timed_mutex = PTHREAD_MUTEX_INITIALIZER;
 
+static __int128 _time(void)
+{
+    const __int128 BILLION = 1000000000;
+    struct timespec now;
+
+    clock_gettime(CLOCK_REALTIME, &now);
+
+    return (__int128)now.tv_sec * BILLION + (__int128)now.tv_nsec;
+}
+
 static void* _test_timedlock(void* arg)
 {
     (void)arg;
+    const uint64_t TIMEOUT_SEC = 3;
+    const __int128 BILLION = 1000000000;
+    const __int128 LO = (TIMEOUT_SEC * BILLION) - (BILLION / 5);
+    const __int128 HI = (TIMEOUT_SEC * BILLION) + (BILLION / 5);
 
     struct timespec timeout;
+    clock_gettime(CLOCK_REALTIME, &timeout);
+    timeout.tv_sec += TIMEOUT_SEC;
 
-    timeout.tv_sec = 0;
-    timeout.tv_nsec = 0;
+    __int128 t1 = _time();
 
-    pthread_mutex_timedlock(&_timed_mutex, &timeout);
+    int r = pthread_mutex_timedlock(&_timed_mutex, &timeout);
+    OE_TEST(r == ETIMEDOUT);
+
+    __int128 t2 = _time();
+    __int128 delta = t2 - t1;
+    OE_TEST(delta >= LO && delta <= HI);
 
     return NULL;
 }
@@ -149,6 +174,8 @@ static void* _test_timedlock(void* arg)
 void test_timedlock(void)
 {
     pthread_t thread;
+
+    printf("=== %s()\n", __FUNCTION__);
 
     pthread_mutex_lock(&_timed_mutex);
 
@@ -158,14 +185,17 @@ void test_timedlock(void)
         abort();
     }
 
+    sleep(6);
+
     if (pthread_join(thread, NULL) != 0)
     {
         fprintf(stderr, "pthread_create() failed\n");
         abort();
     }
 
-    sleep(10);
     pthread_mutex_unlock(&_timed_mutex);
+
+    printf("=== %s() passed\n", __FUNCTION__);
 }
 
 void posix_test_ecall(int* host_uaddr)
@@ -178,9 +208,7 @@ void posix_test_ecall(int* host_uaddr)
 
     test_mutexes();
 
-#if 0
     test_timedlock();
-#endif
 }
 
 OE_SET_ENCLAVE_SGX(

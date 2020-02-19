@@ -622,6 +622,12 @@ long posix_syscall(long n, ...)
             struct timespec* rem = (struct timespec*)x2;
             return posix_nanosleep(req, rem);
         }
+        case SYS_clock_gettime:
+        {
+            clockid_t clk_id = (clockid_t)x1;
+            struct timespec* tp = (struct timespec*)x2;
+            return posix_clock_gettime(clk_id, tp);
+        }
     }
 
     posix_printf("unhandled syscall: %s\n", _syscall_name(n));

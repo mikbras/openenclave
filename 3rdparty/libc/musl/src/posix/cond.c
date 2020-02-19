@@ -3,6 +3,9 @@
 #include "posix_cond.h"
 #include "posix_mutex.h"
 #include "posix_ocalls.h"
+#include "posix_io.h"
+/* */
+#include "posix_warnings.h"
 
 int posix_cond_init(posix_cond_t* c)
 {
@@ -34,9 +37,13 @@ int posix_cond_destroy(posix_cond_t* c)
     return 0;
 }
 
-int posix_cond_wait(posix_cond_t* c, posix_mutex_t* mutex)
+int posix_cond_timedwait(
+    posix_cond_t* c,
+    posix_mutex_t* mutex,
+    const struct posix_timespec* timeout)
 {
     posix_thread_t* self = posix_self();
+    int retval = 0;
 
     if (!c || !mutex)
         return EINVAL;
@@ -61,13 +68,26 @@ int posix_cond_wait(posix_cond_t* c, posix_mutex_t* mutex)
             {
                 if (waiter)
                 {
-                    posix_wake_wait_ocall(
-                        waiter->host_uaddr, self->host_uaddr, NULL);
+                    if (posix_wake_wait_ocall(
+                        &retval,
+                        waiter->host_uaddr,
+                        self->host_uaddr,
+                        timeout) != OE_OK)
+                    {
+                        retval = ENOSYS;
+                    }
+
                     waiter = NULL;
                 }
                 else
                 {
-                    posix_wait_ocall(self->host_uaddr, NULL);
+                    if (posix_wait_ocall(
+                        &retval,
+                        self->host_uaddr,
+                        timeout) != OE_OK)
+                    {
+                        retval = ENOSYS;
+                    }
                 }
             }
             posix_spin_lock(&c->lock);
@@ -75,12 +95,20 @@ int posix_cond_wait(posix_cond_t* c, posix_mutex_t* mutex)
             /* If self is no longer in the queue, then it was selected */
             if (!posix_thread_queue_contains(&c->queue, self))
                 break;
+
+            if (retval != 0)
+                break;
         }
     }
     posix_spin_unlock(&c->lock);
     posix_mutex_lock(mutex);
 
-    return 0;
+    return retval;
+}
+
+int posix_cond_wait(posix_cond_t* c, posix_mutex_t* mutex)
+{
+    return posix_cond_timedwait(c, mutex, NULL);
 }
 
 int posix_cond_signal(posix_cond_t* c)

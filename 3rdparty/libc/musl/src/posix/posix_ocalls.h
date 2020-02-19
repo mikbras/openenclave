@@ -13,12 +13,14 @@ struct posix_timespec
 };
 
 oe_result_t posix_wait_ocall(
+    int* retval,
     int* host_uaddr,
     const struct posix_timespec* timeout);
 
 oe_result_t posix_wake_ocall(int* host_uaddr);
 
 oe_result_t posix_wake_wait_ocall(
+    int* retval,
     int* waiter_host_uaddr,
     int* self_host_uaddr,
     const struct posix_timespec* timeout);

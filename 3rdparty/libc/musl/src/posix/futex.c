@@ -119,13 +119,6 @@ int posix_futex_wait(
     int ret = 0;
     futex_t* futex = NULL;
 
-    if (timeout)
-    {
-        posix_printf("posix_futex_wait(): timeout not supported yet\n");
-        posix_print_backtrace();
-        oe_abort();
-    }
-
     if (!uaddr || (op != FUTEX_WAIT && op != (FUTEX_WAIT|FUTEX_PRIVATE)))
     {
         ret = -EINVAL;
@@ -143,15 +136,17 @@ int posix_futex_wait(
         if (*uaddr != val)
         {
             posix_mutex_unlock(&futex->mutex);
-            ret = EAGAIN;
+            ret = -EAGAIN;
             goto done;
         }
 
-        if (posix_cond_wait(&futex->cond, &futex->mutex) != 0)
-        {
-            ret = ENOSYS;
-            goto done;
-        }
+        int retval = posix_cond_timedwait(
+            &futex->cond,
+            &futex->mutex,
+            (const struct posix_timespec*)timeout);
+
+        if (retval != 0)
+            ret = -retval;
     }
 
     posix_mutex_unlock(&futex->mutex);

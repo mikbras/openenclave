@@ -7,6 +7,7 @@
 #include "posix_thread.h"
 #include "posix_spinlock.h"
 #include "posix_mutex.h"
+#include "posix_time.h"
 
 typedef struct _posix_cond
 {
@@ -20,6 +21,11 @@ int posix_cond_init(posix_cond_t* c);
 int posix_cond_destroy(posix_cond_t* c);
 
 int posix_cond_wait(posix_cond_t* c, posix_mutex_t* mutex);
+
+int posix_cond_timedwait(
+    posix_cond_t* c,
+    posix_mutex_t* mutex,
+    const struct posix_timespec* timeout);
 
 int posix_cond_signal(posix_cond_t* c);
 

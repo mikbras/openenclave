@@ -104,13 +104,13 @@ int posix_futex_wake_ocall(
     return 0;
 }
 
-void posix_wait_ocall(int* host_uaddr, const struct posix_timespec* timeout)
+int posix_wait_ocall(int* host_uaddr, const struct posix_timespec* timeout)
 {
+    int retval = 0;
+
     if (__sync_fetch_and_add(host_uaddr, -1) == 0)
     {
-        do
-        {
-            syscall(
+            retval = (int)syscall(
                 SYS_futex,
                 host_uaddr,
                 FUTEX_WAIT_PRIVATE,
@@ -118,9 +118,12 @@ void posix_wait_ocall(int* host_uaddr, const struct posix_timespec* timeout)
                 timeout,
                 NULL,
                 0);
-        }
-        while (*host_uaddr == -1);
+
+        if (retval != 0)
+            retval = -errno;
     }
+
+    return retval;
 }
 
 void posix_wake_ocall(int* host_uaddr)
@@ -131,11 +134,16 @@ void posix_wake_ocall(int* host_uaddr)
     }
 }
 
-void posix_wake_wait_ocall(
+int posix_wake_wait_ocall(
     int* waiter_host_uaddr,
     int* self_host_uaddr,
     const struct posix_timespec* timeout)
 {
     posix_wake_ocall(waiter_host_uaddr);
-    posix_wait_ocall(self_host_uaddr, timeout);
+    return posix_wait_ocall(self_host_uaddr, timeout);
+}
+
+int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
+{
+    return clock_gettime(clk_id, (struct timespec*)tp);
 }

@@ -22,7 +22,7 @@ int posix_mutex_init(posix_mutex_t* m)
 }
 
 /* Caller manages the spinlock */
-int __posix_mutex_lock(posix_mutex_t* m, posix_thread_t* self)
+int __posix_mutex_trylock(posix_mutex_t* m, posix_thread_t* self)
 {
     /* If this thread has already locked the mutex */
     if (m->owner == self)
@@ -71,10 +71,12 @@ int posix_mutex_lock(posix_mutex_t* mutex)
     /* Loop until SELF obtains mutex */
     for (;;)
     {
+        int retval;
+
         posix_spin_lock(&m->lock);
         {
             /* Attempt to acquire lock */
-            if (__posix_mutex_lock(m, self) == 0)
+            if (__posix_mutex_trylock(m, self) == 0)
             {
                 posix_spin_unlock(&m->lock);
                 return 0;
@@ -90,7 +92,7 @@ int posix_mutex_lock(posix_mutex_t* mutex)
         posix_spin_unlock(&m->lock);
 
         /* Ask host to wait for an event on this thread */
-        posix_wait_ocall(self->host_uaddr, NULL);
+        posix_wait_ocall(&retval, self->host_uaddr, NULL);
     }
 
     /* Unreachable! */
@@ -107,7 +109,7 @@ int posix_mutex_trylock(posix_mutex_t* mutex)
     posix_spin_lock(&m->lock);
     {
         /* Attempt to acquire lock */
-        if (__posix_mutex_lock(m, self) == 0)
+        if (__posix_mutex_trylock(m, self) == 0)
         {
             posix_spin_unlock(&m->lock);
             return 0;
