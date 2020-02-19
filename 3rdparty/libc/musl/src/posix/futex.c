@@ -181,9 +181,19 @@ int posix_futex_wake(int* uaddr, int op, int val)
         oe_abort();
     }
 
-    if (val == INT_MAX)
+    if (val == 1)
     {
-        if (posix_cond_broadcast(&futex->cond) != 0)
+        if (posix_cond_signal(&futex->cond) != 0)
+        {
+            ret = -ENOSYS;
+            goto done;
+        }
+    }
+    else if (val > 1)
+    {
+        size_t n = (val == INT_MAX) ? SIZE_MAX : (size_t)val;
+
+        if (posix_cond_broadcast(&futex->cond, n) != 0)
         {
             ret = -ENOSYS;
             goto done;
@@ -191,14 +201,8 @@ int posix_futex_wake(int* uaddr, int op, int val)
     }
     else
     {
-        for (int i = 0; i < val; i++)
-        {
-            if (posix_cond_signal(&futex->cond) != 0)
-            {
-                ret = -ENOSYS;
-                goto done;
-            }
-        }
+        ret = -ENOSYS;
+        goto done;
     }
 
 done:

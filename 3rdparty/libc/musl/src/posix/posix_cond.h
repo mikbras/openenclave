@@ -29,6 +29,7 @@ int posix_cond_timedwait(
 
 int posix_cond_signal(posix_cond_t* c);
 
-int posix_cond_broadcast(posix_cond_t* c);
+/* Wake up n waiters */
+int posix_cond_broadcast(posix_cond_t* c, size_t n);
 
 #endif //_POSIX_COND_H

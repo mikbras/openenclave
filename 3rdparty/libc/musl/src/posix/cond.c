@@ -144,7 +144,7 @@ int posix_cond_signal(posix_cond_t* c)
     return 0;
 }
 
-int posix_cond_broadcast(posix_cond_t* c)
+int posix_cond_broadcast(posix_cond_t* c, size_t n)
 {
     posix_thread_queue_t waiters = {NULL, NULL};
 
@@ -154,9 +154,14 @@ int posix_cond_broadcast(posix_cond_t* c)
     posix_spin_lock(&c->lock);
     {
         posix_thread_t* p;
+        size_t i = 0;
 
-        while ((p = posix_thread_queue_pop_front(&c->queue)))
+        /* Select at most n waiters to be woken up */
+        while (i < n && (p = posix_thread_queue_pop_front(&c->queue)))
+        {
             posix_thread_queue_push_back(&waiters, p);
+            i++;
+        }
     }
     posix_spin_unlock(&c->lock);
 
