@@ -55,7 +55,10 @@ void __tl_sync(pthread_t td)
 	int val = __thread_list_lock;
 	if (!val) return;
 	__wait(&__thread_list_lock, &tl_lock_waiters, val, 0);
+        /* ATTN:MEB: not sure whether scope is large enough */
+        ACQUIRE_FUTEX(&__thread_list_lock);
 	if (tl_lock_waiters) __wake(&__thread_list_lock, 1, 0);
+        RELEASE_FUTEX(&__thread_list_lock);
 }
 
 _Noreturn void __pthread_exit(void *result)

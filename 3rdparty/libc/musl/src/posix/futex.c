@@ -177,6 +177,7 @@ int posix_futex_wake(int* uaddr, int op, int val)
     if (!_is_ownwer(&futex->mutex))
     {
         posix_printf("posix_futex_wake(): caller does not own this mutex\n");
+        posix_printf("self=%p owner=%p\n", posix_self(), futex->mutex.owner);
         posix_print_backtrace();
         oe_abort();
     }

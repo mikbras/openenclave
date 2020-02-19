@@ -78,8 +78,6 @@ void test_create_thread(void)
 
         OE_TEST((uint64_t)retval == i);
     }
-
-    printf("=== %s() passed\n", __FUNCTION__);
 }
 
 static uint64_t _shared_integer = 0;
@@ -132,8 +130,6 @@ void test_mutexes(void)
     }
 
     OE_TEST(integer == _shared_integer);
-
-    printf("=== %s() passed\n", __FUNCTION__);
 }
 
 static pthread_mutex_t _timed_mutex = PTHREAD_MUTEX_INITIALIZER;
@@ -199,8 +195,64 @@ void test_timedlock(void)
     }
 
     pthread_mutex_unlock(&_timed_mutex);
+}
 
-    printf("=== %s() passed\n", __FUNCTION__);
+struct test_cond_arg
+{
+    pthread_cond_t c;
+    pthread_mutex_t m;
+};
+
+static size_t _wakes;
+
+static void* _test_cond(void* arg_)
+{
+    struct test_cond_arg* arg = (struct test_cond_arg*)arg_;
+
+    pthread_mutex_lock(&arg->m);
+    pthread_cond_wait(&arg->c, &arg->m);
+    _wakes++;
+    pthread_mutex_unlock(&arg->m);
+
+    return NULL;
+}
+
+void test_cond(void)
+{
+    pthread_t threads[16];
+    const size_t NUM_THREADS = OE_COUNTOF(threads);
+
+    printf("=== %s()\n", __FUNCTION__);
+
+    struct test_cond_arg arg;
+
+    OE_TEST(pthread_cond_init(&arg.c, NULL) == 0);
+    OE_TEST(pthread_mutex_init(&arg.m, NULL) == 0);
+
+    for (size_t i = 0; i < NUM_THREADS; i++)
+    {
+        OE_TEST(pthread_create(&threads[i], NULL, _test_cond, &arg) == 0);
+    }
+
+    for (size_t i = 0; i < NUM_THREADS; i++)
+    {
+        pthread_mutex_lock(&arg.m);
+        printf("signal...\n");
+        pthread_cond_signal(&arg.c);
+        pthread_mutex_unlock(&arg.m);
+        sleep_msec(250);
+    }
+
+    OE_TEST(_wakes == NUM_THREADS);
+
+    for (size_t i = 0; i < NUM_THREADS; i++)
+    {
+        OE_TEST(pthread_join(threads[i], NULL) == 0);
+        oe_host_printf("joined...\n");
+    }
+
+    pthread_mutex_destroy(&arg.m);
+    pthread_cond_destroy(&arg.c);
 }
 
 void posix_test_ecall(int* host_uaddr)
@@ -209,11 +261,17 @@ void posix_test_ecall(int* host_uaddr)
 
     posix_init(host_uaddr);
 
+#if 0
     test_create_thread();
 
     test_mutexes();
 
     test_timedlock();
+#endif
+
+    test_cond();
+
+    printf("=== %s() passed all tests\n", __FUNCTION__);
 }
 
 OE_SET_ENCLAVE_SGX(

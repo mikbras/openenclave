@@ -41,8 +41,10 @@ static inline void lock(volatile int *l)
 
 static inline void unlock(volatile int *l)
 {
+        ACQUIRE_FUTEX(l);
 	if (a_swap(l, 0)==2)
 		__wake(l, 1, 1);
+        RELEASE_FUTEX(l);
 }
 
 static inline void unlock_requeue(volatile int *l, volatile int *r, int w)
