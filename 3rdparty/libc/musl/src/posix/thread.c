@@ -17,12 +17,9 @@
 #include "posix_futex.h"
 #include "posix_futex.h"
 #include "posix_warnings.h"
+#include "posix_ocalls.h"
 
 #define MAGIC 0x6a25f0aa
-
-oe_result_t posix_start_thread_ocall(int* retval, uint64_t cookie);
-
-oe_result_t posix_gettid_ocall(int* retval);
 
 /* The thread info structure for the main thread */
 static posix_thread_t _main_thread;

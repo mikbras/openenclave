@@ -4,13 +4,20 @@
 #ifndef _POSIX_OCALLS_H
 #define _POSIX_OCALLS_H
 
-#include <openenclave/enclave.h>
+#include <openenclave/bits/types.h>
+#include <openenclave/bits/result.h>
 
-struct posix_timespec
-{
-    int64_t tv_sec;
-    uint64_t tv_nsec;
-};
+typedef struct posix_timespec posix_timespec_t;
+
+oe_result_t posix_nanosleep_ocall(
+    int* retval,
+    const struct posix_timespec* req,
+    struct posix_timespec* rem);
+
+oe_result_t posix_clock_gettime_ocall(
+    int* retval,
+    int clk_id,
+    struct posix_timespec* tp);
 
 oe_result_t posix_wait_ocall(
     int* retval,
@@ -24,5 +31,9 @@ oe_result_t posix_wake_wait_ocall(
     int* waiter_host_uaddr,
     int* self_host_uaddr,
     const struct posix_timespec* timeout);
+
+oe_result_t posix_start_thread_ocall(int* retval, uint64_t cookie);
+
+oe_result_t posix_gettid_ocall(int* retval);
 
 #endif //_POSIX_OCALLS_H

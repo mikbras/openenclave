@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <openenclave/internal/backtrace.h>
 #include "posix_t.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_ocalls.h"
 
 void posix_init(int* host_uaddr);
 

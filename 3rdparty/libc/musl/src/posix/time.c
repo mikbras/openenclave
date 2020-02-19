@@ -3,6 +3,7 @@
 #include <openenclave/internal/defs.h>
 #include "posix_time.h"
 #include "posix_io.h"
+#include "posix_ocalls.h"
 
 #include "posix_warnings.h"
 
@@ -10,16 +11,6 @@ OE_STATIC_ASSERT(sizeof(struct timespec) == sizeof(struct posix_timespec));
 OE_CHECK_FIELD(struct timespec, struct posix_timespec, tv_sec);
 OE_CHECK_FIELD(struct timespec, struct posix_timespec, tv_nsec);
 OE_STATIC_ASSERT(sizeof(clockid_t) == sizeof(int));
-
-oe_result_t posix_nanosleep_ocall(
-    int* retval,
-    const struct posix_timespec* req,
-    struct posix_timespec* rem);
-
-oe_result_t posix_clock_gettime_ocall(
-    int* retval,
-    int clk_id,
-    struct posix_timespec* tp);
 
 int posix_nanosleep(const struct timespec* req, struct timespec* rem)
 {
