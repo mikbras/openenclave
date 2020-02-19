@@ -201,9 +201,8 @@ struct test_cond_arg
 {
     pthread_cond_t c;
     pthread_mutex_t m;
+    size_t n;
 };
-
-static size_t _wakes;
 
 static void* _test_cond(void* arg_)
 {
@@ -211,7 +210,7 @@ static void* _test_cond(void* arg_)
 
     pthread_mutex_lock(&arg->m);
     pthread_cond_wait(&arg->c, &arg->m);
-    _wakes++;
+    arg->n++;
     pthread_mutex_unlock(&arg->m);
 
     return NULL;
@@ -228,6 +227,7 @@ void test_cond(void)
 
     OE_TEST(pthread_cond_init(&arg.c, NULL) == 0);
     OE_TEST(pthread_mutex_init(&arg.m, NULL) == 0);
+    arg.n = 0;
 
     for (size_t i = 0; i < NUM_THREADS; i++)
     {
@@ -240,10 +240,10 @@ void test_cond(void)
         printf("signal...\n");
         pthread_cond_signal(&arg.c);
         pthread_mutex_unlock(&arg.m);
-        sleep_msec(250);
+        sleep_msec(50);
     }
 
-    OE_TEST(_wakes == NUM_THREADS);
+    OE_TEST(arg.n == NUM_THREADS);
 
     for (size_t i = 0; i < NUM_THREADS; i++)
     {
@@ -261,13 +261,11 @@ void posix_test_ecall(int* host_uaddr)
 
     posix_init(host_uaddr);
 
-#if 0
     test_create_thread();
 
     test_mutexes();
 
     test_timedlock();
-#endif
 
     test_cond();
 

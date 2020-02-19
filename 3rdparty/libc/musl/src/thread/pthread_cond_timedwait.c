@@ -47,6 +47,7 @@ static inline void unlock(volatile int *l)
         RELEASE_FUTEX(l);
 }
 
+/* ATTN:MEB: figure out how to test this */
 static inline void unlock_requeue(volatile int *l, volatile int *r, int w)
 {
 	a_store(l, 0);
