@@ -185,7 +185,11 @@ void test_timedlock(void)
         abort();
     }
 
-    sleep(6);
+    for (size_t i = 0; i < 6; i++)
+    {
+        printf("sleeping...\n");
+        sleep(1);
+    }
 
     if (pthread_join(thread, NULL) != 0)
     {

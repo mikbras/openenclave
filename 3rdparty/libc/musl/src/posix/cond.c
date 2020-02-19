@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <string.h>
+#include <assert.h>
 #include "posix_cond.h"
 #include "posix_mutex.h"
 #include "posix_ocalls.h"
@@ -43,7 +44,7 @@ int posix_cond_timedwait(
     const struct posix_timespec* timeout)
 {
     posix_thread_t* self = posix_self();
-    int retval = 0;
+    int ret = 0;
 
     if (!c || !mutex)
         return EINVAL;
@@ -68,25 +69,39 @@ int posix_cond_timedwait(
             {
                 if (waiter)
                 {
+                    int retval;
+
                     if (posix_wake_wait_ocall(
                         &retval,
                         waiter->host_uaddr,
                         self->host_uaddr,
                         timeout) != OE_OK)
                     {
-                        retval = ENOSYS;
+                        ret = ENOSYS;
+                    }
+                    else
+                    {
+                        assert(retval == 0 || retval < 0);
+                        ret = -retval;
                     }
 
                     waiter = NULL;
                 }
                 else
                 {
+                    int retval;
+
                     if (posix_wait_ocall(
                         &retval,
                         self->host_uaddr,
                         timeout) != OE_OK)
                     {
-                        retval = ENOSYS;
+                        ret = ENOSYS;
+                    }
+                    else
+                    {
+                        assert(retval == 0 || retval < 0);
+                        ret = -retval;
                     }
                 }
             }
@@ -96,14 +111,14 @@ int posix_cond_timedwait(
             if (!posix_thread_queue_contains(&c->queue, self))
                 break;
 
-            if (retval != 0)
+            if (ret != 0)
                 break;
         }
     }
     posix_spin_unlock(&c->lock);
     posix_mutex_lock(mutex);
 
-    return retval;
+    return ret;
 }
 
 int posix_cond_wait(posix_cond_t* c, posix_mutex_t* mutex)
