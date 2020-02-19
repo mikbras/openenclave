@@ -50,10 +50,12 @@ static inline void unlock(volatile int *l)
 /* ATTN:MEB: figure out how to test this */
 static inline void unlock_requeue(volatile int *l, volatile int *r, int w)
 {
+        ACQUIRE_FUTEX(l);
 	a_store(l, 0);
 	if (w) __wake(l, 1, 1);
 	else __syscall(SYS_futex, l, FUTEX_REQUEUE|FUTEX_PRIVATE, 0, 1, r) != -ENOSYS
 		|| __syscall(SYS_futex, l, FUTEX_REQUEUE, 0, 1, r);
+        RELEASE_FUTEX(l);
 }
 
 enum {
@@ -109,8 +111,10 @@ int __pthread_cond_timedwait(pthread_cond_t *restrict c, pthread_mutex_t *restri
 		 * consumed; this is a legitimate form of spurious
 		 * wake even if not. */
 		if (e == ECANCELED && c->_c_seq != seq) e = 0;
+                ACQUIRE_FUTEX(&c->_c_waiters);
 		if (a_fetch_add(&c->_c_waiters, -1) == -0x7fffffff)
 			__wake(&c->_c_waiters, 1, 0);
+                RELEASE_FUTEX(&c->_c_waiters);
 		oldstate = WAITING;
 		goto relock;
 	}
@@ -133,8 +137,10 @@ int __pthread_cond_timedwait(pthread_cond_t *restrict c, pthread_mutex_t *restri
 		unlock(&c->_c_lock);
 
 		if (node.notify) {
+                        ACQUIRE_FUTEX(node.notify);
 			if (a_fetch_add(node.notify, -1)==1)
 				__wake(node.notify, 1, 1);
+                        RELEASE_FUTEX(node.notify);
 		}
 	} else {
 		/* Lock barrier first to control wake order. */

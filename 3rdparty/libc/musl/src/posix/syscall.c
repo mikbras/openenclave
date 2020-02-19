@@ -600,6 +600,13 @@ long posix_syscall(long n, ...)
             {
                 return posix_futex_wake(uaddr, op, val);
             }
+            else if (op == FUTEX_REQUEUE || op == (FUTEX_REQUEUE|FUTEX_PRIVATE))
+            {
+                int val2 = (int)x4;
+                int* uaddr2 = (int*)x5;
+                int val3 = (int)x6;
+                return posix_futex_requeue(uaddr, op, val, val2, uaddr2, val3);
+            }
             else
             {
                 posix_printf("unhandled futex op: %d\n", op);
@@ -627,6 +634,11 @@ long posix_syscall(long n, ...)
             clockid_t clk_id = (clockid_t)x1;
             struct timespec* tp = (struct timespec*)x2;
             return posix_clock_gettime(clk_id, tp);
+        }
+        case SYS_sigaltstack:
+        {
+            /* ATTN: */
+            return 0;
         }
     }
 

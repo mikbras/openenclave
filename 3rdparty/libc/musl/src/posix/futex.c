@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <limits.h>
 #include <stdio.h>
+#include <assert.h>
 #include <openenclave/enclave.h>
 #include <openenclave/corelibc/stdlib.h>
 #include <openenclave/internal/thread.h>
@@ -110,6 +111,31 @@ static bool _is_ownwer(posix_mutex_t* m)
     return posix_self() == m->owner;
 }
 
+int posix_futex_acquire(volatile int* uaddr)
+{
+    futex_t* futex = NULL;
+
+    if (!(futex = _get((int*)uaddr)))
+        return -1;
+
+    if (posix_mutex_lock(&futex->mutex) != 0)
+        return -1;
+
+    return 0;
+}
+
+int posix_futex_release(volatile int* uaddr)
+{
+    futex_t* futex = NULL;
+
+    if (!(futex = _get((int*)uaddr)))
+        return -1;
+
+    if (posix_mutex_unlock(&futex->mutex) != 0)
+        return -1;
+
+    return 0;
+}
 int posix_futex_wait(
     int* uaddr,
     int op,
@@ -211,28 +237,22 @@ done:
     return ret;
 }
 
-int posix_futex_acquire(volatile int* uaddr)
+int posix_futex_requeue(
+    int* uaddr,
+    int op,
+    int val,
+    int val2,
+    int* uaddr2,
+    int val3)
 {
-    futex_t* futex = NULL;
+    (void)uaddr;
+    (void)op;
+    (void)val;
+    (void)val2;
+    (void)uaddr2;
+    (void)val3;
 
-    if (!(futex = _get((int*)uaddr)))
-        return -1;
-
-    if (posix_mutex_lock(&futex->mutex) != 0)
-        return -1;
-
-    return 0;
-}
-
-int posix_futex_release(volatile int* uaddr)
-{
-    futex_t* futex = NULL;
-
-    if (!(futex = _get((int*)uaddr)))
-        return -1;
-
-    if (posix_mutex_unlock(&futex->mutex) != 0)
-        return -1;
-
-    return 0;
+    posix_printf("posix_futex_requeue(): unimplemented\n");
+    assert(false);
+    return -1;
 }
