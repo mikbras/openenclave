@@ -104,8 +104,10 @@ int posix_futex_wake_ocall(
     return 0;
 }
 
-void posix_wait_ocall(int* host_uaddr)
+void posix_wait_ocall(int* host_uaddr, const struct posix_timespec* timeout)
 {
+    (void)timeout;
+
     if (__sync_fetch_and_add(host_uaddr, -1) == 0)
     {
         do
@@ -131,8 +133,11 @@ void posix_wake_ocall(int* host_uaddr)
     }
 }
 
-void posix_wake_wait_ocall(int* waiter_host_uaddr, int* self_host_uaddr)
+void posix_wake_wait_ocall(
+    int* waiter_host_uaddr,
+    int* self_host_uaddr,
+    const struct posix_timespec* timeout)
 {
     posix_wake_ocall(waiter_host_uaddr);
-    posix_wait_ocall(self_host_uaddr);
+    posix_wait_ocall(self_host_uaddr, timeout);
 }

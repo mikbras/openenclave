@@ -90,7 +90,7 @@ int posix_mutex_lock(posix_mutex_t* mutex)
         posix_spin_unlock(&m->lock);
 
         /* Ask host to wait for an event on this thread */
-        posix_wait_ocall(self->host_uaddr);
+        posix_wait_ocall(self->host_uaddr, NULL);
     }
 
     /* Unreachable! */

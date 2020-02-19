@@ -61,12 +61,13 @@ int posix_cond_wait(posix_cond_t* c, posix_mutex_t* mutex)
             {
                 if (waiter)
                 {
-                    posix_wake_wait_ocall(waiter->host_uaddr, self->host_uaddr);
+                    posix_wake_wait_ocall(
+                        waiter->host_uaddr, self->host_uaddr, NULL);
                     waiter = NULL;
                 }
                 else
                 {
-                    posix_wait_ocall(self->host_uaddr);
+                    posix_wait_ocall(self->host_uaddr, NULL);
                 }
             }
             posix_spin_lock(&c->lock);
