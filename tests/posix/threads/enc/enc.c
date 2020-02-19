@@ -130,6 +130,44 @@ void test_mutexes(void)
     printf("=== %s()\n", __FUNCTION__);
 }
 
+static pthread_mutex_t _timed_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+static void* _test_timedlock(void* arg)
+{
+    (void)arg;
+
+    struct timespec timeout;
+
+    timeout.tv_sec = 0;
+    timeout.tv_nsec = 0;
+
+    pthread_mutex_timedlock(&_timed_mutex, &timeout);
+
+    return NULL;
+}
+
+void test_timedlock(void)
+{
+    pthread_t thread;
+
+    pthread_mutex_lock(&_timed_mutex);
+
+    if (pthread_create(&thread, NULL, _test_timedlock, NULL) != 0)
+    {
+        fprintf(stderr, "pthread_create() failed\n");
+        abort();
+    }
+
+    if (pthread_join(thread, NULL) != 0)
+    {
+        fprintf(stderr, "pthread_create() failed\n");
+        abort();
+    }
+
+    sleep(10);
+    pthread_mutex_unlock(&_timed_mutex);
+}
+
 void posix_test_ecall(int* host_uaddr)
 {
     oe_disable_debug_malloc_check = true;
@@ -139,6 +177,10 @@ void posix_test_ecall(int* host_uaddr)
     test_create_thread();
 
     test_mutexes();
+
+#if 0
+    test_timedlock();
+#endif
 }
 
 OE_SET_ENCLAVE_SGX(

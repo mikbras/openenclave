@@ -106,8 +106,6 @@ int posix_futex_wake_ocall(
 
 void posix_wait_ocall(int* host_uaddr, const struct posix_timespec* timeout)
 {
-    (void)timeout;
-
     if (__sync_fetch_and_add(host_uaddr, -1) == 0)
     {
         do
@@ -117,7 +115,7 @@ void posix_wait_ocall(int* host_uaddr, const struct posix_timespec* timeout)
                 host_uaddr,
                 FUTEX_WAIT_PRIVATE,
                 -1,
-                NULL,
+                timeout,
                 NULL,
                 0);
         }
