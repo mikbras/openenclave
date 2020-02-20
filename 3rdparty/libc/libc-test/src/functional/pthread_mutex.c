@@ -137,11 +137,11 @@ int main(void)
 
 	test_mutexattr();
 
+#if 0
 // MEB:
 // This test can never work with enclave libc. It creates a thread to double
 // lock a normal mutex causing a hang. It then allows the thread to keep
 // running while it exits the function whose stack defines the mutex address.
-#if 0
 	i = test_relock(PTHREAD_MUTEX_NORMAL);
 	if (i != -1)
 		t_error("PTHREAD_MUTEX_NORMAL relock did not deadlock, got %s\n", strerror(i));
