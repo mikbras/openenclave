@@ -17,12 +17,10 @@ int sem_timedwait(sem_t *restrict sem, const struct timespec *restrict at)
 
 	while (sem_trywait(sem)) {
 		int r;
-                ACQUIRE_FUTEX(sem->__val);
 		a_inc(sem->__val+1);
 		a_cas(sem->__val, 0, -1);
 		pthread_cleanup_push(cleanup, (void *)(sem->__val+1));
 		r = __timedwait_cp(sem->__val, -1, CLOCK_REALTIME, at, sem->__val[2]);
-                RELEASE_FUTEX(sem->__val);
 		pthread_cleanup_pop(1);
 		if (r) {
 			errno = r;

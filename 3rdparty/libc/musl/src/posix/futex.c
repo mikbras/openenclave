@@ -145,6 +145,11 @@ int posix_futex_wait(
     int ret = 0;
     futex_t* futex = NULL;
 
+#if defined(DEBUG_TRACE)
+    posix_printf("posix_futex_wait(): uaddr=%p\n", uaddr);
+    posix_print_backtrace();
+#endif
+
     if (!uaddr || (op != FUTEX_WAIT && op != (FUTEX_WAIT|FUTEX_PRIVATE)))
     {
         ret = -EINVAL;
@@ -187,6 +192,9 @@ int posix_futex_wake(int* uaddr, int op, int val)
     int ret = 0;
     futex_t* futex = NULL;
 
+#if defined(DEBUG_TRACE)
+    posix_printf("posix_futex_wake(): uaddr=%p\n", uaddr);
+#endif
 
     if (!uaddr || (op != FUTEX_WAKE && op != (FUTEX_WAKE|FUTEX_PRIVATE)))
     {
@@ -247,6 +255,10 @@ int posix_futex_requeue(
     int ret = 0;
     futex_t* futex = NULL;
     futex_t* futex2 = NULL;
+
+#if defined(DEBUG_TRACE)
+    posix_printf("%s(): uaddr=%p\n", __FUNCTION__, uaddr);
+#endif
 
     if (!uaddr || (op != FUTEX_REQUEUE && op != (FUTEX_REQUEUE|FUTEX_PRIVATE)))
     {
