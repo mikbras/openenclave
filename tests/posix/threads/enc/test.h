@@ -6,7 +6,7 @@
 
 extern volatile int t_status;
 
-#define t_error(FMT, ...) t_printf(__FILE__, __LINE__, FMT, __VA_ARGS__)
+#define t_error(...) t_printf(__FILE__, __LINE__, __VA_ARGS__)
 
 static __inline__ void t_printf(
     const char* file,
