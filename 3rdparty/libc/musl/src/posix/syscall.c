@@ -604,8 +604,7 @@ long posix_syscall(long n, ...)
             {
                 int val2 = (int)x4;
                 int* uaddr2 = (int*)x5;
-                int val3 = (int)x6;
-                return posix_futex_requeue(uaddr, op, val, val2, uaddr2, val3);
+                return posix_futex_requeue(uaddr, op, val, val2, uaddr2);
             }
             else
             {

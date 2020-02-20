@@ -32,4 +32,10 @@ int posix_cond_signal(posix_cond_t* c);
 /* Wake up n waiters */
 int posix_cond_broadcast(posix_cond_t* c, size_t n);
 
+int posix_cond_requeue(
+    posix_cond_t* c1,
+    posix_cond_t* c2,
+    size_t wake_count,
+    size_t requeue_count);
+
 #endif //_POSIX_COND_H

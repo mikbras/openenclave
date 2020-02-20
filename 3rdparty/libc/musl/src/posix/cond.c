@@ -169,12 +169,75 @@ int posix_cond_broadcast(posix_cond_t* c, size_t n)
 
     for (posix_thread_t* p = waiters.front; p; p = next)
     {
-        // p could wake up and immediately use a synchronization
-        // primitive that could modify the next field.
-        // Therefore fetch the next thread before waking up p.
         next = p->next;
         posix_wake_ocall(p->host_uaddr);
     }
+
+    return 0;
+}
+
+int posix_cond_requeue(
+    posix_cond_t* c1,
+    posix_cond_t* c2,
+    size_t wake_count,
+    size_t requeue_count)
+{
+    posix_thread_queue_t wakers = {NULL, NULL};
+    posix_thread_queue_t requeues = {NULL, NULL};
+
+    if (!c1 || !c2)
+        return EINVAL;
+
+    /* Form two queues: wakers and requeues */
+    posix_spin_lock(&c1->lock);
+    {
+        /* Select threads to be awoken */
+        for (size_t i = 0; i < wake_count; i++)
+        {
+            posix_thread_t* p;
+
+            if (!(p = posix_thread_queue_pop_front(&c1->queue)))
+                break;
+
+            posix_thread_queue_push_back(&wakers, p);
+        }
+
+        /* Selector threads to be required */
+        for (size_t i = 0; i < requeue_count; i++)
+        {
+            posix_thread_t* p;
+
+            if (!(p = posix_thread_queue_pop_front(&c1->queue)))
+                break;
+
+            posix_thread_queue_push_back(&requeues, p);
+        }
+    }
+    posix_spin_unlock(&c1->lock);
+
+    /* Wake the threads in the wakers queue */
+    {
+        posix_thread_t* next = NULL;
+
+        for (posix_thread_t* p = wakers.front; p; p = next)
+        {
+            next = p->next;
+            posix_wake_ocall(p->host_uaddr);
+        }
+    }
+
+    /* Requeue the threads in the requeues queue */
+    posix_spin_lock(&c2->lock);
+    {
+        posix_thread_t* next = NULL;
+
+        for (posix_thread_t* p = requeues.front; p; p = next)
+        {
+            next = p->next;
+            posix_thread_queue_push_back(&c2->queue, p);
+        }
+    }
+    posix_spin_unlock(&c2->lock);
 
     return 0;
 }

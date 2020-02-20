@@ -47,6 +47,16 @@ typedef struct _posix_thread_queue
     posix_thread_t* back;
 } posix_thread_queue_t;
 
+static __inline__ size_t posix_thread_queue_size(posix_thread_queue_t* queue)
+{
+    size_t n = 0;
+
+    for (posix_thread_t* p = queue->front; p; p = p->next)
+        n++;
+
+    return n;
+}
+
 static __inline__ void posix_thread_queue_push_back(
     posix_thread_queue_t* queue,
     posix_thread_t* thread)

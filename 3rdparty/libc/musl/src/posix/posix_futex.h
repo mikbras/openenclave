@@ -20,7 +20,6 @@ int posix_futex_requeue(
     int futex_op,
     int val,
     int val2,
-    int* uaddr2,
-    int val3);
+    int* uaddr2);
 
 #endif /* _POSIX_FUTEX_H */

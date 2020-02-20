@@ -242,17 +242,60 @@ int posix_futex_requeue(
     int op,
     int val,
     int val2,
-    int* uaddr2,
-    int val3)
+    int* uaddr2)
 {
-    (void)uaddr;
-    (void)op;
-    (void)val;
-    (void)val2;
-    (void)uaddr2;
-    (void)val3;
+    int ret = 0;
+    futex_t* futex = NULL;
+    futex_t* futex2 = NULL;
 
-    posix_printf("posix_futex_requeue(): unimplemented\n");
-    assert(false);
-    return -1;
+    if (!uaddr || (op != FUTEX_REQUEUE && op != (FUTEX_REQUEUE|FUTEX_PRIVATE)))
+    {
+        ret = -EINVAL;
+        goto done;
+    }
+
+    if ((val < 0 && val != INT_MAX) || (val2 < 0 && val != INT_MAX))
+    {
+        ret = -EINVAL;
+        goto done;
+    }
+
+    if (!(futex = _get(uaddr)))
+    {
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    if (!(futex2 = _get(uaddr2)))
+    {
+        ret = -ENOMEM;
+        goto done;
+    }
+
+    if (!_is_ownwer(&futex->mutex) || !_is_ownwer(&futex2->mutex))
+    {
+        posix_printf("%s(): caller does not own these mutexes\n", __FUNCTION__);
+        posix_print_backtrace();
+        oe_abort();
+    }
+
+    /* Invoke posix_cond_requeue() */
+    {
+        size_t wake_count = (val == INT_MAX) ? SIZE_MAX : (size_t)val;
+        size_t requeue_count = (val2 == INT_MAX) ? SIZE_MAX : (size_t)val2;
+
+        if (posix_cond_requeue(
+            &futex->cond,
+            &futex2->cond,
+            wake_count,
+            requeue_count) != 0)
+        {
+            ret = -ENOSYS;
+            goto done;
+        }
+    }
+
+done:
+
+    return ret;
 }

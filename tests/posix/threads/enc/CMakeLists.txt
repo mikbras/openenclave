@@ -12,13 +12,17 @@ add_custom_command(
 
 add_executable(posix_enc
     enc.c
+    pthread_cond.c
+    pthread_mutex.c
     stubs.c
     start.S
+    test.c
     ${CMAKE_CURRENT_BINARY_DIR}/posix_t.c)
 
 target_include_directories(posix_enc PRIVATE
     ${PROJECT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_BINARY_DIR}
+    ${CMAKE_CURRENT_SOURCE_DIR}
     /opt/musl/include)
 
 #target_link_libraries(posix_enc -L/opt/musl/lib -lpthread -lc oecore)

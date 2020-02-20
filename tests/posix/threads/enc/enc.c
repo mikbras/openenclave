@@ -13,6 +13,7 @@
 #include <openenclave/internal/backtrace.h>
 #include "posix_t.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocalls.h"
+#include "test.h"
 
 void posix_init(int* host_uaddr);
 
@@ -209,14 +210,15 @@ static void* _test_cond(void* arg_)
     struct test_cond_arg* arg = (struct test_cond_arg*)arg_;
 
     pthread_mutex_lock(&arg->m);
+    printf("wait: %p\n", pthread_self());
     pthread_cond_wait(&arg->c, &arg->m);
     arg->n++;
     pthread_mutex_unlock(&arg->m);
 
-    return NULL;
+    return pthread_self();
 }
 
-void test_cond(void)
+void test_cond_signal(void)
 {
     pthread_t threads[16];
     const size_t NUM_THREADS = OE_COUNTOF(threads);
@@ -229,12 +231,17 @@ void test_cond(void)
     OE_TEST(pthread_mutex_init(&arg.m, NULL) == 0);
     arg.n = 0;
 
+    OE_TEST(pthread_mutex_lock(&arg.m) == 0);
+
     for (size_t i = 0; i < NUM_THREADS; i++)
     {
         OE_TEST(pthread_create(&threads[i], NULL, _test_cond, &arg) == 0);
     }
 
-#if 0
+    OE_TEST(pthread_mutex_unlock(&arg.m) == 0);
+
+    sleep_msec(100);
+
     for (size_t i = 0; i < NUM_THREADS; i++)
     {
         pthread_mutex_lock(&arg.m);
@@ -243,24 +250,73 @@ void test_cond(void)
         pthread_mutex_unlock(&arg.m);
         sleep_msec(50);
     }
-#else
-    {
-        pthread_mutex_lock(&arg.m);
-        printf("signal...\n");
-        pthread_cond_broadcast(&arg.c);
-        pthread_mutex_unlock(&arg.m);
-    }
-#endif
 
     for (size_t i = 0; i < NUM_THREADS; i++)
     {
-        OE_TEST(pthread_join(threads[i], NULL) == 0);
-        oe_host_printf("joined...\n");
+        void* retval = NULL;
+        OE_TEST(pthread_join(threads[i], &retval) == 0);
+        oe_host_printf("joined:%p\n", retval);
     }
 
     OE_TEST(arg.n == NUM_THREADS);
     pthread_mutex_destroy(&arg.m);
     pthread_cond_destroy(&arg.c);
+}
+
+void test_cond_broadcast(void)
+{
+    pthread_t threads[16];
+    const size_t NUM_THREADS = OE_COUNTOF(threads);
+
+    printf("=== %s()\n", __FUNCTION__);
+
+    struct test_cond_arg arg;
+
+    OE_TEST(pthread_cond_init(&arg.c, NULL) == 0);
+    OE_TEST(pthread_mutex_init(&arg.m, NULL) == 0);
+    arg.n = 0;
+
+    OE_TEST(pthread_mutex_lock(&arg.m) == 0);
+
+    for (size_t i = 0; i < NUM_THREADS; i++)
+    {
+        OE_TEST(pthread_create(&threads[i], NULL, _test_cond, &arg) == 0);
+    }
+
+    OE_TEST(pthread_mutex_unlock(&arg.m) == 0);
+
+    sleep_msec(100);
+    pthread_mutex_lock(&arg.m);
+    printf("broadcast...\n");
+    pthread_cond_broadcast(&arg.c);
+    pthread_mutex_unlock(&arg.m);
+
+    for (size_t i = 0; i < NUM_THREADS; i++)
+    {
+        void* retval = NULL;
+        OE_TEST(pthread_join(threads[i], &retval) == 0);
+        oe_host_printf("joined:%p\n", retval);
+    }
+
+    OE_TEST(arg.n == NUM_THREADS);
+    pthread_mutex_destroy(&arg.m);
+    pthread_cond_destroy(&arg.c);
+}
+
+void test_pthread_cond_main(void)
+{
+    t_status = 0;
+    printf("=== pthread_cond_main()\n");
+    extern int pthread_cond_main(void);
+    OE_TEST(pthread_cond_main() == 0);
+}
+
+void test_pthread_mutex_main(void)
+{
+    t_status = 0;
+    printf("=== pthread_mutex_main()\n");
+    extern int pthread_mutex_main(void);
+    OE_TEST(pthread_mutex_main() == 0);
 }
 
 void posix_test_ecall(int* host_uaddr)
@@ -269,12 +325,17 @@ void posix_test_ecall(int* host_uaddr)
 
     posix_init(host_uaddr);
 
-#if 0
     test_create_thread();
     test_mutexes();
     test_timedlock();
+    test_cond_signal();
+    test_cond_broadcast();
+    test_pthread_cond_main();
+
+#if 0
+    /* broken: hangs on sem_wait() */
+    test_pthread_mutex_main();
 #endif
-    test_cond();
 
     printf("=== %s() passed all tests\n", __FUNCTION__);
 }

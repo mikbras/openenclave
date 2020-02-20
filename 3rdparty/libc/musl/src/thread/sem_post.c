@@ -4,14 +4,21 @@
 int sem_post(sem_t *sem)
 {
 	int val, waiters, priv = sem->__val[2];
-	do {
+	for (;;) {
 		val = sem->__val[0];
 		waiters = sem->__val[1];
 		if (val == SEM_VALUE_MAX) {
 			errno = EOVERFLOW;
 			return -1;
 		}
-	} while (a_cas(sem->__val, val, val+1+(val<0)) != val);
-	if (val<0 || waiters) __wake(sem->__val, 1, priv);
+
+                ACQUIRE_FUTEX(sem->__val);
+                if (a_cas(sem->__val, val, val+1+(val<0)) == val) {
+                    if (val<0 || waiters) __wake(sem->__val, 1, priv);
+                    RELEASE_FUTEX(sem->__val);
+                    break;
+                }
+                RELEASE_FUTEX(sem->__val);
+        }
 	return 0;
 }
