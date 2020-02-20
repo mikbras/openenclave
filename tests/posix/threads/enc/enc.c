@@ -327,7 +327,6 @@ void posix_test_ecall(int* host_uaddr)
     RUN_LIBC_TEST(pthread_tsd_main);
     RUN_LIBC_TEST(pthread_cond_main);
     RUN_LIBC_TEST(pthread_mutex_main);
-    RUN_LIBC_TEST(pthread_mutex_main_pi);
     RUN_LIBC_TEST(sem_init_main);
 #if 0
     // Requires FUTEX_LOCK_PI implementation
