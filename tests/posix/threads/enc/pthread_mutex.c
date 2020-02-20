@@ -5,4 +5,4 @@
 
 extern int posix_gettid();
 
-#include "../../../../3rdparty/libc/wasi-libc-test/libc-test/src/functional/pthread_mutex.c"
+#include "../../../../3rdparty/libc/libc-test/src/functional/pthread_mutex.c"

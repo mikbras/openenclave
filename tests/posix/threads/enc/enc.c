@@ -325,18 +325,13 @@ void posix_test_ecall(int* host_uaddr)
 
     posix_init(host_uaddr);
 
-#if 0
     test_create_thread();
     test_mutexes();
     test_timedlock();
     test_cond_signal();
     test_cond_broadcast();
     test_pthread_cond_main();
-#endif
-
-#if 1
     test_pthread_mutex_main();
-#endif
 
     printf("=== %s() passed all tests\n", __FUNCTION__);
 }
