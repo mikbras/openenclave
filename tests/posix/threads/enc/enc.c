@@ -308,6 +308,7 @@ void test_pthread_cond_main(void)
     t_status = 0;
     printf("=== pthread_cond_main()\n");
     extern int pthread_cond_main(void);
+    OE_TEST(t_status == 0);
     OE_TEST(pthread_cond_main() == 0);
 }
 
@@ -316,7 +317,17 @@ void test_pthread_mutex_main(void)
     t_status = 0;
     printf("=== pthread_mutex_main()\n");
     extern int pthread_mutex_main(void);
+    OE_TEST(t_status == 0);
     OE_TEST(pthread_mutex_main() == 0);
+}
+
+void test_sem_init_main(void)
+{
+    t_status = 0;
+    printf("=== sem_init_main()\n");
+    extern int sem_init_main(void);
+    OE_TEST(t_status == 0);
+    OE_TEST(sem_init_main() == 0);
 }
 
 void posix_test_ecall(int* host_uaddr)
@@ -332,6 +343,7 @@ void posix_test_ecall(int* host_uaddr)
     test_cond_broadcast();
     test_pthread_cond_main();
     test_pthread_mutex_main();
+    test_sem_init_main();
 
     printf("=== %s() passed all tests\n", __FUNCTION__);
 }
