@@ -303,47 +303,30 @@ void test_cond_broadcast(void)
     pthread_cond_destroy(&arg.c);
 }
 
-void test_pthread_cond_main(void)
-{
-    t_status = 0;
-    printf("=== pthread_cond_main()\n");
-    extern int pthread_cond_main(void);
-    OE_TEST(t_status == 0);
-    OE_TEST(pthread_cond_main() == 0);
-}
-
-void test_pthread_mutex_main(void)
-{
-    t_status = 0;
-    printf("=== pthread_mutex_main()\n");
-    extern int pthread_mutex_main(void);
-    OE_TEST(t_status == 0);
-    OE_TEST(pthread_mutex_main() == 0);
-}
-
-void test_sem_init_main(void)
-{
-    t_status = 0;
-    printf("=== sem_init_main()\n");
-    extern int sem_init_main(void);
-    OE_TEST(t_status == 0);
-    OE_TEST(sem_init_main() == 0);
-}
+#define RUN_LIBC_TEST(MAIN)             \
+    do                                  \
+    {                                   \
+        extern int MAIN();              \
+        t_status = 0;                   \
+        printf("=== %s\n", #MAIN);      \
+        OE_TEST(MAIN() == 0);           \
+    }                                   \
+    while (0)
 
 void posix_test_ecall(int* host_uaddr)
 {
     oe_disable_debug_malloc_check = true;
-
     posix_init(host_uaddr);
-
     test_create_thread();
     test_mutexes();
     test_timedlock();
     test_cond_signal();
     test_cond_broadcast();
-    test_pthread_cond_main();
-    test_pthread_mutex_main();
-    test_sem_init_main();
+
+    RUN_LIBC_TEST(pthread_tsd_main);
+    RUN_LIBC_TEST(pthread_cond_main);
+    RUN_LIBC_TEST(pthread_mutex_main);
+    RUN_LIBC_TEST(sem_init_main);
 
     printf("=== %s() passed all tests\n", __FUNCTION__);
 }
