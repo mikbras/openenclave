@@ -319,6 +319,7 @@ void posix_test_ecall(int* host_uaddr)
 
     posix_init(host_uaddr);
 
+#if 1
     test_create_thread();
     test_mutexes();
     test_timedlock();
@@ -328,11 +329,14 @@ void posix_test_ecall(int* host_uaddr)
     RUN_LIBC_TEST(pthread_cond_main);
     RUN_LIBC_TEST(pthread_mutex_main);
     RUN_LIBC_TEST(sem_init_main);
-#if 0
-    // Requires FUTEX_LOCK_PI implementation
-    // Uses pthread_mutexattr_setprotocol(..., PTHREAD_PRIO_INHERIT)
-    RUN_LIBC_TEST(pthread_mutex_main_pi);
+    RUN_LIBC_TEST(pthread_rwlock_ebusy_main);
 #endif
+
+    // Requires FUTEX_LOCK_PI implementation
+    // RUN_LIBC_TEST(pthread_robust_main);
+
+    // Requires FUTEX_LOCK_PI implementation
+    // RUN_LIBC_TEST(pthread_mutex_main_pi);
 
     printf("=== %s() passed all tests\n", __FUNCTION__);
 }

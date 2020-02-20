@@ -227,3 +227,38 @@ void posix_exit(int status)
     /* Jump back to posix_run_thread_ecall() */
     longjmp(thread->jmpbuf, 1);
 }
+
+long posix_get_robust_list(
+    int pid,
+    struct posix_robust_list_head** head_ptr,
+    size_t* len_ptr)
+{
+    posix_thread_t* self = posix_self();
+
+    if (pid != 0 || !(self = posix_self()))
+        return -EINVAL;
+
+    if (head_ptr)
+        *head_ptr = self->robust_list_head;
+
+    if (len_ptr)
+        *len_ptr = self->robust_list_len;
+
+    return 0;
+}
+
+long posix_set_robust_list(struct posix_robust_list_head* head, size_t len)
+{
+    posix_printf("head=%p\n", head);
+    posix_printf("len=%zu\n", len);
+
+    posix_thread_t* self = posix_self();
+
+    if (!(self = posix_self()))
+        return -EINVAL;
+
+    self->robust_list_head = head;
+    self->robust_list_len = len;
+
+    return 0;
+}

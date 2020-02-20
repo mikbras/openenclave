@@ -121,10 +121,12 @@ _Noreturn void __pthread_exit(void *result)
 		int priv = (m->_m_type & 128) ^ 128;
 		self->robust_list.pending = rp;
 		self->robust_list.head = *rp;
+                ACQUIRE_FUTEX(&m->_m_lock);
 		int cont = a_swap(&m->_m_lock, 0x40000000);
 		self->robust_list.pending = 0;
 		if (cont < 0 || waiters)
 			__wake(&m->_m_lock, 1, priv);
+                RELEASE_FUTEX(&m->_m_lock);
 	}
 	__vm_unlock();
 

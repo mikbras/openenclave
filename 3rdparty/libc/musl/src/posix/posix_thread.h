@@ -8,6 +8,11 @@
 
 typedef struct _posix_thread posix_thread_t;
 
+struct posix_robust_list_head
+{
+    volatile void* volatile head;
+};
+
 struct _posix_thread
 {
     /* Should contain MAGIC */
@@ -39,6 +44,10 @@ struct _posix_thread
 
     /* Address of the host thread's futex uaddr. */
     int* host_uaddr;
+
+    /* Robust list support */
+    struct posix_robust_list_head* robust_list_head;
+    size_t robust_list_len;
 };
 
 typedef struct _posix_thread_queue
@@ -124,5 +133,12 @@ int posix_clone(
 void posix_exit(int status);
 
 int posix_gettid(void);
+
+long posix_get_robust_list(
+    int pid,
+    struct posix_robust_list_head** head_ptr,
+    size_t* len_ptr);
+
+long posix_set_robust_list(struct posix_robust_list_head* head, size_t len);
 
 #endif /* _POSIX_THREAD_H */

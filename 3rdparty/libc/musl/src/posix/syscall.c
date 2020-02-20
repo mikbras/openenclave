@@ -609,6 +609,7 @@ long posix_syscall(long n, ...)
             else
             {
                 posix_printf("unhandled futex op: %d\n", op);
+                posix_print_backtrace();
                 assert(false);
             }
 
@@ -638,6 +639,19 @@ long posix_syscall(long n, ...)
         {
             /* ATTN: */
             return 0;
+        }
+        case SYS_get_robust_list:
+        {
+            int pid = (int)x1;
+            struct posix_robust_list_head** head_ptr = (void*)x2;
+            size_t* len_ptr = (size_t*)x3;
+            return posix_get_robust_list(pid, head_ptr, len_ptr);
+        }
+        case SYS_set_robust_list:
+        {
+            struct posix_robust_list_head* head = (void*)x1;
+            size_t len = (size_t)x2;
+            return posix_set_robust_list(head, len);
         }
     }
 
