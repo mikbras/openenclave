@@ -316,17 +316,24 @@ void test_cond_broadcast(void)
 void posix_test_ecall(int* host_uaddr)
 {
     oe_disable_debug_malloc_check = true;
+
     posix_init(host_uaddr);
+
     test_create_thread();
     test_mutexes();
     test_timedlock();
     test_cond_signal();
     test_cond_broadcast();
-
     RUN_LIBC_TEST(pthread_tsd_main);
     RUN_LIBC_TEST(pthread_cond_main);
     RUN_LIBC_TEST(pthread_mutex_main);
+    RUN_LIBC_TEST(pthread_mutex_main_pi);
     RUN_LIBC_TEST(sem_init_main);
+#if 0
+    // Requires FUTEX_LOCK_PI implementation
+    // Uses pthread_mutexattr_setprotocol(..., PTHREAD_PRIO_INHERIT)
+    RUN_LIBC_TEST(pthread_mutex_main_pi);
+#endif
 
     printf("=== %s() passed all tests\n", __FUNCTION__);
 }

@@ -14,6 +14,7 @@ add_executable(posix_enc
     enc.c
     pthread_cond.c
     pthread_mutex.c
+    pthread_mutex_pi.c
     pthread_tsd.c
     sem_init_main.c
     stubs.c
