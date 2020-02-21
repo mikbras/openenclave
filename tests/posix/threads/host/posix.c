@@ -1,11 +1,14 @@
 // Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
+#define _GNU_SOURCE
+
 #include <limits.h>
 #include <errno.h>
 #include <openenclave/host.h>
 #include <openenclave/internal/error.h>
 #include <openenclave/internal/tests.h>
+#include <openenclave/internal/calls.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -15,6 +18,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <signal.h>
+#include <ucontext.h>
 #include "posix_u.h"
 
 static oe_enclave_t* _enclave = NULL;
@@ -35,6 +39,7 @@ static void* _thread_func(void* arg)
     static __thread int _futex;
 
     printf("CHILD.PID=%d\n", posix_gettid_ocall());
+    fflush(stdout);
 
     if (posix_run_thread_ecall(_enclave, &retval, cookie, &_futex) != OE_OK)
     {
@@ -163,17 +168,41 @@ int posix_tkill_ocall(int tid, int sig)
     return 0;
 }
 
-static void _sigaction_handler(int sig, siginfo_t* si, void* ctx)
+/* ATTN: duplicate of OE definition */
+typedef struct _host_exception_context
 {
-    (void)sig;
-    (void)si;
-    (void)ctx;
-    printf("_sigaction_handler: tid=%d\n", posix_gettid_ocall());
-}
+    uint64_t rax;
+    uint64_t rbx;
+    uint64_t rip;
+} oe_host_exception_context_t;
 
-static void _sigaction_restorer()
+/* ATTN: duplicate of OE definition */
+uint64_t oe_host_handle_exception(oe_host_exception_context_t* context);
+
+static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ctx)
 {
-    printf("_sigaction_restorer: tid=%d\n", posix_gettid_ocall());
+    (void)si;
+
+    printf("_sigaction_handler: tid=%d sig=%d\n", posix_gettid_ocall(), sig);
+
+    oe_host_exception_context_t hec = {0};
+    hec.rax = (uint64_t)ctx->uc_mcontext.gregs[REG_RAX];
+    hec.rbx = (uint64_t)ctx->uc_mcontext.gregs[REG_RBX];
+    hec.rip = (uint64_t)ctx->uc_mcontext.gregs[REG_RIP];
+
+    uint64_t action = oe_host_handle_exception(&hec);
+
+    if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
+    {
+        printf("exception handled\n");
+        fflush(stdout);
+        return;
+    }
+
+    /* ATTN: handle other non-enclave exceptions */
+    printf("exception not handled\n");
+    fflush(stdout);
+    abort();
 }
 
 int posix_rt_sigaction_ocall(
@@ -184,15 +213,13 @@ int posix_rt_sigaction_ocall(
 {
     struct posix_sigaction act = *pact;
     struct posix_sigaction oldact;
+    extern void posix_restore(void);
 
     /* ATTN */
     (void)poldact;
 
     act.handler = (uint64_t)_sigaction_handler;
-
-    /* ATTN: need to use assembly routine */
-    act.restorer = (uint64_t)_sigaction_restorer;
-    act.restorer = 0;
+    act.restorer = (uint64_t)posix_restore;
 
     long r = syscall(SYS_rt_sigaction, signum, &act, &oldact, sigsetsize);
 

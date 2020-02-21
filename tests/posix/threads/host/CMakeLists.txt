@@ -8,7 +8,7 @@ add_custom_command(
     DEPENDS ${EDL_FILE} edger8r
     COMMAND edger8r --untrusted ${EDL_FILE} --search-path ${CMAKE_CURRENT_SOURCE_DIR})
 
-add_executable(posix_host host.c posix.c posix_u.c)
+add_executable(posix_host host.c posix.c posix_restore.S posix_u.c)
 
 target_include_directories(posix_host PRIVATE ${CMAKE_CURRENT_BINARY_DIR})
 

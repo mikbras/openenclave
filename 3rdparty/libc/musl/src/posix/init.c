@@ -13,10 +13,19 @@
 
 int* __posix_init_host_uaddr;
 
+extern void (*oe_continue_execution_hook)(oe_exception_record_t* rec);
+
+static void _continue_execution_hook(oe_exception_record_t* rec)
+{
+    (void)rec;
+    posix_printf("_continue_execution_hook()\n");
+}
+
 static uint64_t _exception_handler(oe_exception_record_t* exception)
 {
     (void)exception;
     return OE_EXCEPTION_CONTINUE_EXECUTION;
+    //return OE_EXCEPTION_CONTINUE_SEARCH;
 #if 0
     oe_context_t* context = exception->context;
 
@@ -29,9 +38,11 @@ static uint64_t _exception_handler(oe_exception_record_t* exception)
 #endif
 }
 
+
 void posix_init(int* host_uaddr)
 {
     size_t aux[64];
+
     memset(aux, 0, sizeof(aux));
 
     __posix_init_host_uaddr = host_uaddr;
@@ -45,7 +56,9 @@ void posix_init(int* host_uaddr)
     libc.page_size = PAGESIZE;
     libc.secure = 0;
 
-    if (oe_add_vectored_exception_handler(true, _exception_handler) != OE_OK)
+    oe_continue_execution_hook = _continue_execution_hook;
+
+    if (oe_add_vectored_exception_handler(false, _exception_handler) != OE_OK)
     {
         posix_printf("oe_add_vectored_exception_handler() failed\n");
         oe_abort();

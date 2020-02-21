@@ -11,6 +11,7 @@
 #include <openenclave/internal/jump.h>
 #include <openenclave/internal/safecrt.h>
 #include <openenclave/internal/sgxtypes.h>
+#include <openenclave/internal/print.h>
 #include <openenclave/internal/thread.h>
 #include <openenclave/internal/trace.h>
 #include "asmdefs.h"
@@ -29,6 +30,8 @@ uint32_t g_current_exception_handler_count = 0;
 // Current registered exception handlers.
 oe_vectored_exception_handler_t
     g_exception_handler_arr[MAX_EXCEPTION_HANDLER_COUNT];
+
+void (*oe_continue_execution_hook)(oe_exception_record_t* oe_exception_record);
 
 oe_result_t oe_add_vectored_exception_handler(
     bool is_first_handler,
@@ -279,6 +282,9 @@ void oe_real_exception_dispatcher(oe_context_t* oe_context)
         td->host_rbp = td->host_previous_rbp;
         td->host_rsp = td->host_previous_rsp;
 
+        if (oe_continue_execution_hook)
+            (*oe_continue_execution_hook)(&oe_exception_record);
+
         oe_continue_execution(oe_exception_record.context);
 
         // Code should never run to here.
@@ -325,12 +331,14 @@ void oe_virtual_exception_dispatcher(
 
     sgx_ssa_gpr_t* ssa_gpr =
         (sgx_ssa_gpr_t*)(((uint8_t*)ssa_info.base_address) + ssa_info.frame_byte_size - OE_SGX_GPR_BYTE_SIZE);
+#if 0
     if (!ssa_gpr->exit_info.as_fields.valid)
     {
         // Not a valid/expected enclave exception;
         *arg_out = OE_EXCEPTION_CONTINUE_SEARCH;
         return;
     }
+#endif
 
     // Get the exception address, code, and flags.
     td->base.exception_address = ssa_gpr->rip;
