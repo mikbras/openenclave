@@ -47,6 +47,7 @@ extern hidden const char __cp_begin[1], __cp_end[1], __cp_cancel[1];
 
 static void cancel_handler(int sig, siginfo_t *si, void *ctx)
 {
+posix_printf("*** cancel_handler()\n");
 	pthread_t self = __pthread_self();
 	ucontext_t *uc = ctx;
 	uintptr_t pc = uc->uc_mcontext.MC_PC;

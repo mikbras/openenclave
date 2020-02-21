@@ -457,6 +457,11 @@ long posix_syscall(long n, ...)
     switch (n)
     {
         case SYS_exit:
+        {
+            int status = (int)x1;
+            posix_exit(status);
+            return -1;
+        }
         case SYS_exit_group:
         {
             int status = (int)x1;

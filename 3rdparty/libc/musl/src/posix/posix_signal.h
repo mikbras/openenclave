@@ -15,6 +15,8 @@ struct posix_sigaction
     unsigned mask[2];
 };
 
+void __posix_install_exception_handler(void);
+
 int posix_rt_sigaction(
     int signum,
     const struct posix_sigaction* act,

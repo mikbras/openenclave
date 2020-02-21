@@ -108,7 +108,8 @@ int posix_run_thread_ecall(uint64_t cookie, int* host_uaddr)
 {
     posix_thread_t* thread = (posix_thread_t*)cookie;
 
-    if (!thread || !oe_is_within_enclave(thread, sizeof(thread)) || thread->magic != MAGIC)
+    if (!thread || !oe_is_within_enclave(thread, sizeof(thread)) ||
+        thread->magic != MAGIC)
     {
         oe_assert(false);
         return -1;
@@ -223,6 +224,16 @@ void posix_exit(int status)
     posix_futex_acquire((volatile int*)thread->ctid);
     posix_futex_wake((int*)thread->ctid, FUTEX_WAKE, 1);
     posix_futex_release((volatile int*)thread->ctid);
+
+    /* Hack attempt to release joiner */
+#if 0
+    struct pthread* td = thread->td;
+    ACQUIRE_FUTEX(&td->detach_state);
+    int state = a_cas(&td->detach_state, DT_JOINABLE, DT_EXITING);
+    (void)state;
+    __wake(&td->detach_state, 1, 1);
+    RELEASE_FUTEX(&td->detach_state);
+#endif
 
     /* Jump back to posix_run_thread_ecall() */
     longjmp(thread->jmpbuf, 1);

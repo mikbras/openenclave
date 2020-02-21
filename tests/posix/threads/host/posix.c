@@ -38,8 +38,10 @@ static void* _thread_func(void* arg)
     uint64_t cookie = (uint64_t)arg;
     static __thread int _futex;
 
+#if 0
     printf("CHILD.PID=%d\n", posix_gettid_ocall());
     fflush(stdout);
+#endif
 
     if (posix_run_thread_ecall(_enclave, &retval, cookie, &_futex) != OE_OK)
     {
