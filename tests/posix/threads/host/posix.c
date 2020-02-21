@@ -55,6 +55,11 @@ static void* _thread_func(void* arg)
         abort();
     }
 
+#if 1
+    printf("child exited=%d\n", posix_gettid_ocall());
+    fflush(stdout);
+#endif
+
     return NULL;
 }
 

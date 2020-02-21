@@ -40,9 +40,8 @@ static void _call_sigaction(
 
     void (*func)() = (void (*)())uc->uc_mcontext.MC_PC;
 
-printf("<<<<<<<<<<\n");
     func();
-printf(">>>>>>>>>>\n");
+    oe_abort();
 }
 
 static void _continue_execution_hook(oe_exception_record_t* rec)
