@@ -25,4 +25,6 @@ static __inline__ void t_printf(
     t_status = 1;
 }
 
+int posix_printf(const char* fmt, ...);
+
 #endif /* _TEST_H */

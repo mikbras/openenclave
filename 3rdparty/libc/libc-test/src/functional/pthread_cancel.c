@@ -7,6 +7,8 @@
 #define TESTR(r, f, m) ( \
 	((r) = (f)) == 0 || (t_error("%s failed: %s (" m ")\n", #f, strerror(r)), 0) )
 
+extern int posix_gettid();
+
 static void *start_async(void *arg)
 {
 	pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, 0);

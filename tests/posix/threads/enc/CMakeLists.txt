@@ -12,6 +12,7 @@ add_custom_command(
 
 add_executable(posix_enc
     enc.c
+    pthread_cancel.c
     pthread_cond.c
     pthread_condattr_setclock.c
     pthread_cond_smasher.c

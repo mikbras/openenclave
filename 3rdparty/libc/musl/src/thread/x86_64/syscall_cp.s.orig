@@ -15,15 +15,16 @@ __cp_begin:
 	mov (%rdi),%eax
 	test %eax,%eax
 	jnz __cp_cancel
-        mov %rsi, %rdi
-        mov %rdx, %rsi
-        mov %rcx, %rdx
-        mov %r8, %rcx
-        mov %r9, %r8
-        mov 8(%rsp),%r9
-        mov 16(%rsp),%eax
-        mov %eax, 8(%rsp)
-        call posix_syscall
+	mov %rdi,%r11
+	mov %rsi,%rax
+	mov %rdx,%rdi
+	mov %rcx,%rsi
+	mov %r8,%rdx
+	mov %r9,%r10
+	mov 8(%rsp),%r8
+	mov 16(%rsp),%r9
+	mov %r11,8(%rsp)
+	syscall
 __cp_end:
 	ret
 __cp_cancel:

@@ -17,6 +17,7 @@
 #include "posix_io.h"
 #include "posix_thread.h"
 #include "posix_trace.h"
+#include "posix_ocalls.h"
 #include "posix_futex.h"
 #include "posix_time.h"
 #include "posix_trace.h"
@@ -522,12 +523,14 @@ long posix_syscall(long n, ...)
         }
         case SYS_tkill:
         {
-            /* ATTN */
-            return 0;
+            int tid = (int)x1;
+            int sig = (int)x2;
+            return (long)posix_tkill(tid, sig);
         }
         case SYS_rt_sigaction:
         {
             /* ATTN */
+            posix_printf("Ignored SYS_rt_sigaction\n");
             return 0;
         }
         case SYS_mprotect:

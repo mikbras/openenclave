@@ -81,7 +81,7 @@ int posix_futex_wait_ocall(
 {
     long r;
 
-    r = syscall(__NR_futex, uaddr, futex_op, val, (struct timespec*)timeout);
+    r = syscall(SYS_futex, uaddr, futex_op, val, (struct timespec*)timeout);
 
     if (r != 0)
         return -errno;
@@ -96,7 +96,7 @@ int posix_futex_wake_ocall(
 {
     long r;
 
-    r = syscall(__NR_futex, uaddr, futex_op, val, NULL);
+    r = syscall(SYS_futex, uaddr, futex_op, val, NULL);
 
     if (r != 0)
         return -errno;
@@ -146,4 +146,18 @@ int posix_wake_wait_ocall(
 int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 {
     return clock_gettime(clk_id, (struct timespec*)tp);
+}
+
+int posix_tkill_ocall(int tid, int sig)
+{
+    long r;
+
+    printf("%s(tid=%d, sig=%d)\n", __FUNCTION__, tid, sig);
+
+    r = syscall(SYS_tkill, tid, sig);
+
+    if (r != 0)
+        return -errno;
+
+    return 0;
 }

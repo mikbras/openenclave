@@ -262,3 +262,13 @@ long posix_set_robust_list(struct posix_robust_list_head* head, size_t len)
 
     return 0;
 }
+
+int posix_tkill(int tid, int sig)
+{
+    int retval;
+
+    if (posix_tkill_ocall(&retval, tid, sig) != OE_OK)
+        return -ENOSYS;
+
+    return retval;
+}

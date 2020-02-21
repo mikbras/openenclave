@@ -141,4 +141,6 @@ long posix_get_robust_list(
 
 long posix_set_robust_list(struct posix_robust_list_head* head, size_t len);
 
+int posix_tkill(int tid, int sig);
+
 #endif /* _POSIX_THREAD_H */

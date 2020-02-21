@@ -36,4 +36,6 @@ oe_result_t posix_start_thread_ocall(int* retval, uint64_t cookie);
 
 oe_result_t posix_gettid_ocall(int* retval);
 
+oe_result_t posix_tkill_ocall(int* retval, int tid, int sig);
+
 #endif //_POSIX_OCALLS_H

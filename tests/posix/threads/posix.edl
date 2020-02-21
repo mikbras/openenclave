@@ -53,5 +53,7 @@ enclave
         int posix_clock_gettime_ocall(
             int clk_id,
             [out, count=1] struct posix_timespec* tp);
+
+        int posix_tkill_ocall(int tid, int sig);
     };
 };
