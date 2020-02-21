@@ -21,6 +21,7 @@
 #include "posix_futex.h"
 #include "posix_time.h"
 #include "posix_trace.h"
+#include "posix_signal.h"
 #include "futex.h"
 
 #include "posix_warnings.h"
@@ -529,9 +530,11 @@ long posix_syscall(long n, ...)
         }
         case SYS_rt_sigaction:
         {
-            /* ATTN */
-            posix_printf("Ignored SYS_rt_sigaction\n");
-            return 0;
+            int signum = (int)x1;
+            const struct posix_sigaction* act = (void*)x2;
+            struct posix_sigaction* oldact = (void*)x3;
+            size_t sigsetsize = (size_t)x4;
+            return posix_rt_sigaction(signum, act, oldact, sigsetsize);
         }
         case SYS_mprotect:
         {

@@ -32,7 +32,7 @@ int main(int argc, const char* argv[])
         return 1;
     }
 
-    printf("PID=%d\n", getpid());
+    printf("MAIN.PID=%d\n", getpid());
 
     result = oe_create_posix_enclave(argv[1], type, flags, NULL, 0, &enclave);
     OE_TEST(result == OE_OK);

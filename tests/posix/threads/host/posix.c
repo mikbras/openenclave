@@ -14,6 +14,7 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <signal.h>
 #include "posix_u.h"
 
 static oe_enclave_t* _enclave = NULL;
@@ -32,6 +33,8 @@ static void* _thread_func(void* arg)
     int retval;
     uint64_t cookie = (uint64_t)arg;
     static __thread int _futex;
+
+    printf("CHILD.PID=%d\n", posix_gettid_ocall());
 
     if (posix_run_thread_ecall(_enclave, &retval, cookie, &_futex) != OE_OK)
     {
@@ -150,11 +153,48 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 
 int posix_tkill_ocall(int tid, int sig)
 {
-    long r;
-
     printf("%s(tid=%d, sig=%d)\n", __FUNCTION__, tid, sig);
 
-    r = syscall(SYS_tkill, tid, sig);
+    long r = syscall(SYS_tkill, tid, sig);
+
+    if (r != 0)
+        return -errno;
+
+    return 0;
+}
+
+static void _sigaction_handler(int sig, siginfo_t* si, void* ctx)
+{
+    (void)sig;
+    (void)si;
+    (void)ctx;
+    printf("_sigaction_handler: tid=%d\n", posix_gettid_ocall());
+}
+
+static void _sigaction_restorer()
+{
+    printf("_sigaction_restorer: tid=%d\n", posix_gettid_ocall());
+}
+
+int posix_rt_sigaction_ocall(
+    int signum,
+    const struct posix_sigaction* pact,
+    struct posix_sigaction* poldact,
+    size_t sigsetsize)
+{
+    struct posix_sigaction act = *pact;
+    struct posix_sigaction oldact;
+
+    /* ATTN */
+    (void)poldact;
+
+    act.handler = (uint64_t)_sigaction_handler;
+
+    /* ATTN: need to use assembly routine */
+    act.restorer = (uint64_t)_sigaction_restorer;
+    act.restorer = 0;
+
+    long r = syscall(SYS_rt_sigaction, signum, &act, &oldact, sigsetsize);
 
     if (r != 0)
         return -errno;

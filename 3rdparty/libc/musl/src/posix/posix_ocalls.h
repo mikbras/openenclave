@@ -8,6 +8,7 @@
 #include <openenclave/bits/result.h>
 
 typedef struct posix_timespec posix_timespec_t;
+typedef struct posix_sigaction posix_sigaction_t;
 
 oe_result_t posix_nanosleep_ocall(
     int* retval,
@@ -37,5 +38,12 @@ oe_result_t posix_start_thread_ocall(int* retval, uint64_t cookie);
 oe_result_t posix_gettid_ocall(int* retval);
 
 oe_result_t posix_tkill_ocall(int* retval, int tid, int sig);
+
+oe_result_t posix_rt_sigaction_ocall(
+    int* retval,
+    int signum,
+    const struct posix_sigaction* act,
+    struct posix_sigaction* oldact,
+    size_t sigsetsize);
 
 #endif //_POSIX_OCALLS_H

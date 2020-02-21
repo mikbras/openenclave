@@ -9,6 +9,14 @@ enclave
         uint64_t tv_nsec;
     };
 
+    struct posix_sigaction
+    {
+        uint64_t handler;
+        unsigned long flags;
+        uint64_t restorer;
+        unsigned mask[2];
+    };
+
     trusted
     {
         public void posix_test_ecall([user_check] int* host_uaddr);
@@ -55,5 +63,11 @@ enclave
             [out, count=1] struct posix_timespec* tp);
 
         int posix_tkill_ocall(int tid, int sig);
+
+        int posix_rt_sigaction_ocall(
+            int signum,
+            [in, count=1] const struct posix_sigaction* act,
+            [out, count=1] struct posix_sigaction* oldact,
+            size_t sigsetsize);
     };
 };
