@@ -4,65 +4,80 @@
 #include <signal.h>
 #include <string.h>
 #include <openenclave/enclave.h>
+#include <openenclave/enclave.h>
+#include <openenclave/internal/calls.h>
+#include <openenclave/corelibc/stdlib.h>
 #include "posix_signal.h"
 #include "posix_ocalls.h"
 #include "posix_io.h"
 #include "posix_thread.h"
+#include "posix_spinlock.h"
+#include "posix_exception.h"
+
 #include "pthread_impl.h"
-#include <openenclave/enclave.h>
-#include <openenclave/internal/calls.h>
-#include <openenclave/corelibc/stdlib.h>
 
 /* */
 #include "posix_warnings.h"
 
-static int _signum;
-static struct posix_sigaction _act;
+static struct posix_sigaction _table[NSIG];
+static posix_spinlock_t _lock;
 
 extern void (*oe_continue_execution_hook)(oe_exception_record_t* rec);
 
-static void _call_sigaction(
-    void (*sigaction)(int sig, siginfo_t* si, void* ctx),
-    int sig,
-    siginfo_t* si,
-    void* ctx)
+static void _call_sigaction(void (*sigaction)(int, siginfo_t*, void*), int sig)
 {
-    ucontext_t* uc = ctx;
+    siginfo_t si = { 0 };
+    ucontext_t uc = { 0 };
 
     posix_printf("_call_sigaction()\n");
 
-    (void)sigaction;
-    (void)sig;
-    (void)si;
-    (void)ctx;
+    /* Invoke the sigacation funtion */
+    (*sigaction)(sig, &si, &uc);
 
-    sigaction(sig, si, ctx);
+    /* Jump to the function address given by the program counter. */
+    if (uc.uc_mcontext.MC_PC)
+    {
+        void (*func)() = (void*)uc.uc_mcontext.MC_PC;
+        func();
+        /* does not return */
+    }
 
-    void (*func)() = (void (*)())uc->uc_mcontext.MC_PC;
-
-    func();
     oe_abort();
 }
 
+extern __thread uint64_t __oe_exception_args[6];
+
 static void _continue_execution_hook(oe_exception_record_t* rec)
 {
-    /* Invoke the original signal handler. */
-
     posix_printf("_continue_execution_hook()\n");
 
-    static ucontext_t _uc = { 0 };
+    if (__oe_exception_args[0] == POSIX_EXCEPTION_SIGACTION)
+    {
+        int sig = (int)__oe_exception_args[1];
 
-    rec->context->rip = (uint64_t)_call_sigaction;
-    rec->context->rdi = _act.handler;
-    rec->context->rsi = 33;
-    rec->context->rdx = 0; /* ATTN: */
-    rec->context->rcx = (uint64_t)&_uc;
+        posix_spin_lock(&_lock);
+        uint64_t handler = _table[sig].handler;
+        posix_spin_unlock(&_lock);
+
+        /* Invoke the signal handler  */
+        rec->context->rip = (uint64_t)_call_sigaction;
+        rec->context->rdi = handler;
+        rec->context->rsi = (uint64_t)sig;
+    }
 }
 
 static uint64_t _exception_handler(oe_exception_record_t* exception)
 {
     (void)exception;
-    return OE_EXCEPTION_CONTINUE_EXECUTION;
+
+    if (__oe_exception_args[0] == POSIX_EXCEPTION_SIGACTION)
+    {
+        return OE_EXCEPTION_CONTINUE_EXECUTION;
+    }
+    else
+    {
+        return OE_EXCEPTION_CONTINUE_SEARCH;
+    }
 }
 
 void __posix_install_exception_handler(void)
@@ -84,10 +99,12 @@ int posix_rt_sigaction(
 {
     int r;
 
-    posix_printf("%s()\n", __FUNCTION__);
+    if (signum >= NSIG || !act)
+        return -EINVAL;
 
-    _signum = signum;
-    _act = *act;
+    posix_spin_lock(&_lock);
+    _table[signum] = *act;
+    posix_spin_unlock(&_lock);
 
     if (posix_rt_sigaction_ocall(&r, signum, act, oldact, sigsetsize) != OE_OK)
         return -EINVAL;

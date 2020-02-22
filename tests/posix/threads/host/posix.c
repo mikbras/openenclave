@@ -20,6 +20,7 @@
 #include <signal.h>
 #include <ucontext.h>
 #include "posix_u.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_exception.h"
 
 static oe_enclave_t* _enclave = NULL;
 
@@ -178,9 +179,16 @@ int posix_tkill_ocall(int tid, int sig)
 /* ATTN: duplicate of OE definition */
 typedef struct _host_exception_context
 {
+    /* exit code */
     uint64_t rax;
+
+    /* tcs address */
     uint64_t rbx;
+
+    /* exit address */
     uint64_t rip;
+
+    uint64_t args[7];
 } oe_host_exception_context_t;
 
 /* ATTN: duplicate of OE definition */
@@ -197,14 +205,13 @@ static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ctx)
     hec.rbx = (uint64_t)ctx->uc_mcontext.gregs[REG_RBX];
     hec.rip = (uint64_t)ctx->uc_mcontext.gregs[REG_RIP];
 
+    hec.args[0] = POSIX_EXCEPTION_SIGACTION;
+    hec.args[1] = (uint64_t)sig;
+
     uint64_t action = oe_host_handle_exception(&hec);
 
     if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
-    {
-        printf("exception handled\n");
-        fflush(stdout);
         return;
-    }
 
     /* ATTN: handle other non-enclave exceptions */
     printf("exception not handled\n");

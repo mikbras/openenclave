@@ -77,6 +77,7 @@ int main(void)
 	TESTR(r, pthread_join(td, &res), "joining canceled thread");
 	TESTC(res == PTHREAD_CANCELED, "canceled thread exit status");
 
+printf("DONE\n");
 	/* Cancellation cleanup handlers */
 	foo[0] = 0;
 	TESTR(r, pthread_create(&td, 0, start_single, foo), "failed to create thread");

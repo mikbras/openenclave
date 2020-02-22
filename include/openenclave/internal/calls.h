@@ -98,6 +98,9 @@ OE_STATIC_ASSERT(sizeof(oe_func_t) == sizeof(unsigned int));
 #define OE_EXCEPTION_CONTINUE_SEARCH 0x0
 #define OE_EXCEPTION_CONTINUE_EXECUTION 0xFFFFFFFF
 
+/* The number of optional arguments to a virtual exception handler. */
+#define OE_EXCEPTION_ARGS_COUNT 7
+
 /*
 **==============================================================================
 **

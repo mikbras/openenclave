@@ -14,6 +14,7 @@
 #include <openenclave/internal/print.h>
 #include <openenclave/internal/thread.h>
 #include <openenclave/internal/trace.h>
+#include <openenclave/corelibc/string.h>
 #include "asmdefs.h"
 #include "cpuid.h"
 #include "init.h"
@@ -302,6 +303,8 @@ void oe_real_exception_dispatcher(oe_context_t* oe_context)
     return;
 }
 
+__thread uint64_t __oe_exception_args[OE_EXCEPTION_ARGS_COUNT];
+
 /*
 **==============================================================================
 **
@@ -329,9 +332,29 @@ void oe_virtual_exception_dispatcher(
         return;
     }
 
+#if 1 /* ATTN:MEB */
+    /* Copy the optional exception parameters into thread local storage */
+    if (arg_in)
+    {
+        uint64_t args[OE_EXCEPTION_ARGS_COUNT] = { 0 };
+
+        memcpy(args, (void*)arg_in, sizeof(args));
+
+        if (!oe_is_outside_enclave((void*)arg_in, sizeof(args)))
+            oe_abort();
+
+        memcpy(__oe_exception_args, args, sizeof(__oe_exception_args));
+    }
+    else
+    {
+        memset(__oe_exception_args, 0, sizeof(__oe_exception_args));
+    }
+#endif
+
     sgx_ssa_gpr_t* ssa_gpr =
         (sgx_ssa_gpr_t*)(((uint8_t*)ssa_info.base_address) + ssa_info.frame_byte_size - OE_SGX_GPR_BYTE_SIZE);
-#if 0
+
+#if 0 /* ATTN:MEB */
     if (!ssa_gpr->exit_info.as_fields.valid)
     {
         // Not a valid/expected enclave exception;
