@@ -19,6 +19,9 @@
 /* */
 #include "posix_warnings.h"
 
+// ATTN: handle SIG_IGN
+// ATTN: handle SIG_DFL
+
 static struct posix_sigaction _table[NSIG];
 static posix_spinlock_t _lock;
 
