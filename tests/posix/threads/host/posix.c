@@ -40,10 +40,12 @@ static void* _thread_func(void* arg)
     uint64_t cookie = (uint64_t)arg;
     static __thread int _futex;
 
-#if 0
-    printf("CHILD.PID=%d\n", posix_gettid_ocall());
+#if 1
+    printf("CHILD.START=%d\n", posix_gettid_ocall());
     fflush(stdout);
 #endif
+
+    _futex = 0;
 
     if (posix_run_thread_ecall(_enclave, &retval, cookie, &_futex) != OE_OK)
     {
@@ -58,7 +60,7 @@ static void* _thread_func(void* arg)
     }
 
 #if 1
-    printf("child exited=%d\n", posix_gettid_ocall());
+    printf("CHILD.EXIT=%d\n", posix_gettid_ocall());
     fflush(stdout);
 #endif
 

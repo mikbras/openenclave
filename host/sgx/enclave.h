@@ -104,7 +104,7 @@ struct _oe_enclave
     /* Array of thread bindings */
     ThreadBinding bindings[OE_SGX_MAX_TCS];
     size_t num_bindings;
-    oe_mutex lock;
+    oe_mutex __lock;
 
     /* Hash of enclave (MRENCLAVE) */
     OE_SHA256 hash;

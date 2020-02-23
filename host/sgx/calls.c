@@ -477,7 +477,7 @@ int __oe_dispatch_ocall(
 
         if (enclave->simulate)
         {
-            oe_mutex_lock(&enclave->lock);
+            oe_mutex_lock(&enclave->__lock);
 
             /**
              * GetThreadBinding may not work since it uses pthread APIs.
@@ -494,7 +494,7 @@ int __oe_dispatch_ocall(
                 }
             }
 
-            oe_mutex_unlock(&enclave->lock);
+            oe_mutex_unlock(&enclave->__lock);
         }
         else
         {
@@ -540,7 +540,7 @@ static void* _assign_tcs(oe_enclave_t* enclave)
     size_t i;
     oe_thread_t thread = oe_thread_self();
 
-    oe_mutex_lock(&enclave->lock);
+    oe_mutex_lock(&enclave->__lock);
     {
         /* First attempt to find a busy td_t owned by this thread */
         for (i = 0; i < enclave->num_bindings; i++)
@@ -587,7 +587,7 @@ static void* _assign_tcs(oe_enclave_t* enclave)
             }
         }
     }
-    oe_mutex_unlock(&enclave->lock);
+    oe_mutex_unlock(&enclave->__lock);
 
     return tcs;
 }
@@ -607,7 +607,7 @@ static void _release_tcs(oe_enclave_t* enclave, void* tcs)
 {
     size_t i;
 
-    oe_mutex_lock(&enclave->lock);
+    oe_mutex_lock(&enclave->__lock);
     {
         for (i = 0; i < enclave->num_bindings; i++)
         {
@@ -634,7 +634,7 @@ static void _release_tcs(oe_enclave_t* enclave, void* tcs)
             }
         }
     }
-    oe_mutex_unlock(&enclave->lock);
+    oe_mutex_unlock(&enclave->__lock);
 }
 
 /*

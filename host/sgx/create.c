@@ -171,7 +171,7 @@ static oe_result_t _add_control_pages(
      */
 
     /* Save the address of new TCS page into enclave object */
-    oe_mutex_lock(&enclave->lock);
+    oe_mutex_lock(&enclave->__lock);
     {
         if (enclave->num_bindings == OE_SGX_MAX_TCS)
             OE_RAISE_MSG(
@@ -179,7 +179,7 @@ static oe_result_t _add_control_pages(
 
         enclave->bindings[enclave->num_bindings++].tcs = enclave_addr + *vaddr;
     }
-    oe_mutex_unlock(&enclave->lock);
+    oe_mutex_unlock(&enclave->__lock);
 
     /* Add the TCS page */
     {
@@ -578,7 +578,7 @@ oe_result_t oe_sgx_build_enclave(
     }
 
     /* Initialize the lock */
-    if (oe_mutex_init(&enclave->lock))
+    if (oe_mutex_init(&enclave->__lock))
         OE_RAISE(OE_FAILURE);
 
     /* Reject invalid parameters */
@@ -865,7 +865,7 @@ oe_result_t oe_terminate_enclave(oe_enclave_t* enclave)
     /* Clear the magic number */
     enclave->magic = 0;
 
-    oe_mutex_lock(&enclave->lock);
+    oe_mutex_lock(&enclave->__lock);
     {
         /* Unmap the enclave memory region.
          * Track failures reported by the platform, but do not exit early */
@@ -886,8 +886,8 @@ oe_result_t oe_terminate_enclave(oe_enclave_t* enclave)
         free(enclave->path);
     }
     /* Release and destroy the mutex object */
-    oe_mutex_unlock(&enclave->lock);
-    oe_mutex_destroy(&enclave->lock);
+    oe_mutex_unlock(&enclave->__lock);
+    oe_mutex_destroy(&enclave->__lock);
 
     /* Clear the contents of the enclave structure */
 
