@@ -169,7 +169,7 @@ int posix_rt_sigaction(
     if (!act)
         return 0;
 
-    if (posix_rt_sigaction_ocall(&r, signum, act, oldact, sigsetsize) != OE_OK)
+    if (posix_rt_sigaction_ocall(&r, signum, act, sigsetsize) != OE_OK)
         return -EINVAL;
 
     return r;

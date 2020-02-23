@@ -230,20 +230,15 @@ static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ucontext)
 int posix_rt_sigaction_ocall(
     int signum,
     const struct posix_sigaction* pact,
-    struct posix_sigaction* poldact, /* ATTN: remove this argument */
     size_t sigsetsize)
 {
     struct posix_sigaction act = *pact;
-    struct posix_sigaction oldact;
     extern void posix_restore(void);
-
-    /* ATTN */
-    (void)poldact;
 
     act.handler = (uint64_t)_sigaction_handler;
     act.restorer = (uint64_t)posix_restore;
 
-    long r = syscall(SYS_rt_sigaction, signum, &act, &oldact, sigsetsize);
+    long r = syscall(SYS_rt_sigaction, signum, &act, NULL, sigsetsize);
 
     if (r != 0)
         return -errno;

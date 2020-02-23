@@ -77,7 +77,6 @@ enclave
         int posix_rt_sigaction_ocall(
             int signum,
             [in, count=1] const struct posix_sigaction* act,
-            [out, count=1] struct posix_sigaction* oldact,
             size_t sigsetsize);
 
         int posix_get_sigaction_args_ocall(

@@ -45,7 +45,6 @@ oe_result_t posix_rt_sigaction_ocall(
     int* retval,
     int signum,
     const struct posix_sigaction* act,
-    struct posix_sigaction* oldact,
     size_t sigsetsize);
 
 oe_result_t posix_get_sigaction_args_ocall(
