@@ -319,7 +319,7 @@ void posix_test_ecall(int* host_uaddr)
 
     posix_init(host_uaddr);
 
-#if 1
+#if 0
     test_create_thread();
     test_mutexes();
     test_timedlock();

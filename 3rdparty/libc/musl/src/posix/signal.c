@@ -12,6 +12,7 @@
 #include "posix_io.h"
 #include "posix_thread.h"
 #include "posix_spinlock.h"
+#include "posix_panic.h"
 
 #include "pthread_impl.h"
 
@@ -48,7 +49,7 @@ static posix_spinlock_t _lock;
 
 extern void (*oe_continue_execution_hook)(oe_exception_record_t* rec);
 
-static void _call_sigaction(
+static void _call_sigaction_handler(
     void (*sigaction)(int, siginfo_t*, void*),
     int sig,
     siginfo_t* siginfo,
@@ -60,7 +61,7 @@ static void _call_sigaction(
     siginfo_t si = { 0 };
     ucontext_t uc = { 0 };
 
-    posix_printf("_call_sigaction()\n");
+    posix_printf("_call_sigaction_handler()\n");
 
     /* Invoke the sigacation funtion */
     (*sigaction)(sig, &si, &uc);
@@ -81,35 +82,37 @@ extern __thread uint64_t __oe_exception_arg;
 static void _continue_execution_hook(oe_exception_record_t* rec)
 {
     posix_printf("_continue_execution_hook()\n");
+    uint64_t handler;
 
     if (__oe_exception_arg == POSIX_SIGACTION)
     {
-        int retval = -1;
         int sig = 0;
         struct posix_siginfo siginfo = { 0 };
         struct posix_ucontext ucontext = { 0 };
 
         /* Fetch the sigset handler arguments from the host. */
-        if (posix_get_sigaction_args_ocall(
-            &retval, &sig, &siginfo, &ucontext) != OE_OK)
         {
-            posix_printf("%s(): unexpected\n", __FUNCTION__);
-            oe_abort();
-        }
+            int retval = -1;
 
-        if (retval != 0)
-        {
-            posix_printf("%s(): unexpected\n", __FUNCTION__);
-            oe_abort();
+            if (posix_get_sigaction_args_ocall(
+                &retval, &sig, &siginfo, &ucontext) != OE_OK || retval != 0)
+            {
+                POSIX_PANIC;
+            }
         }
 
         /* Get the handler from the table. */
-        posix_spin_lock(&_lock);
-        uint64_t handler = _table[sig].handler;
-        posix_spin_unlock(&_lock);
+        {
+            posix_spin_lock(&_lock);
+            handler = _table[sig].handler;
+            posix_spin_unlock(&_lock);
+
+            if (!handler)
+                POSIX_PANIC;
+        }
 
         /* Invoke the signal handler  */
-        rec->context->rip = (uint64_t)_call_sigaction;
+        rec->context->rip = (uint64_t)_call_sigaction_handler;
         rec->context->rdi = handler;
         rec->context->rsi = (uint64_t)sig;
         rec->context->rdx = (uint64_t)&siginfo;
@@ -154,8 +157,17 @@ int posix_rt_sigaction(
         return -EINVAL;
 
     posix_spin_lock(&_lock);
-    _table[signum] = *act;
+    {
+        if (oldact)
+            *oldact = _table[signum];
+
+        if (act)
+            _table[signum] = *act;
+    }
     posix_spin_unlock(&_lock);
+
+    if (!act)
+        return 0;
 
     if (posix_rt_sigaction_ocall(&r, signum, act, oldact, sigsetsize) != OE_OK)
         return -EINVAL;
