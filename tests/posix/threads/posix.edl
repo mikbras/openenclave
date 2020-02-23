@@ -17,6 +17,16 @@ enclave
         unsigned mask[2];
     };
 
+    struct posix_siginfo
+    {
+        uint8_t data[128];
+    };
+
+    struct posix_ucontext
+    {
+        uint8_t data[936];
+    };
+
     trusted
     {
         public void posix_test_ecall([user_check] int* host_uaddr);
@@ -69,5 +79,10 @@ enclave
             [in, count=1] const struct posix_sigaction* act,
             [out, count=1] struct posix_sigaction* oldact,
             size_t sigsetsize);
+
+        int posix_get_sigaction_args_ocall(
+            [out, count=1] int* sig,
+            [out, count=1] struct posix_siginfo* siginfo,
+            [out, count=1] struct posix_ucontext* ucontext);
     };
 };

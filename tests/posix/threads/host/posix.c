@@ -9,6 +9,7 @@
 #include <openenclave/internal/error.h>
 #include <openenclave/internal/tests.h>
 #include <openenclave/internal/calls.h>
+#include <openenclave/internal/defs.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -20,7 +21,7 @@
 #include <signal.h>
 #include <ucontext.h>
 #include "posix_u.h"
-#include "../../../../3rdparty/libc/musl/src/posix/posix_exception.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_signal.h"
 
 static oe_enclave_t* _enclave = NULL;
 
@@ -194,18 +195,28 @@ uint64_t oe_host_handle_exception(
     oe_host_exception_context_t* context,
     uint64_t arg);
 
-static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ctx)
-{
-    (void)si;
+static __thread int _sig_arg;
+static __thread struct posix_siginfo _siginfo_arg;
+static __thread struct posix_ucontext _ucontext_arg;
 
+OE_STATIC_ASSERT(sizeof(struct posix_siginfo) == sizeof(siginfo_t));
+OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(ucontext_t));
+
+static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ucontext)
+{
     printf("_sigaction_handler: tid=%d sig=%d\n", posix_gettid_ocall(), sig);
 
-    oe_host_exception_context_t hec = {0};
-    hec.rax = (uint64_t)ctx->uc_mcontext.gregs[REG_RAX];
-    hec.rbx = (uint64_t)ctx->uc_mcontext.gregs[REG_RBX];
-    hec.rip = (uint64_t)ctx->uc_mcontext.gregs[REG_RIP];
+    /* Arguments will be fetched later by posix_get_sigaction_args_ocall */
+    _sig_arg = sig;
+    memcpy(&_siginfo_arg, si, sizeof(_siginfo_arg));
+    memcpy(&_ucontext_arg, ucontext, sizeof(_ucontext_arg));
 
-    uint64_t action = oe_host_handle_exception(&hec, (uint64_t)sig);
+    oe_host_exception_context_t hec = {0};
+    hec.rax = (uint64_t)ucontext->uc_mcontext.gregs[REG_RAX];
+    hec.rbx = (uint64_t)ucontext->uc_mcontext.gregs[REG_RBX];
+    hec.rip = (uint64_t)ucontext->uc_mcontext.gregs[REG_RIP];
+
+    uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
 
     if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
         return;
@@ -219,7 +230,7 @@ static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ctx)
 int posix_rt_sigaction_ocall(
     int signum,
     const struct posix_sigaction* pact,
-    struct posix_sigaction* poldact,
+    struct posix_sigaction* poldact, /* ATTN: remove this argument */
     size_t sigsetsize)
 {
     struct posix_sigaction act = *pact;
@@ -236,6 +247,23 @@ int posix_rt_sigaction_ocall(
 
     if (r != 0)
         return -errno;
+
+    return 0;
+}
+
+int posix_get_sigaction_args_ocall(
+    int* sig,
+    struct posix_siginfo* siginfo,
+    struct posix_ucontext* ucontext)
+{
+    if (sig)
+        *sig = _sig_arg;
+
+    if (siginfo)
+        memcpy(siginfo, &_siginfo_arg, sizeof(struct posix_siginfo));
+
+    if (ucontext)
+        memcpy(ucontext, &_ucontext_arg, sizeof(struct posix_ucontext));
 
     return 0;
 }

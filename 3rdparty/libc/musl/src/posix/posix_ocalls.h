@@ -9,6 +9,8 @@
 
 typedef struct posix_timespec posix_timespec_t;
 typedef struct posix_sigaction posix_sigaction_t;
+typedef struct posix_siginfo posix_siginfo_t;
+typedef struct posix_ucontext posix_ucontext_t;
 
 oe_result_t posix_nanosleep_ocall(
     int* retval,
@@ -45,5 +47,11 @@ oe_result_t posix_rt_sigaction_ocall(
     const struct posix_sigaction* act,
     struct posix_sigaction* oldact,
     size_t sigsetsize);
+
+oe_result_t posix_get_sigaction_args_ocall(
+    int* retval,
+    int* sig,
+    struct posix_siginfo* siginfo,
+    struct posix_ucontext* ucontext);
 
 #endif //_POSIX_OCALLS_H

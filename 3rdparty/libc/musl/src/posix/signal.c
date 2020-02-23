@@ -12,7 +12,6 @@
 #include "posix_io.h"
 #include "posix_thread.h"
 #include "posix_spinlock.h"
-#include "posix_exception.h"
 
 #include "pthread_impl.h"
 
@@ -22,13 +21,42 @@
 // ATTN: handle SIG_IGN
 // ATTN: handle SIG_DFL
 
+struct posix_sigaction
+{
+    uint64_t handler;
+    unsigned long flags;
+    uint64_t restorer;
+    unsigned mask[2];
+};
+
+struct posix_siginfo
+{
+    uint8_t data[128];
+};
+
+OE_STATIC_ASSERT(sizeof(struct posix_siginfo) == sizeof(siginfo_t));
+
+struct posix_ucontext
+{
+    uint8_t data[936];
+};
+
+OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(ucontext_t));
+
 static struct posix_sigaction _table[NSIG];
 static posix_spinlock_t _lock;
 
 extern void (*oe_continue_execution_hook)(oe_exception_record_t* rec);
 
-static void _call_sigaction(void (*sigaction)(int, siginfo_t*, void*), int sig)
+static void _call_sigaction(
+    void (*sigaction)(int, siginfo_t*, void*),
+    int sig,
+    siginfo_t* siginfo,
+    ucontext_t* ucontext)
 {
+    (void)siginfo;
+    (void)ucontext;
+
     siginfo_t si = { 0 };
     ucontext_t uc = { 0 };
 
@@ -54,24 +82,53 @@ static void _continue_execution_hook(oe_exception_record_t* rec)
 {
     posix_printf("_continue_execution_hook()\n");
 
-    int sig = (int)__oe_exception_arg;
+    if (__oe_exception_arg == POSIX_SIGACTION)
+    {
+        int retval = -1;
+        int sig = 0;
+        struct posix_siginfo siginfo = { 0 };
+        struct posix_ucontext ucontext = { 0 };
 
-    posix_spin_lock(&_lock);
-    uint64_t handler = _table[sig].handler;
-    posix_spin_unlock(&_lock);
+        /* Fetch the sigset handler arguments from the host. */
+        if (posix_get_sigaction_args_ocall(
+            &retval, &sig, &siginfo, &ucontext) != OE_OK)
+        {
+            posix_printf("%s(): unexpected\n", __FUNCTION__);
+            oe_abort();
+        }
 
-    /* Invoke the signal handler  */
-    rec->context->rip = (uint64_t)_call_sigaction;
-    rec->context->rdi = handler;
-    rec->context->rsi = (uint64_t)sig;
+        if (retval != 0)
+        {
+            posix_printf("%s(): unexpected\n", __FUNCTION__);
+            oe_abort();
+        }
+
+        /* Get the handler from the table. */
+        posix_spin_lock(&_lock);
+        uint64_t handler = _table[sig].handler;
+        posix_spin_unlock(&_lock);
+
+        /* Invoke the signal handler  */
+        rec->context->rip = (uint64_t)_call_sigaction;
+        rec->context->rdi = handler;
+        rec->context->rsi = (uint64_t)sig;
+        rec->context->rdx = (uint64_t)&siginfo;
+        rec->context->rcx = (uint64_t)&ucontext;
+    }
 }
 
 static uint64_t _exception_handler(oe_exception_record_t* rec)
 {
     (void)rec;
 
-    /* ATTN: check exception type */
-    return OE_EXCEPTION_CONTINUE_EXECUTION;
+    if (__oe_exception_arg == POSIX_SIGACTION)
+    {
+        return OE_EXCEPTION_CONTINUE_EXECUTION;
+    }
+    else
+    {
+        return OE_EXCEPTION_CONTINUE_SEARCH;
+    }
 }
 
 void __posix_install_exception_handler(void)

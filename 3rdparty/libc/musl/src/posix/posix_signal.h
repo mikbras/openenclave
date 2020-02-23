@@ -5,15 +5,8 @@
 #define _POSIX_SIGNAL_H
 
 #include <stdint.h>
-#include "posix_ocalls.h"
 
-struct posix_sigaction
-{
-    uint64_t handler;
-    unsigned long flags;
-    uint64_t restorer;
-    unsigned mask[2];
-};
+typedef struct posix_sigaction posix_sigaction_t;
 
 void __posix_install_exception_handler(void);
 
@@ -22,5 +15,7 @@ int posix_rt_sigaction(
     const struct posix_sigaction* act,
     struct posix_sigaction* oldact,
     size_t sigsetsize);
+
+#define POSIX_SIGACTION 0x515d906d058a5252
 
 #endif //_POSIX_SIGNAL_H
