@@ -17,7 +17,9 @@
 oe_enclave_t* oe_query_enclave_instance(void* tcs);
 
 /* Platform neutral exception handler */
-uint64_t oe_host_handle_exception(oe_host_exception_context_t* context)
+uint64_t oe_host_handle_exception(
+    oe_host_exception_context_t* context,
+    uint64_t arg)
 {
     uint64_t exit_code = context->rax;
     uint64_t tcs_address = context->rbx;
@@ -47,7 +49,7 @@ uint64_t oe_host_handle_exception(oe_host_exception_context_t* context)
         // Call into enclave first pass exception handler.
         uint64_t arg_out = 0;
         oe_result_t result =
-            oe_ecall(enclave, OE_ECALL_VIRTUAL_EXCEPTION_HANDLER, (uint64_t)context->params, &arg_out);
+            oe_ecall(enclave, OE_ECALL_VIRTUAL_EXCEPTION_HANDLER, arg, &arg_out);
 
         // Reset the flag
         thread_data->flags &= (~_OE_THREAD_HANDLING_EXCEPTION);

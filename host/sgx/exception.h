@@ -12,13 +12,14 @@ typedef struct _host_exception_context
     uint64_t rax;
     uint64_t rbx;
     uint64_t rip;
-    uint64_t params[OE_EXCEPTION_ARGS_COUNT];
 } oe_host_exception_context_t;
 
 /* Initialize the exception processing. */
 void oe_initialize_host_exception(void);
 
 /* Platform neutral exception handler */
-uint64_t oe_host_handle_exception(oe_host_exception_context_t* context);
+uint64_t oe_host_handle_exception(
+    oe_host_exception_context_t* context,
+    uint64_t arg);
 
 #endif // _OE_HOST_EXCEPTION_H

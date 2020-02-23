@@ -48,39 +48,30 @@ static void _call_sigaction(void (*sigaction)(int, siginfo_t*, void*), int sig)
     oe_abort();
 }
 
-extern __thread uint64_t __oe_exception_args[6];
+extern __thread uint64_t __oe_exception_arg;
 
 static void _continue_execution_hook(oe_exception_record_t* rec)
 {
     posix_printf("_continue_execution_hook()\n");
 
-    if (__oe_exception_args[0] == POSIX_EXCEPTION_SIGACTION)
-    {
-        int sig = (int)__oe_exception_args[1];
+    int sig = (int)__oe_exception_arg;
 
-        posix_spin_lock(&_lock);
-        uint64_t handler = _table[sig].handler;
-        posix_spin_unlock(&_lock);
+    posix_spin_lock(&_lock);
+    uint64_t handler = _table[sig].handler;
+    posix_spin_unlock(&_lock);
 
-        /* Invoke the signal handler  */
-        rec->context->rip = (uint64_t)_call_sigaction;
-        rec->context->rdi = handler;
-        rec->context->rsi = (uint64_t)sig;
-    }
+    /* Invoke the signal handler  */
+    rec->context->rip = (uint64_t)_call_sigaction;
+    rec->context->rdi = handler;
+    rec->context->rsi = (uint64_t)sig;
 }
 
-static uint64_t _exception_handler(oe_exception_record_t* exception)
+static uint64_t _exception_handler(oe_exception_record_t* rec)
 {
-    (void)exception;
+    (void)rec;
 
-    if (__oe_exception_args[0] == POSIX_EXCEPTION_SIGACTION)
-    {
-        return OE_EXCEPTION_CONTINUE_EXECUTION;
-    }
-    else
-    {
-        return OE_EXCEPTION_CONTINUE_SEARCH;
-    }
+    /* ATTN: check exception type */
+    return OE_EXCEPTION_CONTINUE_EXECUTION;
 }
 
 void __posix_install_exception_handler(void)

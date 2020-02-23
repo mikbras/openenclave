@@ -187,12 +187,12 @@ typedef struct _host_exception_context
 
     /* exit address */
     uint64_t rip;
-
-    uint64_t args[7];
 } oe_host_exception_context_t;
 
 /* ATTN: duplicate of OE definition */
-uint64_t oe_host_handle_exception(oe_host_exception_context_t* context);
+uint64_t oe_host_handle_exception(
+    oe_host_exception_context_t* context,
+    uint64_t arg);
 
 static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ctx)
 {
@@ -205,10 +205,7 @@ static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ctx)
     hec.rbx = (uint64_t)ctx->uc_mcontext.gregs[REG_RBX];
     hec.rip = (uint64_t)ctx->uc_mcontext.gregs[REG_RIP];
 
-    hec.args[0] = POSIX_EXCEPTION_SIGACTION;
-    hec.args[1] = (uint64_t)sig;
-
-    uint64_t action = oe_host_handle_exception(&hec);
+    uint64_t action = oe_host_handle_exception(&hec, (uint64_t)sig);
 
     if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
         return;

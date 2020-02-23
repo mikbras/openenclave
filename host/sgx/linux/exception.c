@@ -39,7 +39,7 @@ static void _host_signal_handler(
     host_context.rip = (uint64_t)context->uc_mcontext.gregs[REG_RIP];
 
     // Call platform neutral handler.
-    uint64_t action = oe_host_handle_exception(&host_context);
+    uint64_t action = oe_host_handle_exception(&host_context, 0);
 
     if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
     {
