@@ -13,7 +13,7 @@ EnclaveEvent* GetEnclaveEvent(oe_enclave_t* enclave, uint64_t tcs)
     if (!enclave)
         return NULL;
 
-    oe_mutex_lock(&enclave->__lock);
+    oe_mutex_lock(&enclave->lock);
     {
         size_t i;
 
@@ -28,7 +28,7 @@ EnclaveEvent* GetEnclaveEvent(oe_enclave_t* enclave, uint64_t tcs)
             }
         }
     }
-    oe_mutex_unlock(&enclave->__lock);
+    oe_mutex_unlock(&enclave->lock);
 
     return event;
 }

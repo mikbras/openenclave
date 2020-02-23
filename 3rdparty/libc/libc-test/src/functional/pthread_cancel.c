@@ -77,7 +77,6 @@ int main(void)
 	TESTR(r, pthread_join(td, &res), "joining canceled thread");
 	TESTC(res == PTHREAD_CANCELED, "canceled thread exit status");
 
-printf("DONE1\n");
 	/* Cancellation cleanup handlers */
 	foo[0] = 0;
 	TESTR(r, pthread_create(&td, 0, start_single, foo), "failed to create thread");
@@ -85,7 +84,6 @@ printf("DONE1\n");
 	TESTR(r, pthread_join(td, &res), "joining canceled thread");
 	TESTC(res == PTHREAD_CANCELED, "canceled thread exit status");
 	TESTC(foo[0] == 1, "cleanup handler failed to run");
-printf("DONE2\n");
 
 	/* Nested cleanup handlers */
 	memset(foo, 0, sizeof foo);

@@ -174,19 +174,19 @@ oe_enclave_t* oe_query_enclave_instance(void* tcs)
         {
             oe_enclave_t* enclave = tmp->enclave;
 
-            oe_mutex_lock(&enclave->__lock);
+            oe_mutex_lock(&enclave->lock);
 
             for (uint32_t i = 0; i < OE_COUNTOF(enclave->bindings); i++)
             {
                 if (enclave->bindings[i].tcs == (uint64_t)tcs)
                 {
                     ret = enclave;
-                    oe_mutex_unlock(&enclave->__lock);
+                    oe_mutex_unlock(&enclave->lock);
                     goto cleanup;
                 }
             }
 
-            oe_mutex_unlock(&enclave->__lock);
+            oe_mutex_unlock(&enclave->lock);
         }
     }
 

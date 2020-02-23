@@ -319,7 +319,6 @@ void posix_test_ecall(int* host_uaddr)
 
     posix_init(host_uaddr);
 
-#if 0
     test_create_thread();
     test_mutexes();
     test_timedlock();
@@ -333,9 +332,6 @@ void posix_test_ecall(int* host_uaddr)
     RUN_LIBC_TEST(pthread_cond_smasher_main);
     RUN_LIBC_TEST(pthread_once_deadlock_main);
     RUN_LIBC_TEST(pthread_condattr_setclock_main);
-#endif
-
-    // Crashes on host in posix_tkill_ocall()
     RUN_LIBC_TEST(pthread_cancel_main);
 
     // Requires FUTEX_LOCK_PI implementation

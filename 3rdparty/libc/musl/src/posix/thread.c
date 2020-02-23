@@ -108,8 +108,6 @@ int posix_run_thread_ecall(uint64_t cookie, int* host_uaddr)
 {
     posix_thread_t* thread = (posix_thread_t*)cookie;
 
-    posix_printf("*** posix_run_thread_ecall: %d\n", posix_gettid());
-
     if (!thread || !oe_is_within_enclave(thread, sizeof(thread)) ||
         thread->magic != MAGIC)
     {
