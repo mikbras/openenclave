@@ -316,10 +316,11 @@ void posix_test_ecall(int* host_uaddr)
     test_cond_broadcast();
 #endif
 
-#if 1
     extern void test_functional(void);
     test_functional();
-#endif
+
+    extern void test_regression(void);
+    test_regression();
 
     // Requires FUTEX_LOCK_PI implementation
     // RUN_LIBC_TEST(pthread_robust_main);

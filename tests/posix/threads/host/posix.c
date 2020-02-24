@@ -214,6 +214,9 @@ OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(ucontext_t));
 OE_STATIC_ASSERT(sizeof(struct posix_siginfo) == sizeof(siginfo_t));
 OE_STATIC_ASSERT(sizeof(struct posix_sigset) == sizeof(sigset_t));
 
+#define ENCLU_ERESUME 3
+extern uint64_t OE_AEP_ADDRESS;
+
 static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ucontext)
 {
 #if 1
@@ -238,17 +241,25 @@ static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ucontext)
     hec.rbx = (uint64_t)ucontext->uc_mcontext.gregs[REG_RBX];
     hec.rip = (uint64_t)ucontext->uc_mcontext.gregs[REG_RIP];
 
+    if (!(hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS))
+    {
+        printf("_sigaction_handler: signal recipient outside the enclave\n");
+        return;
+    }
+
     uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
 
     if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
+    {
+        printf("handled: sig=%d\n", sig);
+        fflush(stdout);
         return;
+    }
 
     /* ATTN: handle other non-enclave exceptions */
     printf("exception not handled: sig=%d\n", sig);
     fflush(stdout);
-#if 0
     abort();
-#endif
 }
 
 int posix_rt_sigaction_ocall(
@@ -258,6 +269,11 @@ int posix_rt_sigaction_ocall(
 {
     struct posix_sigaction act = *pact;
     extern void posix_restore(void);
+
+#if 1
+    printf("%s: solicit: signum=%d\n", __FUNCTION__, signum);
+    fflush(stdout);
+#endif
 
     errno = 0;
 

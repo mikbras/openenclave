@@ -2,6 +2,7 @@ __thread char v[123];
 __thread int x = 42;
 __thread long double y;
 
+static
 void *f()
 {
 	int i;

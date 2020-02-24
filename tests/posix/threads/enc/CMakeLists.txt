@@ -88,6 +88,75 @@ add_executable(posix_enc
     functional/vfork.c
     functional/wcsstr.c
     functional/wcstol.c
+    #regression/daemon-failure.c
+    regression/dn_expand-empty.c
+    regression/dn_expand-ptr-0.c
+    regression/execle-env.c
+    regression/fflush-exit.c
+    regression/fgets-eof.c
+    #regression/fgetwc-buffering.c
+    #regression/flockfile-list.c
+    regression/fpclassify-invalid-ld80.c
+    regression/ftello-unflushed-append.c
+    regression/getpwnam_r-crash.c
+    regression/getpwnam_r-errno.c
+    regression/iconv-roundtrips.c
+    regression/inet_ntop-v4mapped.c
+    regression/inet_pton-empty-last-field.c
+    regression/iswspace-null.c
+    regression/lrand48-signextend.c
+    regression/lseek-large.c
+    regression/malloc-0.c
+    #regression/malloc-brk-fail.c
+    #regression/malloc-oom.c
+    regression/mbsrtowcs-overflow.c
+    regression/memmem-oob.c
+    regression/memmem-oob-read.c
+    regression/mkdtemp-failure.c
+    regression/mkstemp-failure.c
+    regression/printf-1e9-oob.c
+    regression/printf-fmt-g-round.c
+    regression/printf-fmt-g-zeros.c
+    regression/printf-fmt-n.c
+    regression/pthread_atfork-errno-clobber.c
+    regression/pthread_cancel-sem_wait.c
+    regression/pthread_condattr_setclock.c
+    regression/pthread_cond-smasher.c
+    regression/pthread_cond_wait-cancel_ignored.c
+    #regression/pthread_create-oom.c
+    regression/pthread_exit-cancel.c
+    #regression/pthread_exit-dtor.c
+    regression/pthread_once-deadlock.c
+    regression/pthread-robust-detach.c
+    regression/pthread_rwlock-ebusy.c
+    regression/putenv-doublefree.c
+    regression/raise-race.c
+    regression/regex-backref-0.c
+    regression/regex-bracket-icase.c
+    regression/regexec-nosub.c
+    regression/regex-ere-backref.c
+    regression/regex-escaped-high-byte.c
+    regression/regex-negated-range.c
+    regression/regression.c
+    regression/rewind-clear-error.c
+    regression/rlimit-open-files.c
+    regression/scanf-bytes-consumed.c
+    regression/scanf-match-literal-eof.c
+    regression/scanf-nullbyte-char.c
+    #regression/setenv-oom.c
+    regression/setvbuf-unget.c
+    regression/sigaltstack.c
+    regression/sigprocmask-internal.c
+    regression/sigreturn.c
+    regression/sscanf-eof.c
+    regression/statvfs.c
+    regression/strverscmp.c
+    regression/syscall-sign-extend.c
+    regression/tls_get_new-dtv.c
+    regression/tls_get_new-dtv_dso.c
+    regression/uselocale-0.c
+    regression/wcsncpy-read-overflow.c
+    regression/wcsstr-false-negative.c
     stubs.c
     start.S
     test.c
