@@ -23,6 +23,7 @@ static void *start_wait(void *arg)
 	return 0;
 }
 
+static
 void f(int pshared, int pi)
 {
 	pthread_t td;

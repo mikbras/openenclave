@@ -11,13 +11,14 @@ int* __posix_init_host_uaddr;
 void posix_init(int* host_uaddr)
 {
     size_t aux[64];
+    static const char* _environ[] = { NULL };
 
     memset(aux, 0, sizeof(aux));
 
     __posix_init_host_uaddr = host_uaddr;
     __progname = "unknown";
     __sysinfo = 0;
-    __environ = NULL;
+    __environ = (char**)_environ;
     __hwcap = 0;
     __default_stacksize = 4096;
 

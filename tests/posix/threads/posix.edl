@@ -27,6 +27,18 @@ enclave
         uint8_t data[936];
     };
 
+    struct posix_sigset
+    {
+        uint64_t data[16];
+    };
+
+    struct posix_sigaction_args
+    {
+        struct posix_siginfo siginfo;
+        struct posix_ucontext ucontext;
+        int sig;
+    };
+
     trusted
     {
         public void posix_test_ecall([user_check] int* host_uaddr);
@@ -57,6 +69,8 @@ enclave
 
         int posix_gettid_ocall();
 
+        int posix_getpid_ocall();
+
         int posix_wait_ocall(
             [user_check] int* host_uaddr,
             [in, count=1] const struct posix_timespec* timeout);
@@ -80,8 +94,12 @@ enclave
             size_t sigsetsize);
 
         int posix_get_sigaction_args_ocall(
-            [out, count=1] int* sig,
-            [out, count=1] struct posix_siginfo* siginfo,
-            [out, count=1] struct posix_ucontext* ucontext);
+            [out, count=1] struct posix_sigaction_args* args);
+
+        int posix_rt_sigprocmask_ocall(
+            int how,
+            [in, count=1] const struct posix_sigset* set,
+            [out, count=1] struct posix_sigset* oldset,
+            size_t sigsetsize);
     };
 };

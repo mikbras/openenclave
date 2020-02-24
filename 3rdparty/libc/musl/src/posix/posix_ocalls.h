@@ -11,6 +11,8 @@ typedef struct posix_timespec posix_timespec_t;
 typedef struct posix_sigaction posix_sigaction_t;
 typedef struct posix_siginfo posix_siginfo_t;
 typedef struct posix_ucontext posix_ucontext_t;
+typedef struct posix_sigset posix_sigset_t;
+typedef struct posix_sigaction_args posix_sigaction_args_t;
 
 oe_result_t posix_nanosleep_ocall(
     int* retval,
@@ -39,6 +41,8 @@ oe_result_t posix_start_thread_ocall(int* retval, uint64_t cookie);
 
 oe_result_t posix_gettid_ocall(int* retval);
 
+oe_result_t posix_getpid_ocall(int* retval);
+
 oe_result_t posix_tkill_ocall(int* retval, int tid, int sig);
 
 oe_result_t posix_rt_sigaction_ocall(
@@ -49,8 +53,13 @@ oe_result_t posix_rt_sigaction_ocall(
 
 oe_result_t posix_get_sigaction_args_ocall(
     int* retval,
-    int* sig,
-    struct posix_siginfo* siginfo,
-    struct posix_ucontext* ucontext);
+    struct posix_sigaction_args* args);
+
+oe_result_t posix_rt_sigprocmask_ocall(
+    int* retval,
+    int how,
+    const struct posix_sigset* set,
+    struct posix_sigset* oldset,
+    size_t sigsetsize);
 
 #endif //_POSIX_OCALLS_H

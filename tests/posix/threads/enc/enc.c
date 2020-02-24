@@ -13,7 +13,6 @@
 #include <openenclave/internal/backtrace.h>
 #include "posix_t.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocalls.h"
-#include "test.h"
 
 void posix_init(int* host_uaddr);
 
@@ -303,36 +302,24 @@ void test_cond_broadcast(void)
     pthread_cond_destroy(&arg.c);
 }
 
-#define RUN_LIBC_TEST(MAIN)             \
-    do                                  \
-    {                                   \
-        extern int MAIN();              \
-        t_status = 0;                   \
-        printf("=== %s\n", #MAIN);      \
-        OE_TEST(MAIN() == 0);           \
-    }                                   \
-    while (0)
-
 void posix_test_ecall(int* host_uaddr)
 {
     oe_disable_debug_malloc_check = true;
 
     posix_init(host_uaddr);
 
+#if 0
     test_create_thread();
     test_mutexes();
     test_timedlock();
     test_cond_signal();
     test_cond_broadcast();
-    RUN_LIBC_TEST(pthread_tsd_main);
-    RUN_LIBC_TEST(pthread_cond_main);
-    RUN_LIBC_TEST(pthread_mutex_main);
-    RUN_LIBC_TEST(sem_init_main);
-    RUN_LIBC_TEST(pthread_rwlock_ebusy_main);
-    RUN_LIBC_TEST(pthread_cond_smasher_main);
-    RUN_LIBC_TEST(pthread_once_deadlock_main);
-    RUN_LIBC_TEST(pthread_condattr_setclock_main);
-    RUN_LIBC_TEST(pthread_cancel_main);
+#endif
+
+#if 1
+    extern void test_functional(void);
+    test_functional();
+#endif
 
     // Requires FUTEX_LOCK_PI implementation
     // RUN_LIBC_TEST(pthread_robust_main);
@@ -347,6 +334,6 @@ OE_SET_ENCLAVE_SGX(
     1,    /* ProductID */
     1,    /* SecurityVersion */
     true, /* AllowDebug */
-    1024, /* HeapPageCount */
+    4096, /* HeapPageCount */
     1024, /* StackPageCount */
     17);   /* TCSCount */

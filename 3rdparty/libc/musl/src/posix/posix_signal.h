@@ -5,6 +5,7 @@
 #define _POSIX_SIGNAL_H
 
 #include <stdint.h>
+#include <signal.h>
 
 typedef struct posix_sigaction posix_sigaction_t;
 
@@ -14,6 +15,12 @@ int posix_rt_sigaction(
     int signum,
     const struct posix_sigaction* act,
     struct posix_sigaction* oldact,
+    size_t sigsetsize);
+
+int posix_rt_sigprocmask(
+    int how,
+    const sigset_t* set,
+    sigset_t* oldset,
     size_t sigsetsize);
 
 #define POSIX_SIGACTION 0x515d906d058a5252

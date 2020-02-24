@@ -64,6 +64,16 @@ int posix_gettid(void)
     return retval;
 }
 
+int posix_getpid(void)
+{
+    int retval;
+
+    if (posix_getpid_ocall(&retval) != OE_OK)
+        return -EINVAL;
+
+    return retval;
+}
+
 extern int* __posix_init_host_uaddr;
 
 int posix_set_tid_address(int* tidptr)
@@ -278,7 +288,6 @@ int posix_tkill(int tid, int sig)
 {
     int retval;
 
-posix_printf("posix_tkill()\n");
     if (posix_tkill_ocall(&retval, tid, sig) != OE_OK)
         return -ENOSYS;
 

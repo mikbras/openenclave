@@ -134,6 +134,8 @@ void posix_exit(int status);
 
 int posix_gettid(void);
 
+int posix_getpid(void);
+
 long posix_get_robust_list(
     int pid,
     struct posix_robust_list_head** head_ptr,

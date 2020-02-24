@@ -5,6 +5,7 @@
 
 #include <limits.h>
 #include <errno.h>
+#include <assert.h>
 #include <openenclave/host.h>
 #include <openenclave/internal/error.h>
 #include <openenclave/internal/tests.h>
@@ -40,7 +41,7 @@ static void* _thread_func(void* arg)
     uint64_t cookie = (uint64_t)arg;
     static __thread int _futex;
 
-#if 1
+#if 0
     printf("CHILD.START=%d\n", posix_gettid_ocall());
     fflush(stdout);
 #endif
@@ -59,7 +60,7 @@ static void* _thread_func(void* arg)
         abort();
     }
 
-#if 1
+#if 0
     printf("CHILD.EXIT=%d\n", posix_gettid_ocall());
     fflush(stdout);
 #endif
@@ -79,7 +80,12 @@ int posix_start_thread_ocall(uint64_t cookie)
 
 int posix_gettid_ocall(void)
 {
-    return (int)syscall(__NR_gettid);
+    return (int)syscall(SYS_gettid);
+}
+
+int posix_getpid_ocall(void)
+{
+    return (int)syscall(SYS_getpid);
 }
 
 int posix_nanosleep_ocall(
@@ -169,7 +175,9 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 
 int posix_tkill_ocall(int tid, int sig)
 {
+#if 0
     printf("%s(tid=%d, sig=%d)\n", __FUNCTION__, tid, sig);
+#endif
 
     long r = syscall(SYS_tkill, tid, sig);
 
@@ -203,15 +211,27 @@ static __thread struct posix_ucontext _ucontext_arg;
 
 OE_STATIC_ASSERT(sizeof(struct posix_siginfo) == sizeof(siginfo_t));
 OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(ucontext_t));
+OE_STATIC_ASSERT(sizeof(struct posix_siginfo) == sizeof(siginfo_t));
+OE_STATIC_ASSERT(sizeof(struct posix_sigset) == sizeof(sigset_t));
 
 static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ucontext)
 {
+#if 1
     printf("_sigaction_handler: tid=%d sig=%d\n", posix_gettid_ocall(), sig);
+#endif
 
     /* Arguments will be fetched later by posix_get_sigaction_args_ocall */
     _sig_arg = sig;
-    memcpy(&_siginfo_arg, si, sizeof(_siginfo_arg));
-    memcpy(&_ucontext_arg, ucontext, sizeof(_ucontext_arg));
+
+    if (si)
+        memcpy(&_siginfo_arg, si, sizeof(_siginfo_arg));
+    else
+        memset(&_siginfo_arg, 0, sizeof(_siginfo_arg));
+
+    if (ucontext)
+        memcpy(&_ucontext_arg, ucontext, sizeof(_ucontext_arg));
+    else
+        memset(&_ucontext_arg, 0, sizeof(_ucontext_arg));
 
     oe_host_exception_context_t hec = {0};
     hec.rax = (uint64_t)ucontext->uc_mcontext.gregs[REG_RAX];
@@ -224,9 +244,11 @@ static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ucontext)
         return;
 
     /* ATTN: handle other non-enclave exceptions */
-    printf("exception not handled\n");
+    printf("exception not handled: sig=%d\n", sig);
     fflush(stdout);
+#if 0
     abort();
+#endif
 }
 
 int posix_rt_sigaction_ocall(
@@ -236,6 +258,8 @@ int posix_rt_sigaction_ocall(
 {
     struct posix_sigaction act = *pact;
     extern void posix_restore(void);
+
+    errno = 0;
 
     act.handler = (uint64_t)_sigaction_handler;
     act.restorer = (uint64_t)posix_restore;
@@ -248,19 +272,59 @@ int posix_rt_sigaction_ocall(
     return 0;
 }
 
-int posix_get_sigaction_args_ocall(
-    int* sig,
-    struct posix_siginfo* siginfo,
-    struct posix_ucontext* ucontext)
+int posix_get_sigaction_args_ocall(struct posix_sigaction_args* args)
 {
-    if (sig)
-        *sig = _sig_arg;
-
-    if (siginfo)
-        memcpy(siginfo, &_siginfo_arg, sizeof(struct posix_siginfo));
-
-    if (ucontext)
-        memcpy(ucontext, &_ucontext_arg, sizeof(struct posix_ucontext));
+    if (args)
+    {
+        args->sig = _sig_arg;
+        args->siginfo = _siginfo_arg;
+        args->ucontext = _ucontext_arg;
+    }
 
     return 0;
+}
+
+void posix_dump_sigset(const char* msg, const posix_sigset* set)
+{
+    printf("%s: ", msg);
+
+    for (int i = 0; i < NSIG; i++)
+    {
+        if (sigismember((sigset_t*)set, i))
+            printf("%d ", i);
+    }
+
+    printf("\n");
+    fflush(stdout);
+
+}
+
+int posix_rt_sigprocmask_ocall(
+    int how,
+    const struct posix_sigset* set,
+    struct posix_sigset* oldset,
+    size_t sigsetsize)
+{
+    errno = 0;
+
+#if 0
+    switch (how)
+    {
+        case SIG_BLOCK:
+            posix_dump_sigset("block", set);
+            break;
+        case SIG_UNBLOCK:
+            posix_dump_sigset("unblock", set);
+            break;
+        case SIG_SETMASK:
+            posix_dump_sigset("setmask", set);
+            break;
+        default:
+            assert("panic" == NULL);
+            break;
+    }
+#endif
+
+    long r = syscall(SYS_rt_sigprocmask, how, set, oldset, sigsetsize);
+    return r == 0 ? 0 : -errno;
 }

@@ -420,14 +420,6 @@ static int _ioctl_tiocgwinsz(int fd, unsigned long request, long arg)
     return 0;
 }
 
-#if 0
-int posix_tkill(int tid, int sig)
-{
-    /* ATTN: */
-    return (int)posix_syscall2(SYS_tkill, tid, sig);
-}
-#endif
-
 #define TIOCGWINSZ 0x5413
 
 long posix_syscall(long n, ...)
@@ -512,11 +504,6 @@ long posix_syscall(long n, ...)
 
             break;
         }
-        case SYS_rt_sigprocmask:
-        {
-            /* ATTN: ignore */
-            return 0;
-        }
         case SYS_set_tid_address:
         {
             int* tidptr = (int*)x1;
@@ -540,6 +527,20 @@ long posix_syscall(long n, ...)
             struct posix_sigaction* oldact = (void*)x3;
             size_t sigsetsize = (size_t)x4;
             return posix_rt_sigaction(signum, act, oldact, sigsetsize);
+        }
+        case SYS_rt_sigprocmask:
+        {
+            /* ATTN: uncommenting this causes a crash */
+#if 0
+            errno = 0;
+            int how = (int)x1;
+            const sigset_t* set = (void*)x2;
+            sigset_t* oldset = (void*)x3;
+            size_t sigsetsize = (size_t)x4;
+            return posix_rt_sigprocmask(how, set, oldset, sigsetsize);
+#else
+            return 0;
+#endif
         }
         case SYS_mprotect:
         {
@@ -644,12 +645,13 @@ long posix_syscall(long n, ...)
         {
             clockid_t clk_id = (clockid_t)x1;
             struct timespec* tp = (struct timespec*)x2;
+            /* ATTN: Why is this necesswary? */
+            errno = 0;
             return posix_clock_gettime(clk_id, tp);
         }
         case SYS_sigaltstack:
         {
-            /* ATTN: */
-            return 0;
+            break;
         }
         case SYS_get_robust_list:
         {
@@ -663,6 +665,10 @@ long posix_syscall(long n, ...)
             struct posix_robust_list_head* head = (void*)x1;
             size_t len = (size_t)x2;
             return posix_set_robust_list(head, len);
+        }
+        case SYS_getpid:
+        {
+            return (long)posix_getpid();
         }
     }
 
