@@ -1,0 +1,4 @@
+
+
+    (*) Exceptions don't always work when the thread receiving the signal is
+        currently outside the enclave (in the host).
