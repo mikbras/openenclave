@@ -27,6 +27,11 @@
 
 static oe_enclave_t* _enclave = NULL;
 
+int posix_gettid(void)
+{
+    return posix_gettid_ocall();
+}
+
 extern int posix_init(oe_enclave_t* enclave)
 {
     if (!enclave)
@@ -43,7 +48,7 @@ static void* _thread_func(void* arg)
     static __thread int _futex;
 
 #if 0
-    printf("CHILD.START=%d\n", posix_gettid_ocall());
+    printf("CHILD.START=%d\n", posix_gettid());
     fflush(stdout);
 #endif
 
@@ -62,7 +67,7 @@ static void* _thread_func(void* arg)
     }
 
 #if 0
-    printf("CHILD.EXIT=%d\n", posix_gettid_ocall());
+    printf("CHILD.EXIT=%d\n", posix_gettid());
     fflush(stdout);
 #endif
 
@@ -177,7 +182,8 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 int posix_tkill_ocall(int tid, int sig)
 {
 #if 1
-    printf("%s(tid=%d, sig=%d)\n", __FUNCTION__, tid, sig);
+    printf("%s(TID=%d, tid=%d, sig=%d)\n",
+        __FUNCTION__, posix_gettid(), tid, sig);
 #endif
 
     long r = syscall(SYS_tkill, tid, sig);
@@ -246,7 +252,7 @@ static __thread bool _have_enclave_sigaction;
 static __thread struct posix_sigaction_args _host_sigaction_args;
 static __thread bool _have_host_sigaction;
 
-static void _set_enclave_sigaction(int sig, siginfo_t* si, ucontext_t* uc)
+void _set_enclave_sigaction(int sig, siginfo_t* si, ucontext_t* uc)
 {
     _enclave_sigaction_args.sig = sig;
 
@@ -280,10 +286,10 @@ static void _set_host_sigaction(int sig, siginfo_t* si, ucontext_t* uc)
     _have_host_sigaction = true;
 }
 
-static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* uc)
+static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 {
 #if 1
-    printf("host._sigaction_handler: tid=%d sig=%d\n", posix_gettid_ocall(), sig);
+    printf("%s(tid=%d sig=%d)\n", __FUNCTION__, posix_gettid(), sig);
 #endif
 
     /* Build the host exception context */
@@ -314,7 +320,7 @@ static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* uc)
         _set_host_sigaction(sig, si, uc);
 
 #if 0
-        printf("*** _sigaction_handler: host signal: sig=%d\n", sig);
+        printf("*** _posix_host_signal_handler: host signal: sig=%d\n", sig);
         posix_print_backtrace();
 #endif
         return;
@@ -330,13 +336,14 @@ int posix_rt_sigaction_ocall(
     extern void posix_restore(void);
 
 #if 1
-    printf("%s: solicit: signum=%d\n", __FUNCTION__, signum);
+    printf("%s(tid=%d, signum=%d)\n",
+        __FUNCTION__, posix_gettid(), signum);
     fflush(stdout);
 #endif
 
     errno = 0;
 
-    act.handler = (uint64_t)_sigaction_handler;
+    act.handler = (uint64_t)_posix_host_signal_handler;
     act.restorer = (uint64_t)posix_restore;
 
     long r = syscall(SYS_rt_sigaction, signum, &act, NULL, sigsetsize);
@@ -398,26 +405,35 @@ int posix_rt_sigprocmask_ocall(
     struct posix_sigset* oldset,
     size_t sigsetsize)
 {
-    errno = 0;
+    const char* howstr;
+    //errno = 0;
 
-#if 0
     switch (how)
     {
         case SIG_BLOCK:
-            posix_dump_sigset("block", set);
+            howstr = "block";
             break;
         case SIG_UNBLOCK:
-            posix_dump_sigset("unblock", set);
+            howstr = "unblock";
             break;
         case SIG_SETMASK:
-            posix_dump_sigset("setmask", set);
+            howstr = "setmask";
             break;
         default:
-            assert("panic" == NULL);
+            howstr = "unknown";
             break;
     }
-#endif
+
+    printf("posix_rt_sigprocmask_ocall(how=%s, tid=%d)\n",
+        howstr, posix_gettid());
+
+    posix_dump_sigset(howstr, set);
 
     long r = syscall(SYS_rt_sigprocmask, how, set, oldset, sigsetsize);
     return r == 0 ? 0 : -errno;
+}
+
+void posix_noop_ocall(void)
+{
+    printf("%s\n", __FUNCTION__); fflush(stdout);
 }

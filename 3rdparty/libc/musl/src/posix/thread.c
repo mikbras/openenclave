@@ -295,3 +295,8 @@ int posix_tkill(int tid, int sig)
     posix_dispatch_signals();
     return retval;
 }
+
+void posix_noop(void)
+{
+    posix_noop_ocall();
+}

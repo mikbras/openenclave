@@ -70,12 +70,14 @@ int main(void)
 
 	TESTR(r, sem_init(&sem1, 0, 0), "creating semaphore");
 
+#if 1
 	/* Asynchronous cancellation */
 	TESTR(r, pthread_create(&td, 0, start_async, &sem1), "failed to create thread");
 	while (sem_wait(&sem1));
 	TESTR(r, pthread_cancel(td), "canceling");
 	TESTR(r, pthread_join(td, &res), "joining canceled thread");
 	TESTC(res == PTHREAD_CANCELED, "canceled thread exit status");
+#endif
 
 	/* Cancellation cleanup handlers */
 	foo[0] = 0;
@@ -85,6 +87,7 @@ int main(void)
 	TESTC(res == PTHREAD_CANCELED, "canceled thread exit status");
 	TESTC(foo[0] == 1, "cleanup handler failed to run");
 
+#if 1
 	/* Nested cleanup handlers */
 	memset(foo, 0, sizeof foo);
 	TESTR(r, pthread_create(&td, 0, start_nested, foo), "failed to create thread");
@@ -95,6 +98,7 @@ int main(void)
 	TESTC(foo[1] == 2, "cleanup handler failed to run");
 	TESTC(foo[2] == 3, "cleanup handler failed to run");
 	TESTC(foo[3] == 4, "cleanup handler failed to run");
+#endif
 
 	return t_status;
 }

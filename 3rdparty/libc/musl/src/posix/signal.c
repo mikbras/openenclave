@@ -98,8 +98,8 @@ extern __thread uint64_t __oe_exception_arg;
 
 static void _continue_execution_hook(oe_exception_record_t* rec)
 {
-#if 0
-    posix_printf("_continue_execution_hook()\n");
+#if 1
+    posix_printf("_continue_execution_hook(tid=%d)\n", posix_gettid());
 #endif
 
     if (__oe_exception_arg == POSIX_SIGACTION)

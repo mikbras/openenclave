@@ -15,6 +15,7 @@ void test_functional(void)
         OE_TEST(pthread_cancel_main(argc, argv, envp) == 0);
     }
 
+return;
     extern int argv_main(int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running argv_main\n");

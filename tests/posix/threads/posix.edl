@@ -102,5 +102,7 @@ enclave
             [in, count=1] const struct posix_sigset* set,
             [out, count=1] struct posix_sigset* oldset,
             size_t sigsetsize);
+
+        void posix_noop_ocall();
     };
 };

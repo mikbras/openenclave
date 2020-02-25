@@ -308,18 +308,19 @@ void posix_test_ecall(int* host_uaddr)
 
     posix_init(host_uaddr);
 
-#if 1
+    extern int pthread_cancel_repro(void);
+    pthread_cancel_repro();
+
+#if 0
     test_create_thread();
     test_mutexes();
     test_timedlock();
     test_cond_signal();
     test_cond_broadcast();
-#endif
 
     extern void test_functional(void);
     test_functional();
 
-#if 1
     extern void test_regression(void);
     test_regression();
 #endif

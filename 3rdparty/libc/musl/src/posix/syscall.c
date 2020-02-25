@@ -531,7 +531,7 @@ long posix_syscall(long n, ...)
         case SYS_rt_sigprocmask:
         {
             /* ATTN: uncommenting this causes a crash */
-#if 0
+#if 1
             errno = 0;
             int how = (int)x1;
             const sigset_t* set = (void*)x2;

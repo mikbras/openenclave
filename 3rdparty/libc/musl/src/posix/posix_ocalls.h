@@ -63,4 +63,6 @@ oe_result_t posix_rt_sigprocmask_ocall(
     struct posix_sigset* oldset,
     size_t sigsetsize);
 
+oe_result_t posix_noop_ocall(void);
+
 #endif //_POSIX_OCALLS_H
