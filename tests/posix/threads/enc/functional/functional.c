@@ -6,6 +6,15 @@ void test_functional(void)
     const char* argv[] = { "main", NULL, NULL };
     const char** envp = argv + argc + 1;
 
+    for (size_t i = 0; i < 10; i++)
+    {
+        extern int pthread_cancel_main(
+            int argc, const char* argv[], const char* envp[]);
+        t_status = 0;
+        printf("=== running pthread_cancel_main\n");
+        OE_TEST(pthread_cancel_main(argc, argv, envp) == 0);
+    }
+
     extern int argv_main(int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running argv_main\n");
@@ -135,14 +144,6 @@ void test_functional(void)
     printf("=== running popen_main\n");
     OE_TEST(popen_main(argc, argv, envp) == 0);
 #endif
-
-for (size_t i = 0; i < 10; i++)
-{
-    extern int pthread_cancel_main(int argc, const char* argv[], const char* envp[]);
-    t_status = 0;
-    printf("=== running pthread_cancel_main\n");
-    OE_TEST(pthread_cancel_main(argc, argv, envp) == 0);
-}
 
 #if 0 /* SYS_open */
     extern int pthread_cancel_points_main(int argc, const char* argv[], const char* envp[]);

@@ -321,10 +321,12 @@ void test_regression(void)
     OE_TEST(setenv_oom_main(argc, argv, envp) == 0);
 #endif
 
+#if 0
     extern int setvbuf_unget_main(int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running setvbuf_unget_main\n");
     OE_TEST(setvbuf_unget_main(argc, argv, envp) == 0);
+#endif
 
 #if 0
     extern int sigaltstack_main(int argc, const char* argv[], const char* envp[]);
@@ -338,7 +340,7 @@ void test_regression(void)
     printf("=== running sigprocmask_internal_main\n");
     OE_TEST(sigprocmask_internal_main(argc, argv, envp) == 0);
 
-#if 0 /* NEXT: signal recipient outside the enclave */
+#if 1 /* NEXT: signal recipient outside the enclave */
     extern int sigreturn_main(int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running sigreturn_main\n");

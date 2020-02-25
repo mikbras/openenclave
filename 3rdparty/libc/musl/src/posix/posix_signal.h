@@ -23,6 +23,8 @@ int posix_rt_sigprocmask(
     sigset_t* oldset,
     size_t sigsetsize);
 
+int posix_dispatch_signals(void);
+
 #define POSIX_SIGACTION 0x515d906d058a5252
 
 #endif //_POSIX_SIGNAL_H

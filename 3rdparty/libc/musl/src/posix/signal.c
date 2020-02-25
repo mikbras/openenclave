@@ -72,11 +72,12 @@ static void _call_sigaction_handler(
     (void)siginfo;
     (void)ucontext;
 
+    /* ATTN: use siginfo and ucontext */
     siginfo_t si = { 0 };
     ucontext_t uc = { 0 };
 
-#if 0
-    posix_printf("_call_sigaction_handler()\n");
+#if 1
+    posix_printf("enclave._call_sigaction_handler()\n");
 #endif
 
     /* Invoke the sigacation funtion */
@@ -87,10 +88,10 @@ static void _call_sigaction_handler(
     {
         void (*func)() = (void*)uc.uc_mcontext.MC_PC;
         func();
-        /* does not return */
-    }
 
-    oe_abort();
+        /* does not return */
+        oe_abort();
+    }
 }
 
 extern __thread uint64_t __oe_exception_arg;
@@ -109,13 +110,13 @@ static void _continue_execution_hook(oe_exception_record_t* rec)
 
         /* Fetch the sigset handler arguments from the host. */
         {
+            oe_result_t result;
             int retval = -1;
             struct posix_sigaction_args args;
 
             memset(&args, 0xAA, sizeof(args));
 
-            oe_result_t result = posix_get_sigaction_args_ocall(&retval, &args);
-
+            result = posix_get_sigaction_args_ocall(&retval, &args, true);
             if (result != OE_OK || retval != 0)
             {
                 POSIX_PANIC;
@@ -226,4 +227,34 @@ int posix_rt_sigprocmask(
     }
 
     return retval;
+}
+
+int posix_dispatch_signals(void)
+{
+    int retval;
+    struct posix_sigaction_args args;
+
+    /* Get the last signal on this thread from the host. */
+    if (posix_get_sigaction_args_ocall(&retval, &args, false) != OE_OK ||
+        retval != 0)
+    {
+        return -1;
+    }
+
+    /* Get the handler from the table if any */
+    posix_spin_lock(&_lock);
+    uint64_t handler = _table[args.sig].handler;
+    posix_spin_unlock(&_lock);
+
+    /* Invoke the signal handler  */
+    if (handler)
+    {
+        _call_sigaction_handler(
+            (void (*)(int, siginfo_t*, void*))handler,
+            args.sig,
+            (siginfo_t*)&args.siginfo,
+            (ucontext_t*)&args.ucontext);
+    }
+
+    return 0;
 }

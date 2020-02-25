@@ -53,7 +53,8 @@ oe_result_t posix_rt_sigaction_ocall(
 
 oe_result_t posix_get_sigaction_args_ocall(
     int* retval,
-    struct posix_sigaction_args* args);
+    struct posix_sigaction_args* args,
+    bool enclave_signal);
 
 oe_result_t posix_rt_sigprocmask_ocall(
     int* retval,

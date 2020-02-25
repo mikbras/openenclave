@@ -18,6 +18,7 @@
 #include "posix_futex.h"
 #include "posix_warnings.h"
 #include "posix_ocalls.h"
+#include "posix_signal.h"
 
 #define MAGIC 0x6a25f0aa
 
@@ -291,5 +292,6 @@ int posix_tkill(int tid, int sig)
     if (posix_tkill_ocall(&retval, tid, sig) != OE_OK)
         return -ENOSYS;
 
+    posix_dispatch_signals();
     return retval;
 }

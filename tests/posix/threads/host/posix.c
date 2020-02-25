@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <assert.h>
+#include <execinfo.h>
 #include <openenclave/host.h>
 #include <openenclave/internal/error.h>
 #include <openenclave/internal/tests.h>
@@ -175,7 +176,7 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 
 int posix_tkill_ocall(int tid, int sig)
 {
-#if 0
+#if 1
     printf("%s(tid=%d, sig=%d)\n", __FUNCTION__, tid, sig);
 #endif
 
@@ -205,10 +206,6 @@ uint64_t oe_host_handle_exception(
     oe_host_exception_context_t* context,
     uint64_t arg);
 
-static __thread int _sig_arg;
-static __thread struct posix_siginfo _siginfo_arg;
-static __thread struct posix_ucontext _ucontext_arg;
-
 OE_STATIC_ASSERT(sizeof(struct posix_siginfo) == sizeof(siginfo_t));
 OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(ucontext_t));
 OE_STATIC_ASSERT(sizeof(struct posix_siginfo) == sizeof(siginfo_t));
@@ -217,49 +214,111 @@ OE_STATIC_ASSERT(sizeof(struct posix_sigset) == sizeof(sigset_t));
 #define ENCLU_ERESUME 3
 extern uint64_t OE_AEP_ADDRESS;
 
-static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* ucontext)
+int posix_print_backtrace(void)
 {
-#if 1
-    printf("_sigaction_handler: tid=%d sig=%d\n", posix_gettid_ocall(), sig);
-#endif
+    void* buffer[64];
 
-    /* Arguments will be fetched later by posix_get_sigaction_args_ocall */
-    _sig_arg = sig;
+    int n = backtrace(buffer, sizeof(buffer));
+
+    if (n <= 1)
+        return -1;
+
+    char** syms = backtrace_symbols(buffer, n);
+
+    if (!syms)
+        return -1;
+
+    printf("=== posix_print_backtrace()\n");
+
+    for (int i = 0; i < n; i++)
+        printf("%s\n", syms[i]);
+
+    free(syms);
+
+    fflush(stdout);
+
+    return 0;
+}
+
+static __thread struct posix_sigaction_args _enclave_sigaction_args;
+static __thread bool _have_enclave_sigaction;
+
+static __thread struct posix_sigaction_args _host_sigaction_args;
+static __thread bool _have_host_sigaction;
+
+static void _set_enclave_sigaction(int sig, siginfo_t* si, ucontext_t* uc)
+{
+    _enclave_sigaction_args.sig = sig;
 
     if (si)
-        memcpy(&_siginfo_arg, si, sizeof(_siginfo_arg));
+        memcpy(&_enclave_sigaction_args.siginfo, si, sizeof(struct posix_siginfo));
     else
-        memset(&_siginfo_arg, 0, sizeof(_siginfo_arg));
+        memset(&_enclave_sigaction_args.siginfo, 0, sizeof(struct posix_siginfo));
 
-    if (ucontext)
-        memcpy(&_ucontext_arg, ucontext, sizeof(_ucontext_arg));
+    if (uc)
+        memcpy(&_enclave_sigaction_args.ucontext, uc, sizeof(struct posix_ucontext));
     else
-        memset(&_ucontext_arg, 0, sizeof(_ucontext_arg));
+        memset(&_enclave_sigaction_args.ucontext, 0, sizeof(struct posix_ucontext));
 
+    _have_enclave_sigaction = true;
+}
+
+static void _set_host_sigaction(int sig, siginfo_t* si, ucontext_t* uc)
+{
+    _host_sigaction_args.sig = sig;
+
+    if (si)
+        memcpy(&_host_sigaction_args.siginfo, si, sizeof(struct posix_siginfo));
+    else
+        memset(&_host_sigaction_args.siginfo, 0, sizeof(struct posix_siginfo));
+
+    if (uc)
+        memcpy(&_host_sigaction_args.ucontext, uc, sizeof(struct posix_ucontext));
+    else
+        memset(&_host_sigaction_args.ucontext, 0, sizeof(struct posix_ucontext));
+
+    _have_host_sigaction = true;
+}
+
+static void _sigaction_handler(int sig, siginfo_t* si, ucontext_t* uc)
+{
+#if 1
+    printf("host._sigaction_handler: tid=%d sig=%d\n", posix_gettid_ocall(), sig);
+#endif
+
+    /* Build the host exception context */
     oe_host_exception_context_t hec = {0};
-    hec.rax = (uint64_t)ucontext->uc_mcontext.gregs[REG_RAX];
-    hec.rbx = (uint64_t)ucontext->uc_mcontext.gregs[REG_RBX];
-    hec.rip = (uint64_t)ucontext->uc_mcontext.gregs[REG_RIP];
+    hec.rax = (uint64_t)uc->uc_mcontext.gregs[REG_RAX];
+    hec.rbx = (uint64_t)uc->uc_mcontext.gregs[REG_RBX];
+    hec.rip = (uint64_t)uc->uc_mcontext.gregs[REG_RIP];
 
-    if (!(hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS))
+    /* If the signal originated within the enclave */
+    if (hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS)
     {
-        printf("_sigaction_handler: signal recipient outside the enclave\n");
-        return;
-    }
+        _set_enclave_sigaction(sig, si, uc);
 
-    uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
+        uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
 
-    if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
-    {
-        printf("handled: sig=%d\n", sig);
+        if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
+        {
+            /* Handled */
+            return;
+        }
+
+        printf("unhanlded signal: %d\n", sig);
         fflush(stdout);
+        abort();
+    }
+    else
+    {
+        _set_host_sigaction(sig, si, uc);
+
+#if 0
+        printf("*** _sigaction_handler: host signal: sig=%d\n", sig);
+        posix_print_backtrace();
+#endif
         return;
     }
-
-    /* ATTN: handle other non-enclave exceptions */
-    printf("exception not handled: sig=%d\n", sig);
-    fflush(stdout);
-    abort();
 }
 
 int posix_rt_sigaction_ocall(
@@ -288,13 +347,31 @@ int posix_rt_sigaction_ocall(
     return 0;
 }
 
-int posix_get_sigaction_args_ocall(struct posix_sigaction_args* args)
+int posix_get_sigaction_args_ocall(
+    struct posix_sigaction_args* args,
+    bool enclave_args)
 {
-    if (args)
+    if (enclave_args)
     {
-        args->sig = _sig_arg;
-        args->siginfo = _siginfo_arg;
-        args->ucontext = _ucontext_arg;
+        if (!_have_enclave_sigaction)
+            return -1;
+
+        if (args)
+            *args = _enclave_sigaction_args;
+
+        memset(&_enclave_sigaction_args, 0, sizeof(_enclave_sigaction_args));
+        _have_enclave_sigaction = false;
+    }
+    else
+    {
+        if (!_have_host_sigaction)
+            return -1;
+
+        if (args)
+            *args = _host_sigaction_args;
+
+        memset(&_host_sigaction_args, 0, sizeof(_host_sigaction_args));
+        _have_host_sigaction = false;
     }
 
     return 0;
