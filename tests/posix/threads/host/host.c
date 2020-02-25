@@ -21,7 +21,7 @@ extern int posix_init(oe_enclave_t* enclave);
 int main(int argc, const char* argv[])
 {
     oe_result_t result;
-    const uint32_t flags = oe_get_create_flags();
+    const uint32_t flags = OE_ENCLAVE_FLAG_DEBUG;
     const oe_enclave_type_t type = OE_ENCLAVE_TYPE_SGX;
     oe_enclave_t* enclave;
     static int _futex;
