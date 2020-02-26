@@ -12,6 +12,7 @@ add_custom_command(
 
 add_executable(posix_enc
     enc.c
+    jump.S
     pthread_cancel_repro.c
     functional/argv.c
     functional/basename.c

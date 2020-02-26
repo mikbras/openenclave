@@ -22,6 +22,8 @@
 
 #define MAGIC 0x6a25f0aa
 
+void posix_set_trace(int val);
+
 /* The thread info structure for the main thread */
 static posix_thread_t _main_thread;
 
@@ -57,12 +59,7 @@ static int _set_thread_info(posix_thread_t* thread)
 
 int posix_gettid(void)
 {
-    int retval;
-
-    if (posix_gettid_ocall(&retval) != OE_OK)
-        return -EINVAL;
-
-    return retval;
+    return posix_self()->tid;
 }
 
 int posix_getpid(void)
@@ -77,6 +74,8 @@ int posix_getpid(void)
 
 extern int* __posix_init_host_uaddr;
 
+extern int __posix_init_tid;
+
 int posix_set_tid_address(int* tidptr)
 {
     posix_thread_t* thread;
@@ -89,7 +88,20 @@ int posix_set_tid_address(int* tidptr)
 
     thread->ctid = tidptr;
 
-    return posix_gettid();
+#if 0
+    int retval;
+
+    if (posix_gettid_ocall(&retval) != OE_OK)
+    {
+        posix_printf("posix_gettid_ocall() panic\n");
+        oe_abort();
+    }
+#endif
+
+    /* ATTN: assumes that only the main thread calls this */
+    int tid = __posix_init_tid;
+
+    return tid;
 }
 
 /* This is called only by the main thread. */
@@ -115,7 +127,7 @@ struct pthread* posix_pthread_self(void)
     return thread->td;
 }
 
-int posix_run_thread_ecall(uint64_t cookie, int* host_uaddr)
+int posix_run_thread_ecall(uint64_t cookie, int tid, int* host_uaddr)
 {
     posix_thread_t* thread = (posix_thread_t*)cookie;
 
@@ -127,6 +139,7 @@ int posix_run_thread_ecall(uint64_t cookie, int* host_uaddr)
     }
 
     thread->host_uaddr = host_uaddr;
+    thread->tid = tid;
 
     _set_thread_info(thread);
 
@@ -250,6 +263,51 @@ void posix_exit(int status)
     longjmp(thread->jmpbuf, 1);
 }
 
+void posix_force_exit(int status)
+{
+    posix_thread_t* thread;
+
+    /* ATTN: ignored */
+    (void)status;
+
+    posix_printf("posix_force_exit()\n");
+
+    thread = posix_self();
+    oe_assert(thread);
+
+    /* ATTN: handle main thread exits */
+    if (!thread->fn)
+    {
+        posix_printf("posix_exit() called from main thread\n");
+        oe_abort();
+    }
+
+#if 1
+    /* Clear ctid: */
+    posix_futex_acquire(thread->ctid);
+    a_swap(thread->ctid, 0);
+    posix_futex_release(thread->ctid);
+#endif
+
+    /* Wake the joiner */
+    posix_futex_acquire((volatile int*)thread->ctid);
+    posix_futex_wake((int*)thread->ctid, FUTEX_WAKE, 1);
+    posix_futex_release((volatile int*)thread->ctid);
+
+    /* Hack attempt to release joiner */
+#if 0
+    struct pthread* td = thread->td;
+    ACQUIRE_FUTEX(&td->detach_state);
+    int state = a_cas(&td->detach_state, DT_JOINABLE, DT_EXITING);
+    (void)state;
+    __wake(&td->detach_state, 1, 1);
+    RELEASE_FUTEX(&td->detach_state);
+#endif
+
+    /* Jump back to posix_run_thread_ecall() */
+    longjmp(thread->jmpbuf, 1);
+}
+
 long posix_get_robust_list(
     int pid,
     struct posix_robust_list_head** head_ptr,
@@ -292,7 +350,9 @@ int posix_tkill(int tid, int sig)
     if (posix_tkill_ocall(&retval, tid, sig) != OE_OK)
         return -ENOSYS;
 
+#if 0
     posix_dispatch_signals();
+#endif
     return retval;
 }
 

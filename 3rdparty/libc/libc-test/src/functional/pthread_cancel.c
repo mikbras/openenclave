@@ -70,7 +70,7 @@ int main(void)
 
 	TESTR(r, sem_init(&sem1, 0, 0), "creating semaphore");
 
-#if 1
+#if 0
 	/* Asynchronous cancellation */
 	TESTR(r, pthread_create(&td, 0, start_async, &sem1), "failed to create thread");
 	while (sem_wait(&sem1));

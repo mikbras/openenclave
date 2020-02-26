@@ -6,6 +6,7 @@
 #include <limits.h>
 #include <errno.h>
 #include <assert.h>
+#include <stdio.h>
 #include <execinfo.h>
 #include <openenclave/host.h>
 #include <openenclave/internal/error.h>
@@ -25,11 +26,19 @@
 #include "posix_u.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_signal.h"
 
+int __posix_trace;
+
+void print_posix_trace(void)
+{
+    printf("__posix_trace=%x\n", __posix_trace);
+}
+
+/* ATTN: single enclave instance */
 static oe_enclave_t* _enclave = NULL;
 
 int posix_gettid(void)
 {
-    return posix_gettid_ocall();
+    return (int)syscall(SYS_gettid);
 }
 
 extern int posix_init(oe_enclave_t* enclave)
@@ -44,29 +53,40 @@ extern int posix_init(oe_enclave_t* enclave)
 static void* _thread_func(void* arg)
 {
     int retval;
+    oe_result_t r;
     uint64_t cookie = (uint64_t)arg;
     static __thread int _futex;
 
-#if 0
+print_posix_trace();
+
+#if 1
     printf("CHILD.START=%d\n", posix_gettid());
     fflush(stdout);
 #endif
 
     _futex = 0;
 
-    if (posix_run_thread_ecall(_enclave, &retval, cookie, &_futex) != OE_OK)
+    int tid = posix_gettid();
+
+print_posix_trace();
+    if ((r = posix_run_thread_ecall(
+        _enclave, &retval, cookie, tid, &_futex)) != OE_OK)
     {
-        fprintf(stderr, "posix_run_thread_ecall(): failed\n");
+        fprintf(stderr, "posix_run_thread_ecall(): result=%u\n", r);
+        fflush(stderr);
         abort();
     }
 
+print_posix_trace();
     if (retval != 0)
     {
         fprintf(stderr, "posix_run_thread_ecall(): retval=%d\n", retval);
+        fflush(stderr);
         abort();
     }
 
-#if 0
+#if 1
+    print_posix_trace();
     printf("CHILD.EXIT=%d\n", posix_gettid());
     fflush(stdout);
 #endif
@@ -76,31 +96,73 @@ static void* _thread_func(void* arg)
 
 int posix_start_thread_ocall(uint64_t cookie)
 {
+    int ret = -1;
     pthread_t t;
+    pthread_attr_t attr;
 
-    if (pthread_create(&t, NULL, _thread_func, (void*)cookie) != 0)
-        return -1;
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-    return 0;
+    if (pthread_create(&t, &attr, _thread_func, (void*)cookie) != 0)
+        goto done;
+
+    ret = 0;
+
+done:
+    //ATTN: crashed here! pthread_attr_destroy(&attr);
+
+    return ret;
 }
+
+static inline void __enter(const char* func)
+{
+    (void)func;
+#if 0
+    printf("__enter:%s:%d\n", func, posix_gettid());
+    fflush(stdout);
+#endif
+}
+
+static inline void __leave(const char* func)
+{
+    (void)func;
+#if 0
+    printf("__leave:%s:%d\n", func, posix_gettid());
+    fflush(stdout);
+#endif
+}
+
+#define ENTER __enter(__FUNCTION__)
+#define LEAVE __leave(__FUNCTION__)
 
 int posix_gettid_ocall(void)
 {
-    return (int)syscall(SYS_gettid);
+    ENTER;
+    int ret = (int)syscall(SYS_gettid);
+    LEAVE;
+    return ret;
 }
 
 int posix_getpid_ocall(void)
 {
-    return (int)syscall(SYS_getpid);
+    ENTER;
+    int ret = (int)syscall(SYS_getpid);
+    LEAVE;
+    return ret;
 }
 
 int posix_nanosleep_ocall(
     const struct posix_timespec* req,
     struct posix_timespec* rem)
 {
+    ENTER;
     if (nanosleep((struct timespec*)req, (struct timespec*)rem) != 0)
+    {
+        LEAVE;
         return -errno;
+    }
 
+    LEAVE;
     return 0;
 }
 
@@ -110,13 +172,20 @@ int posix_futex_wait_ocall(
     int val,
     const struct posix_timespec* timeout)
 {
+    ENTER;
     long r;
+
+    assert(uaddr != NULL);
 
     r = syscall(SYS_futex, uaddr, futex_op, val, (struct timespec*)timeout);
 
     if (r != 0)
+    {
+        LEAVE;
         return -errno;
+    }
 
+    LEAVE;
     return 0;
 }
 
@@ -125,18 +194,24 @@ int posix_futex_wake_ocall(
     int futex_op,
     int val)
 {
+    ENTER;
     long r;
 
     r = syscall(SYS_futex, uaddr, futex_op, val, NULL);
 
     if (r != 0)
+    {
+        LEAVE;
         return -errno;
+    }
 
+    LEAVE;
     return 0;
 }
 
 int posix_wait_ocall(int* host_uaddr, const struct posix_timespec* timeout)
 {
+    ENTER;
     int retval = 0;
 
     if (__sync_fetch_and_add(host_uaddr, -1) == 0)
@@ -154,15 +229,20 @@ int posix_wait_ocall(int* host_uaddr, const struct posix_timespec* timeout)
             retval = -errno;
     }
 
+    LEAVE;
     return retval;
 }
 
 void posix_wake_ocall(int* host_uaddr)
 {
+    ENTER;
+
     if (__sync_fetch_and_add(host_uaddr, 1) != 0)
     {
         syscall(SYS_futex, host_uaddr, FUTEX_WAKE_PRIVATE, 1, NULL, NULL, 0);
     }
+
+    LEAVE;
 }
 
 int posix_wake_wait_ocall(
@@ -170,17 +250,24 @@ int posix_wake_wait_ocall(
     int* self_host_uaddr,
     const struct posix_timespec* timeout)
 {
+    ENTER;
     posix_wake_ocall(waiter_host_uaddr);
-    return posix_wait_ocall(self_host_uaddr, timeout);
+    int ret = posix_wait_ocall(self_host_uaddr, timeout);
+    LEAVE;
+    return ret;
 }
 
 int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 {
-    return clock_gettime(clk_id, (struct timespec*)tp);
+    ENTER;
+    int ret = clock_gettime(clk_id, (struct timespec*)tp);
+    LEAVE;
+    return ret;
 }
 
 int posix_tkill_ocall(int tid, int sig)
 {
+    ENTER;
 #if 1
     printf("%s(TID=%d, tid=%d, sig=%d)\n",
         __FUNCTION__, posix_gettid(), tid, sig);
@@ -189,8 +276,12 @@ int posix_tkill_ocall(int tid, int sig)
     long r = syscall(SYS_tkill, tid, sig);
 
     if (r != 0)
+    {
+        LEAVE;
         return -errno;
+    }
 
+    LEAVE;
     return 0;
 }
 
@@ -288,7 +379,7 @@ static void _set_host_sigaction(int sig, siginfo_t* si, ucontext_t* uc)
 
 static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 {
-#if 1
+#if 0
     printf("%s(tid=%d sig=%d)\n", __FUNCTION__, posix_gettid(), sig);
 #endif
 
@@ -301,28 +392,26 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     /* If the signal originated within the enclave */
     if (hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS)
     {
+        fprintf(stderr, "ENCLAVE.SIGNAL: sig=%d\n", sig); fflush(stderr);
+
         _set_enclave_sigaction(sig, si, uc);
 
         uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
 
         if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
         {
+            printf("ENCLAVE.SIGNAL.HANDLED\n"); fflush(stdout);
             /* Handled */
             return;
         }
 
-        printf("unhanlded signal: %d\n", sig);
-        fflush(stdout);
+        fprintf(stderr, "unhanlded signal: %d\n", sig); fflush(stderr);
         abort();
     }
     else
     {
+        fprintf(stderr, "HOST.SIGNAL: sig=%d\n", sig); fflush(stderr);
         _set_host_sigaction(sig, si, uc);
-
-#if 0
-        printf("*** _posix_host_signal_handler: host signal: sig=%d\n", sig);
-        posix_print_backtrace();
-#endif
         return;
     }
 }
@@ -332,6 +421,7 @@ int posix_rt_sigaction_ocall(
     const struct posix_sigaction* pact,
     size_t sigsetsize)
 {
+    ENTER;
     struct posix_sigaction act = *pact;
     extern void posix_restore(void);
 
@@ -349,8 +439,12 @@ int posix_rt_sigaction_ocall(
     long r = syscall(SYS_rt_sigaction, signum, &act, NULL, sigsetsize);
 
     if (r != 0)
+    {
+        LEAVE;
         return -errno;
+    }
 
+    LEAVE;
     return 0;
 }
 
@@ -405,8 +499,9 @@ int posix_rt_sigprocmask_ocall(
     struct posix_sigset* oldset,
     size_t sigsetsize)
 {
+    ENTER;
+#if 0
     const char* howstr;
-    //errno = 0;
 
     switch (how)
     {
@@ -428,12 +523,16 @@ int posix_rt_sigprocmask_ocall(
         howstr, posix_gettid());
 
     posix_dump_sigset(howstr, set);
+#endif
 
     long r = syscall(SYS_rt_sigprocmask, how, set, oldset, sigsetsize);
+    LEAVE;
     return r == 0 ? 0 : -errno;
 }
 
 void posix_noop_ocall(void)
 {
+    ENTER;
     printf("%s\n", __FUNCTION__); fflush(stdout);
+    LEAVE;
 }

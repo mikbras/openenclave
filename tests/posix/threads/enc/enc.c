@@ -14,9 +14,11 @@
 #include "posix_t.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocalls.h"
 
-void posix_init(int* host_uaddr);
+void posix_init(int* host_uaddr, int* trace, int tid);
 
 extern bool oe_disable_debug_malloc_check;
+
+extern int posix_gettid(void);
 
 void sleep_msec(uint64_t milliseconds)
 {
@@ -302,14 +304,17 @@ void test_cond_broadcast(void)
     pthread_cond_destroy(&arg.c);
 }
 
-void posix_test_ecall(int* host_uaddr)
+void posix_test_ecall(int* host_uaddr, int* trace, int tid)
 {
     oe_disable_debug_malloc_check = true;
 
-    posix_init(host_uaddr);
+    posix_init(host_uaddr, trace, tid);
 
-    extern int pthread_cancel_repro(void);
-    pthread_cancel_repro();
+    //for (size_t i = 0; i < 100; i++)
+    {
+        extern int pthread_cancel_repro(void);
+        pthread_cancel_repro();
+    }
 
 #if 0
     test_create_thread();

@@ -530,17 +530,13 @@ long posix_syscall(long n, ...)
         }
         case SYS_rt_sigprocmask:
         {
-            /* ATTN: uncommenting this causes a crash */
-#if 1
             errno = 0;
             int how = (int)x1;
             const sigset_t* set = (void*)x2;
             sigset_t* oldset = (void*)x3;
             size_t sigsetsize = (size_t)x4;
             return posix_rt_sigprocmask(how, set, oldset, sigsetsize);
-#else
             return 0;
-#endif
         }
         case SYS_mprotect:
         {

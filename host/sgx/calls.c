@@ -104,7 +104,15 @@ ThreadBinding* GetThreadBinding()
 **==============================================================================
 */
 
-static oe_result_t _enter_sim(
+oe_result_t _enter_sim(
+    oe_enclave_t* enclave,
+    void* tcs_,
+    uint64_t aep,
+    uint64_t arg1,
+    uint64_t arg2,
+    uint64_t* arg3,
+    uint64_t* arg4);
+oe_result_t _enter_sim(
     oe_enclave_t* enclave,
     void* tcs_,
     uint64_t aep,

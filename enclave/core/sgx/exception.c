@@ -303,7 +303,7 @@ void oe_real_exception_dispatcher(oe_context_t* oe_context)
     return;
 }
 
-__thread uint64_t __oe_exception_arg;
+uint64_t __oe_exception_arg;
 
 /*
 **==============================================================================

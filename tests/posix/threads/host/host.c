@@ -18,6 +18,10 @@
 
 extern int posix_init(oe_enclave_t* enclave);
 
+extern int posix_gettid();
+
+extern int __posix_trace;
+
 int main(int argc, const char* argv[])
 {
     oe_result_t result;
@@ -34,12 +38,22 @@ int main(int argc, const char* argv[])
 
     printf("MAIN.PID=%d\n", getpid());
 
-    result = oe_create_posix_enclave(argv[1], type, flags, NULL, 0, &enclave);
+    oe_enclave_setting_context_switchless_t setting =
+    {
+        4,
+        0
+    };
+    oe_enclave_setting_t settings[] = {
+        {.setting_type = OE_ENCLAVE_SETTING_CONTEXT_SWITCHLESS,
+         .u.context_switchless_setting = &setting}};
+
+    result = oe_create_posix_enclave(
+        argv[1], type, flags, settings, OE_COUNTOF(settings), &enclave);
     OE_TEST(result == OE_OK);
 
     OE_TEST(posix_init(enclave) == 0);
 
-    result = posix_test_ecall(enclave, &_futex);
+    result = posix_test_ecall(enclave, &_futex, &__posix_trace, posix_gettid());
     OE_TEST(result == OE_OK);
 
     result = oe_terminate_enclave(enclave);

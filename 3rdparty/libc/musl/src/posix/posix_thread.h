@@ -45,6 +45,9 @@ struct _posix_thread
     /* Address of the host thread's futex uaddr. */
     int* host_uaddr;
 
+    /* TID passed to posix_run_thread_ecall() */
+    int tid;
+
     /* Robust list support */
     struct posix_robust_list_head* robust_list_head;
     size_t robust_list_len;
@@ -130,7 +133,7 @@ int posix_clone(
     void* arg,
     ...);
 
-void posix_exit(int status);
+void posix_force_exit(int status);
 
 int posix_gettid(void);
 
@@ -146,5 +149,7 @@ long posix_set_robust_list(struct posix_robust_list_head* head, size_t len);
 int posix_tkill(int tid, int sig);
 
 void posix_noop(void);
+
+void posix_exit(int status);
 
 #endif /* _POSIX_THREAD_H */

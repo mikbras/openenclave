@@ -4,6 +4,7 @@
 #include <openenclave/internal/calls.h>
 #include <openenclave/internal/registers.h>
 #include <openenclave/internal/sgxtypes.h>
+#include <assert.h>
 #include "asmdefs.h"
 #include "enclave.h"
 
@@ -168,6 +169,10 @@ void oe_enter_sim(
     OE_UNUSED(aep);
     OE_ALIGNED(16)
     uint64_t fx_state[64];
+
+fprintf(stderr, "oe_enter_sim()....................\n");
+fflush(stderr);
+assert(false);
 
     // Backup host GS and FS registers.
     void* host_gs = oe_get_gs_register_base();
