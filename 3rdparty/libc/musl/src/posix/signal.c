@@ -68,7 +68,7 @@ extern void (*oe_continue_execution_hook)(oe_exception_record_t* rec);
 
 void posix_set_trace(int val);
 
-static __thread ucontext_t _ucontext;
+static ucontext_t _ucontext;
 
 static void _enclave_signal_handler(
     void (*sigaction)(int, siginfo_t*, void*),
@@ -85,7 +85,8 @@ static void _enclave_signal_handler(
 
     /* ATTN: use siginfo and ucontext */
     siginfo_t si = { 0 };
-    ucontext_t uc = _ucontext;
+    //ucontext_t uc = _ucontext;
+    ucontext_t uc = { 0 };
 
     /* Invoke the sigacation funtion */
     posix_printf("RIP:1{%llx}\n", uc.uc_mcontext.gregs[REG_RIP]);
@@ -94,37 +95,61 @@ static void _enclave_signal_handler(
 
     posix_set_trace(0xa1);
 
-    posix_jump_context_t ctx;
-    ctx.rsp = (uint64_t)uc.uc_mcontext.gregs[REG_RSP];
-    ctx.rbp = (uint64_t)uc.uc_mcontext.gregs[REG_RBP];
-    ctx.rip = (uint64_t)uc.uc_mcontext.gregs[REG_RIP];
-    ctx.rbx = (uint64_t)uc.uc_mcontext.gregs[REG_RBX];
-    ctx.r12 = (uint64_t)uc.uc_mcontext.gregs[REG_R12];
-    ctx.r13 = (uint64_t)uc.uc_mcontext.gregs[REG_R13];
-    ctx.r14 = (uint64_t)uc.uc_mcontext.gregs[REG_R14];
-    ctx.r15 = (uint64_t)uc.uc_mcontext.gregs[REG_R15];
-
-    if (!oe_is_within_enclave((void*)ctx.rip, 16))
+#if 1
     {
-        posix_printf("***RIP is outside the encalve\n");
-        oe_abort();
-    }
+        posix_jump_context_t ctx;
 
-    if (!oe_is_within_enclave((void*)ctx.rsp, 16))
-    {
-        posix_printf("***RSP is outside the encalve\n");
-        oe_abort();
-    }
+        if (uc.uc_mcontext.gregs[REG_RIP])
+            ctx.rip = (uint64_t)uc.uc_mcontext.gregs[REG_RIP];
+        else
+            ctx.rip = (uint64_t)_ucontext.uc_mcontext.gregs[REG_RIP];
 
-    if (!oe_is_within_enclave((void*)ctx.rbp, 16))
-    {
-        posix_printf("***RBP is outside the encalve\n");
-        oe_abort();
+        ctx.rsp = (uint64_t)_ucontext.uc_mcontext.gregs[REG_RSP];
+        ctx.rbp = (uint64_t)_ucontext.uc_mcontext.gregs[REG_RBP];
+        ctx.rbx = (uint64_t)_ucontext.uc_mcontext.gregs[REG_RBX];
+        ctx.r12 = (uint64_t)_ucontext.uc_mcontext.gregs[REG_R12];
+        ctx.r13 = (uint64_t)_ucontext.uc_mcontext.gregs[REG_R13];
+        ctx.r14 = (uint64_t)_ucontext.uc_mcontext.gregs[REG_R14];
+        ctx.r15 = (uint64_t)_ucontext.uc_mcontext.gregs[REG_R15];
+
+        if (!oe_is_within_enclave((void*)ctx.rip, 16))
+        {
+            posix_printf("***RIP is outside the enclave\n");
+            oe_abort();
+        }
+
+        if (!oe_is_within_enclave((void*)ctx.rsp, 16))
+        {
+            posix_printf("***RSP is outside the enclave\n");
+            oe_abort();
+        }
+
+        if (!oe_is_within_enclave((void*)ctx.rbp, 16))
+        {
+            posix_printf("***RBP is outside the enclave\n");
+            oe_abort();
+        }
+
+        posix_set_trace(0xa6);
+        posix_jump(&ctx);
+        posix_set_trace(0xa7);
     }
+#endif
 
     posix_set_trace(0xa2);
-    posix_jump(&ctx);
-    posix_set_trace(0xa3);
+
+    if (uc.uc_mcontext.gregs[REG_RIP])
+    {
+        posix_set_trace(0xa3);
+
+        void (*func)() = (void (*)())uc.uc_mcontext.gregs[REG_RIP];
+        func();
+    }
+    else
+    {
+        posix_set_trace(0xa4);
+        posix_force_exit(0);
+    }
 }
 
 extern uint64_t __oe_exception_arg;

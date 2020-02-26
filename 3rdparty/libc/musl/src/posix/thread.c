@@ -295,7 +295,7 @@ void posix_force_exit(int status)
     posix_futex_release((volatile int*)thread->ctid);
 
     /* Hack attempt to release joiner */
-#if 0
+#if 1
     struct pthread* td = thread->td;
     ACQUIRE_FUTEX(&td->detach_state);
     int state = a_cas(&td->detach_state, DT_JOINABLE, DT_EXITING);

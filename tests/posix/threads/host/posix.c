@@ -117,7 +117,7 @@ done:
 static inline void __enter(const char* func)
 {
     (void)func;
-#if 0
+#if 1
     printf("__enter:%s:%d\n", func, posix_gettid());
     fflush(stdout);
 #endif
@@ -126,7 +126,7 @@ static inline void __enter(const char* func)
 static inline void __leave(const char* func)
 {
     (void)func;
-#if 0
+#if 1
     printf("__leave:%s:%d\n", func, posix_gettid());
     fflush(stdout);
 #endif
@@ -410,7 +410,8 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     }
     else
     {
-        fprintf(stderr, "HOST.SIGNAL: sig=%d\n", sig); fflush(stderr);
+        fprintf(stderr, "************ HOST.SIGNAL: sig=%d\n", sig);
+        fflush(stderr);
         _set_host_sigaction(sig, si, uc);
         return;
     }

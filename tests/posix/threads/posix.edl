@@ -60,12 +60,14 @@ enclave
             [user_check] int* uaddr,
             int futex_op,
             int val,
-            [in, count=1] const struct posix_timespec* timeout);
+            [in, count=1] const struct posix_timespec* timeout)
+            transition_using_threads;
 
         int posix_futex_wake_ocall(
             [user_check] int* uaddr,
             int futex_op,
-            int val);
+            int val)
+            transition_using_threads;
 
         int posix_nanosleep_ocall(
             [in] const struct posix_timespec* req,
@@ -91,7 +93,8 @@ enclave
             int clk_id,
             [out, count=1] struct posix_timespec* tp);
 
-        int posix_tkill_ocall(int tid, int sig);
+        int posix_tkill_ocall(int tid, int sig)
+            transition_using_threads;
 
         int posix_rt_sigaction_ocall(
             int signum,
