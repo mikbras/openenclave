@@ -54,63 +54,67 @@ enclave
 
     untrusted
     {
-        int posix_start_thread_ocall(uint64_t cookie);
-
-        int posix_futex_wait_ocall(
-            [user_check] int* uaddr,
-            int futex_op,
-            int val,
-            [in, count=1] const struct posix_timespec* timeout)
-            transition_using_threads;
-
-        int posix_futex_wake_ocall(
-            [user_check] int* uaddr,
-            int futex_op,
-            int val)
-            transition_using_threads;
+        int posix_start_thread_ocall(uint64_t cookie)
+            transition_using_threads
+            ;
 
         int posix_nanosleep_ocall(
             [in] const struct posix_timespec* req,
             [out] struct posix_timespec* rem)
-            transition_using_threads;
+            transition_using_threads
+            ;
 
-        int posix_gettid_ocall();
+        int posix_gettid_ocall()
+            transition_using_threads
+            ;
 
-        int posix_getpid_ocall();
+        int posix_getpid_ocall()
+            transition_using_threads
+            ;
 
         int posix_wait_ocall(
             [user_check] int* host_uaddr,
-            [in, count=1] const struct posix_timespec* timeout);
+            [in, count=1] const struct posix_timespec* timeout)
+            ;
 
-        void posix_wake_ocall([user_check] int* host_uaddr);
+        void posix_wake_ocall([user_check] int* host_uaddr)
+            ;
 
         int posix_wake_wait_ocall(
             [user_check] int* waiter_host_uaddr,
             [user_check] int* self_host_uaddr,
-            [in, count=1] const struct posix_timespec* timeout);
+            [in, count=1] const struct posix_timespec* timeout)
+            ;
 
         int posix_clock_gettime_ocall(
             int clk_id,
-            [out, count=1] struct posix_timespec* tp);
+            [out, count=1] struct posix_timespec* tp)
+            transition_using_threads
+            ;
 
         int posix_tkill_ocall(int tid, int sig)
-            transition_using_threads;
+            transition_using_threads
+            ;
 
         int posix_rt_sigaction_ocall(
             int signum,
             [in, count=1] const struct posix_sigaction* act,
-            size_t sigsetsize);
+            size_t sigsetsize)
+            ;
 
         int posix_get_sigaction_args_ocall(
             [out, count=1] struct posix_sigaction_args* args,
-            bool enclave_signal);
+            bool enclave_signal)
+            ;
 
         int posix_rt_sigprocmask_ocall(
             int how,
             [in, count=1] const struct posix_sigset* set,
             [out, count=1] struct posix_sigset* oldset,
-            size_t sigsetsize);
+            size_t sigsetsize)
+            ;
 
-        void posix_noop_ocall();
+        void posix_noop_ocall()
+            ;
     };
 };

@@ -57,9 +57,7 @@ static void* _thread_func(void* arg)
     uint64_t cookie = (uint64_t)arg;
     static __thread int _futex;
 
-print_posix_trace();
-
-#if 1
+#if 0
     printf("CHILD.START=%d\n", posix_gettid());
     fflush(stdout);
 #endif
@@ -68,7 +66,6 @@ print_posix_trace();
 
     int tid = posix_gettid();
 
-print_posix_trace();
     if ((r = posix_run_thread_ecall(
         _enclave, &retval, cookie, tid, &_futex)) != OE_OK)
     {
@@ -77,7 +74,6 @@ print_posix_trace();
         abort();
     }
 
-print_posix_trace();
     if (retval != 0)
     {
         fprintf(stderr, "posix_run_thread_ecall(): retval=%d\n", retval);
@@ -86,7 +82,6 @@ print_posix_trace();
     }
 
 #if 1
-    print_posix_trace();
     printf("CHILD.EXIT=%d\n", posix_gettid());
     fflush(stdout);
 #endif
@@ -117,7 +112,7 @@ done:
 static inline void __enter(const char* func)
 {
     (void)func;
-#if 1
+#if 0
     printf("__enter:%s:%d\n", func, posix_gettid());
     fflush(stdout);
 #endif
@@ -126,7 +121,7 @@ static inline void __enter(const char* func)
 static inline void __leave(const char* func)
 {
     (void)func;
-#if 1
+#if 0
     printf("__leave:%s:%d\n", func, posix_gettid());
     fflush(stdout);
 #endif
@@ -157,49 +152,6 @@ int posix_nanosleep_ocall(
 {
     ENTER;
     if (nanosleep((struct timespec*)req, (struct timespec*)rem) != 0)
-    {
-        LEAVE;
-        return -errno;
-    }
-
-    LEAVE;
-    return 0;
-}
-
-int posix_futex_wait_ocall(
-    int* uaddr,
-    int futex_op,
-    int val,
-    const struct posix_timespec* timeout)
-{
-    ENTER;
-    long r;
-
-    assert(uaddr != NULL);
-
-    r = syscall(SYS_futex, uaddr, futex_op, val, (struct timespec*)timeout);
-
-    if (r != 0)
-    {
-        LEAVE;
-        return -errno;
-    }
-
-    LEAVE;
-    return 0;
-}
-
-int posix_futex_wake_ocall(
-    int* uaddr,
-    int futex_op,
-    int val)
-{
-    ENTER;
-    long r;
-
-    r = syscall(SYS_futex, uaddr, futex_op, val, NULL);
-
-    if (r != 0)
     {
         LEAVE;
         return -errno;

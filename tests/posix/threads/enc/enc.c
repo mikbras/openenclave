@@ -14,6 +14,8 @@
 #include "posix_t.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocalls.h"
 
+#define NUM_THREADS 6
+
 void posix_init(int* host_uaddr, int* trace, int tid);
 
 extern bool oe_disable_debug_malloc_check;
@@ -50,8 +52,7 @@ static void* _thread_func(void* arg)
 
 void test_create_thread(void)
 {
-    pthread_t threads[16];
-    const size_t NUM_THREADS = OE_COUNTOF(threads);
+    pthread_t threads[NUM_THREADS];
 
     printf("=== %s()\n", __FUNCTION__);
 
@@ -102,8 +103,7 @@ static void* _test_mutex_thread(void* arg)
 
 void test_mutexes(void)
 {
-    pthread_t threads[16];
-    const size_t NUM_THREADS = OE_COUNTOF(threads);
+    pthread_t threads[NUM_THREADS];
     size_t integer = 0;
 
     printf("=== %s()\n", __FUNCTION__);
@@ -221,8 +221,7 @@ static void* _test_cond(void* arg_)
 
 void test_cond_signal(void)
 {
-    pthread_t threads[16];
-    const size_t NUM_THREADS = OE_COUNTOF(threads);
+    pthread_t threads[NUM_THREADS];
 
     printf("=== %s()\n", __FUNCTION__);
 
@@ -266,8 +265,7 @@ void test_cond_signal(void)
 
 void test_cond_broadcast(void)
 {
-    pthread_t threads[16];
-    const size_t NUM_THREADS = OE_COUNTOF(threads);
+    pthread_t threads[NUM_THREADS];
 
     printf("=== %s()\n", __FUNCTION__);
 
@@ -310,19 +308,23 @@ void posix_test_ecall(int* host_uaddr, int* trace, int tid)
 
     posix_init(host_uaddr, trace, tid);
 
+#if 0
     //for (size_t i = 0; i < 100; i++)
     {
         extern int pthread_cancel_repro(void);
         pthread_cancel_repro();
     }
+#endif
 
-#if 0
+#if 1
     test_create_thread();
     test_mutexes();
     test_timedlock();
     test_cond_signal();
     test_cond_broadcast();
+#endif
 
+#if 0
     extern void test_functional(void);
     test_functional();
 
