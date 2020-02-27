@@ -4,7 +4,10 @@
 #include "posix_cond.h"
 #include "posix_mutex.h"
 #include "posix_ocalls.h"
+#include "posix_ocall_types.h"
 #include "posix_io.h"
+#include "posix_signal.h"
+#include "posix_panic.h"
 /* */
 #include "posix_warnings.h"
 
@@ -90,16 +93,20 @@ int posix_cond_timedwait(
                 else
                 {
                     int retval;
+                    struct posix_sigaction_args args;
 
                     if (posix_wait_ocall(
                         &retval,
                         self->host_uaddr,
-                        timeout) != OE_OK)
+                        timeout,
+                        &args) != OE_OK)
                     {
+                        POSIX_PANIC("posix_wait_ocall");
                         ret = ENOSYS;
                     }
                     else
                     {
+                        posix_dispatch_signal(&args);
                         assert(retval == 0 || retval < 0);
                         ret = -retval;
                     }

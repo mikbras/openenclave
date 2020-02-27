@@ -40,7 +40,7 @@ int main(int argc, const char* argv[])
 
     oe_enclave_setting_context_switchless_t setting =
     {
-        4,
+        8,
         0
     };
     oe_enclave_setting_t settings[] = {

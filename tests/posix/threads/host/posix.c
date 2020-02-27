@@ -28,6 +28,23 @@
 
 int __posix_trace;
 
+static __thread struct posix_sigaction_args _sigaction_args;
+
+void _set_sigaction_args(int sig, siginfo_t* si, ucontext_t* uc)
+{
+    _sigaction_args.sig = sig;
+
+    if (si)
+        memcpy(&_sigaction_args.siginfo, si, sizeof(struct posix_siginfo));
+    else
+        memset(&_sigaction_args.siginfo, 0, sizeof(struct posix_siginfo));
+
+    if (uc)
+        memcpy(&_sigaction_args.ucontext, uc, sizeof(struct posix_ucontext));
+    else
+        memset(&_sigaction_args.ucontext, 0, sizeof(struct posix_ucontext));
+}
+
 void print_posix_trace(void)
 {
     printf("__posix_trace=%x\n", __posix_trace);
@@ -109,21 +126,25 @@ done:
     return ret;
 }
 
+//#define TRACE
+
 static inline void __enter(const char* func)
 {
-    (void)func;
-#if 0
+#if defined(TRACE)
     printf("__enter:%s:%d\n", func, posix_gettid());
     fflush(stdout);
+#else
+    (void)func;
 #endif
 }
 
 static inline void __leave(const char* func)
 {
-    (void)func;
-#if 0
+#if defined(TRACE)
     printf("__leave:%s:%d\n", func, posix_gettid());
     fflush(stdout);
+#else
+    (void)func;
 #endif
 }
 
@@ -148,20 +169,26 @@ int posix_getpid_ocall(void)
 
 int posix_nanosleep_ocall(
     const struct posix_timespec* req,
-    struct posix_timespec* rem)
+    struct posix_timespec* rem,
+    struct posix_sigaction_args* args)
 {
     ENTER;
-    if (nanosleep((struct timespec*)req, (struct timespec*)rem) != 0)
-    {
-        LEAVE;
-        return -errno;
-    }
+    int ret;
+
+    if ((ret = nanosleep((struct timespec*)req, (struct timespec*)rem)) != 0)
+        ret = -errno;
+
+    if (args)
+        *args = _sigaction_args;
 
     LEAVE;
-    return 0;
+    return ret;
 }
 
-int posix_wait_ocall(int* host_uaddr, const struct posix_timespec* timeout)
+int posix_wait_ocall(
+    int* host_uaddr,
+    const struct posix_timespec* timeout,
+    struct posix_sigaction_args* args)
 {
     ENTER;
     int retval = 0;
@@ -180,6 +207,9 @@ int posix_wait_ocall(int* host_uaddr, const struct posix_timespec* timeout)
         if (retval != 0)
             retval = -errno;
     }
+
+    if (args)
+        *args = _sigaction_args;
 
     LEAVE;
     return retval;
@@ -203,8 +233,10 @@ int posix_wake_wait_ocall(
     const struct posix_timespec* timeout)
 {
     ENTER;
+    struct posix_sigaction_args args;
+
     posix_wake_ocall(waiter_host_uaddr);
-    int ret = posix_wait_ocall(self_host_uaddr, timeout);
+    int ret = posix_wait_ocall(self_host_uaddr, timeout, &args);
     LEAVE;
     return ret;
 }
@@ -289,52 +321,8 @@ int posix_print_backtrace(void)
     return 0;
 }
 
-static __thread struct posix_sigaction_args _enclave_sigaction_args;
-static __thread bool _have_enclave_sigaction;
-
-static __thread struct posix_sigaction_args _host_sigaction_args;
-static __thread bool _have_host_sigaction;
-
-void _set_enclave_sigaction(int sig, siginfo_t* si, ucontext_t* uc)
-{
-    _enclave_sigaction_args.sig = sig;
-
-    if (si)
-        memcpy(&_enclave_sigaction_args.siginfo, si, sizeof(struct posix_siginfo));
-    else
-        memset(&_enclave_sigaction_args.siginfo, 0, sizeof(struct posix_siginfo));
-
-    if (uc)
-        memcpy(&_enclave_sigaction_args.ucontext, uc, sizeof(struct posix_ucontext));
-    else
-        memset(&_enclave_sigaction_args.ucontext, 0, sizeof(struct posix_ucontext));
-
-    _have_enclave_sigaction = true;
-}
-
-static void _set_host_sigaction(int sig, siginfo_t* si, ucontext_t* uc)
-{
-    _host_sigaction_args.sig = sig;
-
-    if (si)
-        memcpy(&_host_sigaction_args.siginfo, si, sizeof(struct posix_siginfo));
-    else
-        memset(&_host_sigaction_args.siginfo, 0, sizeof(struct posix_siginfo));
-
-    if (uc)
-        memcpy(&_host_sigaction_args.ucontext, uc, sizeof(struct posix_ucontext));
-    else
-        memset(&_host_sigaction_args.ucontext, 0, sizeof(struct posix_ucontext));
-
-    _have_host_sigaction = true;
-}
-
 static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 {
-#if 0
-    printf("%s(tid=%d sig=%d)\n", __FUNCTION__, posix_gettid(), sig);
-#endif
-
     /* Build the host exception context */
     oe_host_exception_context_t hec = {0};
     hec.rax = (uint64_t)uc->uc_mcontext.gregs[REG_RAX];
@@ -344,9 +332,9 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     /* If the signal originated within the enclave */
     if (hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS)
     {
-        fprintf(stderr, "ENCLAVE.SIGNAL: sig=%d\n", sig); fflush(stderr);
-
-        _set_enclave_sigaction(sig, si, uc);
+        fprintf(stderr, "*** ENCLAVE.SIGNAL: tid=%d sig=%d\n",
+            posix_gettid(), sig);
+        fflush(stderr);
 
         uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
 
@@ -362,9 +350,10 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     }
     else
     {
-        fprintf(stderr, "************ HOST.SIGNAL: sig=%d\n", sig);
+        fprintf(stderr, "*** HOST.SIGNAL: tid=%d sig=%d\n",
+            posix_gettid(), sig);
         fflush(stderr);
-        _set_host_sigaction(sig, si, uc);
+        _set_sigaction_args(sig, si, uc);
         return;
     }
 }
@@ -398,36 +387,6 @@ int posix_rt_sigaction_ocall(
     }
 
     LEAVE;
-    return 0;
-}
-
-int posix_get_sigaction_args_ocall(
-    struct posix_sigaction_args* args,
-    bool enclave_args)
-{
-    if (enclave_args)
-    {
-        if (!_have_enclave_sigaction)
-            return -1;
-
-        if (args)
-            *args = _enclave_sigaction_args;
-
-        memset(&_enclave_sigaction_args, 0, sizeof(_enclave_sigaction_args));
-        _have_enclave_sigaction = false;
-    }
-    else
-    {
-        if (!_have_host_sigaction)
-            return -1;
-
-        if (args)
-            *args = _host_sigaction_args;
-
-        memset(&_host_sigaction_args, 0, sizeof(_host_sigaction_args));
-        _have_host_sigaction = false;
-    }
-
     return 0;
 }
 

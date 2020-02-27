@@ -4,6 +4,11 @@
 #include "posix_mutex.h"
 #include "posix_thread.h"
 #include "posix_ocalls.h"
+#include "posix_ocall_types.h"
+#include "posix_signal.h"
+#include "posix_io.h"
+#include "posix_panic.h"
+/* */
 #include "posix_warnings.h"
 
 int posix_mutex_init(posix_mutex_t* m)
@@ -92,7 +97,12 @@ int posix_mutex_lock(posix_mutex_t* mutex)
         posix_spin_unlock(&m->lock);
 
         /* Ask host to wait for an event on this thread */
-        posix_wait_ocall(&retval, self->host_uaddr, NULL);
+        struct posix_sigaction_args args;
+        if (posix_wait_ocall(&retval, self->host_uaddr, NULL, &args) != OE_OK)
+        {
+            POSIX_PANIC("posix_wait_ocall()");
+        }
+        posix_dispatch_signal(&args);
     }
 
     /* Unreachable! */

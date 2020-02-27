@@ -7,8 +7,10 @@
 #include <openenclave/internal/calls.h>
 #include <openenclave/internal/jump.h>
 #include <openenclave/corelibc/stdlib.h>
+#include <openenclave/internal/jump.h>
 #include "posix_signal.h"
 #include "posix_ocalls.h"
+#include "posix_ocall_types.h"
 #include "posix_io.h"
 #include "posix_thread.h"
 #include "posix_spinlock.h"
@@ -25,48 +27,16 @@
 // ATTN: handle SIG_IGN
 // ATTN: handle SIG_DFL
 
-struct posix_sigaction
-{
-    uint64_t handler;
-    unsigned long flags;
-    uint64_t restorer;
-    unsigned mask[2];
-};
-
-struct posix_sigset
-{
-    unsigned long __bits[128/sizeof(long)];
-};
-
 OE_STATIC_ASSERT(sizeof(sigset_t) == sizeof(posix_sigset_t));
-
-struct posix_siginfo
-{
-    uint8_t data[128];
-};
-
 OE_STATIC_ASSERT(sizeof(struct posix_siginfo) == sizeof(siginfo_t));
-
-struct posix_ucontext
-{
-    uint8_t data[936];
-};
-
 OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(ucontext_t));
-
-struct posix_sigaction_args
-{
-    struct posix_siginfo siginfo;
-    struct posix_ucontext ucontext;
-    int sig;
-};
 
 static struct posix_sigaction _table[NSIG];
 static posix_spinlock_t _lock;
 
 extern void (*oe_continue_execution_hook)(oe_exception_record_t* rec);
 
-void posix_set_trace(int val);
+typedef void (*sigaction_handler_t)(int, siginfo_t*, void*);
 
 static ucontext_t _ucontext;
 
@@ -81,7 +51,6 @@ static void _enclave_signal_handler(
     (void)siginfo;
     (void)ucontext;
 
-    posix_set_trace(0x55);
 
     /* ATTN: use siginfo and ucontext */
     siginfo_t si = { 0 };
@@ -93,7 +62,6 @@ static void _enclave_signal_handler(
     (*sigaction)(sig, &si, &uc);
     posix_printf("RIP:2{%llx}\n", uc.uc_mcontext.gregs[REG_RIP]);
 
-    posix_set_trace(0xa1);
 
 #if 1
     {
@@ -130,24 +98,19 @@ static void _enclave_signal_handler(
             oe_abort();
         }
 
-        posix_set_trace(0xa6);
         posix_jump(&ctx);
-        posix_set_trace(0xa7);
     }
 #endif
 
-    posix_set_trace(0xa2);
 
     if (uc.uc_mcontext.gregs[REG_RIP])
     {
-        posix_set_trace(0xa3);
 
         void (*func)() = (void (*)())uc.uc_mcontext.gregs[REG_RIP];
         func();
     }
     else
     {
-        posix_set_trace(0xa4);
         posix_force_exit(0);
     }
 }
@@ -213,8 +176,6 @@ static uint64_t _exception_handler(oe_exception_record_t* rec)
 {
     (void)rec;
 
-    posix_set_trace(0xbb);
-
     if (__oe_exception_arg == POSIX_SIGACTION)
     {
         int sig = SIGCANCEL;
@@ -224,23 +185,18 @@ static uint64_t _exception_handler(oe_exception_record_t* rec)
         uint64_t handler = _table[sig].handler;
         posix_spin_unlock(&_lock);
 
-posix_set_trace(0xcc);
         /* Invoke the signal handler  */
         if (handler)
         {
             uint8_t* stack;
 
-posix_set_trace(0xdd);
             /* ATTN: release this later */
             if (!(stack = oe_memalign(64, STACK_SIZE)))
             {
-posix_set_trace(0xdd1);
                 oe_abort();
             }
 
-posix_set_trace(0xdd2);
             memset(stack, 0, STACK_SIZE);
-posix_set_trace(0xdd3);
 
             _ucontext.uc_mcontext.gregs[REG_R8] = (int64_t)rec->context->r8;
             _ucontext.uc_mcontext.gregs[REG_R9] = (int64_t)rec->context->r9;
@@ -260,8 +216,6 @@ posix_set_trace(0xdd3);
             _ucontext.uc_mcontext.gregs[REG_RSP] = (int64_t)rec->context->rsp;
             _ucontext.uc_mcontext.gregs[REG_RIP] = (int64_t)rec->context->rip;
 
-posix_set_trace(0xdd4);
-
             rec->context->rsp = (uint64_t)stack + (STACK_SIZE / 2);
             rec->context->rbp = (uint64_t)stack + (STACK_SIZE / 2);
             rec->context->rip = (uint64_t)_enclave_signal_handler;
@@ -269,7 +223,6 @@ posix_set_trace(0xdd4);
             rec->context->rsi = (uint64_t)sig;
             rec->context->rdx = 0;
             rec->context->rcx = 0;
-posix_set_trace(0xee);
         }
 
         return OE_EXCEPTION_CONTINUE_EXECUTION;
@@ -292,7 +245,6 @@ void __posix_install_exception_handler(void)
         oe_abort();
     }
 
-    posix_set_trace(0xaa);
 }
 
 int posix_rt_sigaction(
@@ -306,10 +258,10 @@ int posix_rt_sigaction(
     if (act)
     {
         if (act->handler == (uint64_t)0)
-            POSIX_PANIC;
+            POSIX_PANIC("unimplemented");
 
         if (act->handler == (uint64_t)1)
-            POSIX_PANIC;
+            POSIX_PANIC("unimplemented");
     }
 
     if (signum >= NSIG || !act)
@@ -355,35 +307,64 @@ int posix_rt_sigprocmask(
     return retval;
 }
 
-#if 0
-int posix_dispatch_signals(void)
+int posix_dispatch_signal(posix_sigaction_args_t* args)
 {
-    posix_printf("*** posix_dispatch_signals()\n");
-    int retval;
-    struct posix_sigaction_args args;
+    sigaction_handler_t handler;
+    oe_jmpbuf_t env;
 
-    /* Get the last signal on this thread from the host. */
-    if (posix_get_sigaction_args_ocall(&retval, &args, false) != OE_OK ||
-        retval != 0)
-    {
+    if (!args)
         return -1;
-    }
+
+    if (args->sig == 0)
+        return 0;
 
     /* Get the handler from the table if any */
-    posix_spin_lock(&_lock);
-    uint64_t handler = _table[args.sig].handler;
-    posix_spin_unlock(&_lock);
-
-    /* Invoke the signal handler  */
-    if (handler)
     {
-        _enclave_signal_handler(
-            (void (*)(int, siginfo_t*, void*))handler,
-            args.sig,
-            (siginfo_t*)&args.siginfo,
-            (ucontext_t*)&args.ucontext);
+        posix_spin_lock(&_lock);
+        handler = (sigaction_handler_t)_table[args->sig].handler;
+        posix_spin_unlock(&_lock);
+
+        if (!handler)
+            POSIX_PANIC("handler not found");
     }
+
+    /* Build a ucontext and invoke the signal handler */
+    if (oe_setjmp(&env) == 0)
+    {
+        siginfo_t si;
+        ucontext_t uc;
+
+        memcpy(&si, &args->siginfo, sizeof(si));
+
+        memset(&uc, 0, sizeof(uc));
+        uc.uc_mcontext.gregs[REG_RSP] = (int64_t)env.rsp;
+        uc.uc_mcontext.gregs[REG_RBP] = (int64_t)env.rbp;
+        uc.uc_mcontext.gregs[REG_RIP] = (int64_t)env.rip;
+        uc.uc_mcontext.gregs[REG_RBX] = (int64_t)env.rbx;
+        uc.uc_mcontext.gregs[REG_R12] = (int64_t)env.r12;
+        uc.uc_mcontext.gregs[REG_R13] = (int64_t)env.r13;
+        uc.uc_mcontext.gregs[REG_R14] = (int64_t)env.r14;
+        uc.uc_mcontext.gregs[REG_R15] = (int64_t)env.r15;
+
+        /* Invoke the signal handler */
+        handler(args->sig, &si, &uc);
+
+#if 1
+        env.rsp = (uint64_t)uc.uc_mcontext.gregs[REG_RSP];
+        env.rbp = (uint64_t)uc.uc_mcontext.gregs[REG_RBP];
+        env.rip = (uint64_t)uc.uc_mcontext.gregs[REG_RIP];
+        env.rbx = (uint64_t)uc.uc_mcontext.gregs[REG_RBX];
+        env.r12 = (uint64_t)uc.uc_mcontext.gregs[REG_R12];
+        env.r13 = (uint64_t)uc.uc_mcontext.gregs[REG_R13];
+        env.r14 = (uint64_t)uc.uc_mcontext.gregs[REG_R14];
+        env.r15 = (uint64_t)uc.uc_mcontext.gregs[REG_R15];
+#endif
+
+        oe_longjmp(&env, 1);
+        POSIX_PANIC("unreachable");
+    }
+
+    /* control continues here if hanlder didn't change RIP */
 
     return 0;
 }
-#endif

@@ -17,7 +17,8 @@ typedef struct posix_sigaction_args posix_sigaction_args_t;
 oe_result_t posix_nanosleep_ocall(
     int* retval,
     const struct posix_timespec* req,
-    struct posix_timespec* rem);
+    struct posix_timespec* rem,
+    struct posix_sigaction_args* args);
 
 oe_result_t posix_clock_gettime_ocall(
     int* retval,
@@ -27,7 +28,8 @@ oe_result_t posix_clock_gettime_ocall(
 oe_result_t posix_wait_ocall(
     int* retval,
     int* host_uaddr,
-    const struct posix_timespec* timeout);
+    const struct posix_timespec* timeout,
+    struct posix_sigaction_args* args);
 
 oe_result_t posix_wake_ocall(int* host_uaddr);
 

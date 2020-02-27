@@ -308,7 +308,7 @@ void posix_test_ecall(int* host_uaddr, int* trace, int tid)
 
     posix_init(host_uaddr, trace, tid);
 
-#if 0
+#if 1
     //for (size_t i = 0; i < 100; i++)
     {
         extern int pthread_cancel_repro(void);
@@ -316,7 +316,7 @@ void posix_test_ecall(int* host_uaddr, int* trace, int tid)
     }
 #endif
 
-#if 1
+#if 0
     test_create_thread();
     test_mutexes();
     test_timedlock();

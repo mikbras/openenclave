@@ -34,9 +34,9 @@ enclave
 
     struct posix_sigaction_args
     {
+        int sig;
         struct posix_siginfo siginfo;
         struct posix_ucontext ucontext;
-        int sig;
     };
 
     trusted
@@ -59,9 +59,9 @@ enclave
             ;
 
         int posix_nanosleep_ocall(
-            [in] const struct posix_timespec* req,
-            [out] struct posix_timespec* rem)
-            transition_using_threads
+            [in, count=1] const struct posix_timespec* req,
+            [out, count=1] struct posix_timespec* rem,
+            [out, count=1] struct posix_sigaction_args* args)
             ;
 
         int posix_gettid_ocall()
@@ -74,7 +74,8 @@ enclave
 
         int posix_wait_ocall(
             [user_check] int* host_uaddr,
-            [in, count=1] const struct posix_timespec* timeout)
+            [in, count=1] const struct posix_timespec* timeout,
+            [out, count=1] struct posix_sigaction_args* args)
             ;
 
         void posix_wake_ocall([user_check] int* host_uaddr)
@@ -89,22 +90,15 @@ enclave
         int posix_clock_gettime_ocall(
             int clk_id,
             [out, count=1] struct posix_timespec* tp)
-            transition_using_threads
             ;
 
         int posix_tkill_ocall(int tid, int sig)
-            transition_using_threads
             ;
 
         int posix_rt_sigaction_ocall(
             int signum,
             [in, count=1] const struct posix_sigaction* act,
             size_t sigsetsize)
-            ;
-
-        int posix_get_sigaction_args_ocall(
-            [out, count=1] struct posix_sigaction_args* args,
-            bool enclave_signal)
             ;
 
         int posix_rt_sigprocmask_ocall(

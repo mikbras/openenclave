@@ -360,3 +360,8 @@ void posix_noop(void)
 {
     posix_noop_ocall();
 }
+
+void posix_abort(void)
+{
+    oe_abort();
+}
