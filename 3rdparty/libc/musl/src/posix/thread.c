@@ -353,9 +353,7 @@ int posix_tkill(int tid, int sig)
     if (posix_tkill_ocall(&retval, tid, sig) != OE_OK)
         return -ENOSYS;
 
-#if 0
-    posix_dispatch_signals();
-#endif
+    posix_dispatch_signal();
     return retval;
 }
 

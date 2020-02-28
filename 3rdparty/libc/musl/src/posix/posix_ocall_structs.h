@@ -43,8 +43,8 @@ struct POSIX_STRUCT(posix_,sigset)
 
 struct POSIX_STRUCT(posix_,sig_args)
 {
-    int32_t sig;
-    uint32_t __padding;
+    int sig;
+    int enclave_sig;
     struct POSIX_STRUCT(posix_,siginfo) siginfo;
     struct POSIX_STRUCT(posix_,ucontext) ucontext;
 };
@@ -52,9 +52,7 @@ struct POSIX_STRUCT(posix_,sig_args)
 struct POSIX_STRUCT(posix_,shared_block)
 {
     struct POSIX_STRUCT(posix_,sig_args) sig_args;
-
     int32_t futex;
-
     uint8_t padding[3020];
 };
 

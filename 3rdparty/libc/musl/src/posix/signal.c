@@ -28,6 +28,8 @@
 // ATTN: handle SIG_IGN
 // ATTN: handle SIG_DFL
 
+static bool _inside_enclave_signal_handler;
+
 OE_STATIC_ASSERT(sizeof(sigset_t) == sizeof(posix_sigset_t));
 OE_STATIC_ASSERT(sizeof(struct posix_siginfo) == sizeof(siginfo_t));
 OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(ucontext_t));
@@ -41,17 +43,36 @@ typedef void (*sigaction_handler_t)(int, siginfo_t*, void*);
 
 static ucontext_t _ucontext;
 
+int posix_fetch_and_clear_sig_args(struct posix_sig_args* args)
+{
+    posix_thread_t* self = posix_self();
+
+    if (!args || !self || !self->shared_block)
+        return -1;
+
+    *args = self->shared_block->sig_args;
+    memset(&self->shared_block->sig_args, 0, sizeof(struct posix_sig_args));
+
+    return 0;
+}
+
 static void _enclave_signal_handler(
     void (*sigaction)(int, siginfo_t*, void*),
     int sig,
     siginfo_t* siginfo,
     ucontext_t* ucontext)
 {
+    struct posix_sig_args args;
+
     posix_printf("_enclave_signal_handler()\n");
 
     (void)siginfo;
     (void)ucontext;
 
+    if (posix_fetch_and_clear_sig_args(&args) != 0)
+    {
+        POSIX_PANIC("unexpected");
+    }
 
     /* ATTN: use siginfo and ucontext */
     siginfo_t si = { 0 };
@@ -59,9 +80,11 @@ static void _enclave_signal_handler(
     ucontext_t uc = { 0 };
 
     /* Invoke the sigacation funtion */
-    posix_printf("RIP:1{%llx}\n", uc.uc_mcontext.gregs[REG_RIP]);
+    posix_printf("BEFORE.SIGHANDLER{%llx}\n", uc.uc_mcontext.gregs[REG_RIP]);
+    _inside_enclave_signal_handler = true;
     (*sigaction)(sig, &si, &uc);
-    posix_printf("RIP:2{%llx}\n", uc.uc_mcontext.gregs[REG_RIP]);
+    _inside_enclave_signal_handler = false;
+    posix_printf("AFTER.SIGHANDLER{%llx}\n", uc.uc_mcontext.gregs[REG_RIP]);
 
 
 #if 1
@@ -140,7 +163,7 @@ static void _continue_execution_hook(oe_exception_record_t* rec)
 
             memset(&args, 0xAA, sizeof(args));
 
-            result = posix_fetech_and_clear_sig_args_ocall(&retval, &args, true);
+            result = posix_fetch_and_clear_sig_args_ocall(&retval, &args, true);
             if (result != OE_OK || retval != 0)
             {
                 POSIX_PANIC;
@@ -308,30 +331,29 @@ int posix_rt_sigprocmask(
     return retval;
 }
 
-static int _fetech_and_clear_sig_args(struct posix_sig_args* args)
-{
-    posix_thread_t* self = posix_self();
-
-    if (!args || !self || !self->shared_block)
-        return -1;
-
-    *args = self->shared_block->sig_args;
-    memset(&self->shared_block->sig_args, 0, sizeof(struct posix_sig_args));
-
-    return 0;
-}
-
 int posix_dispatch_signal(void)
 {
     sigaction_handler_t handler;
     oe_jmpbuf_t env;
     struct posix_sig_args args;
 
-    if (_fetech_and_clear_sig_args(&args) != 0)
+    posix_printf("posix_dispatch_signal()\n");
+
+    if (posix_fetch_and_clear_sig_args(&args) != 0)
         POSIX_PANIC("unexpected");
 
     if (args.sig == 0)
         return 0;
+
+    if (args.enclave_sig)
+        return 0;
+
+    posix_printf("DISPATCH\n");
+
+#if 0
+    if (_inside_enclave_signal_handler)
+        return 0;
+#endif
 
     /* Get the signal handler from the table */
     {

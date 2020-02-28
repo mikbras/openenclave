@@ -253,7 +253,7 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 int posix_tkill_ocall(int tid, int sig)
 {
     ENTER;
-#if 0
+#if 1
     printf("%s(TID=%d, tid=%d, sig=%d)\n",
         __FUNCTION__, posix_gettid(), tid, sig);
 #endif
@@ -322,6 +322,21 @@ int posix_print_backtrace(void)
     return 0;
 }
 
+static void _set_sig_args(
+    int enclave_sig,
+    int sig,
+    siginfo_t* si,
+    ucontext_t* uc)
+{
+    struct posix_sig_args* args = &__posix_shared_block->sig_args;
+
+    memset(args, 0, sizeof(struct posix_sig_args));
+    args->enclave_sig = enclave_sig,
+    args->sig = sig;
+    args->siginfo = *(struct posix_siginfo*)si;
+    args->ucontext = *(struct posix_ucontext*)uc;
+}
+
 static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 {
     /* Build the host exception context */
@@ -341,12 +356,7 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 
         if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
         {
-            printf("ENCLAVE.SIGNAL.HANDLED\n"); fflush(stdout);
-
-            __posix_shared_block->sig_args.sig = sig;
-            __posix_shared_block->sig_args.siginfo = *(struct posix_siginfo*)si;
-            __posix_shared_block->sig_args.ucontext = *(struct posix_ucontext*)uc;
-
+            _set_sig_args(true, sig, si, uc);
             return;
         }
 
@@ -359,10 +369,7 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
             posix_gettid(), sig);
         fflush(stderr);
 
-        __posix_shared_block->sig_args.sig = sig;
-        __posix_shared_block->sig_args.siginfo = *(struct posix_siginfo*)si;
-        __posix_shared_block->sig_args.ucontext = *(struct posix_ucontext*)uc;
-
+        _set_sig_args(false, sig, si, uc);
         return;
     }
 }
@@ -376,7 +383,7 @@ int posix_rt_sigaction_ocall(
     struct posix_sigaction act = *pact;
     extern void posix_restore(void);
 
-#if 0
+#if 1
     printf("%s(tid=%d, signum=%d)\n",
         __FUNCTION__, posix_gettid(), signum);
     fflush(stdout);

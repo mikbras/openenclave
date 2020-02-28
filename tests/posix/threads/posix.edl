@@ -35,7 +35,7 @@ enclave
     struct posix_sig_args
     {
         int sig;
-        int __padding;
+        int enclave_sig;
         struct posix_siginfo siginfo;
         struct posix_ucontext ucontext;
     };

@@ -28,4 +28,6 @@ int posix_rt_sigprocmask(
 
 int posix_dispatch_signal(void);
 
+int posix_fetch_and_clear_sig_args(struct posix_sig_args* args);
+
 #endif //_POSIX_SIGNAL_H
