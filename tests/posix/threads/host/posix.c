@@ -26,29 +26,26 @@
 #include "posix_u.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_signal.h"
 
-int __posix_trace;
+#define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
+#include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
 
-static __thread struct posix_sigaction_args _sigaction_args;
+OE_STATIC_ASSERT(sizeof(struct posix_timespec) == sizeof(struct t_timespec));
 
-void _set_sigaction_args(int sig, siginfo_t* si, ucontext_t* uc)
-{
-    _sigaction_args.sig = sig;
+OE_STATIC_ASSERT(sizeof(struct posix_sigaction) == sizeof(struct t_sigaction));
 
-    if (si)
-        memcpy(&_sigaction_args.siginfo, si, sizeof(struct posix_siginfo));
-    else
-        memset(&_sigaction_args.siginfo, 0, sizeof(struct posix_siginfo));
+OE_STATIC_ASSERT( sizeof(struct posix_siginfo) == sizeof(struct t_siginfo));
 
-    if (uc)
-        memcpy(&_sigaction_args.ucontext, uc, sizeof(struct posix_ucontext));
-    else
-        memset(&_sigaction_args.ucontext, 0, sizeof(struct posix_ucontext));
-}
+OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(struct t_ucontext));
 
-void print_posix_trace(void)
-{
-    printf("__posix_trace=%x\n", __posix_trace);
-}
+OE_STATIC_ASSERT(sizeof(struct posix_sigset) == sizeof(struct t_sigset));
+
+OE_STATIC_ASSERT(sizeof(struct posix_sig_args) == sizeof(struct t_sig_args));
+
+OE_STATIC_ASSERT(sizeof(struct posix_host_page) == sizeof(struct t_host_page));
+
+OE_STATIC_ASSERT(sizeof(struct t_host_page) == OE_PAGE_SIZE);
+
+__thread struct posix_host_page* __posix_host_page = NULL;
 
 /* ATTN: single enclave instance */
 static oe_enclave_t* _enclave = NULL;
@@ -72,19 +69,27 @@ static void* _thread_func(void* arg)
     int retval;
     oe_result_t r;
     uint64_t cookie = (uint64_t)arg;
-    static __thread int _futex;
+
+    /* Allocate the page shared betweent he host and the enclave */
+    if (!__posix_host_page)
+    {
+        if (!(__posix_host_page = calloc(1, sizeof(struct posix_host_page))))
+        {
+            fprintf(stderr, "posix_run_thread_ecall(): calloc() failed\n");
+            fflush(stderr);
+            abort();
+        }
+    }
 
 #if 0
     printf("CHILD.START=%d\n", posix_gettid());
     fflush(stdout);
 #endif
 
-    _futex = 0;
-
     int tid = posix_gettid();
 
     if ((r = posix_run_thread_ecall(
-        _enclave, &retval, cookie, tid, &_futex)) != OE_OK)
+        _enclave, &retval, cookie, tid, __posix_host_page)) != OE_OK)
     {
         fprintf(stderr, "posix_run_thread_ecall(): result=%u\n", r);
         fflush(stderr);
@@ -98,10 +103,14 @@ static void* _thread_func(void* arg)
         abort();
     }
 
+
 #if 1
     printf("CHILD.EXIT=%d\n", posix_gettid());
     fflush(stdout);
 #endif
+
+    free(__posix_host_page);
+    __posix_host_page = NULL;
 
     return NULL;
 }
@@ -169,8 +178,7 @@ int posix_getpid_ocall(void)
 
 int posix_nanosleep_ocall(
     const struct posix_timespec* req,
-    struct posix_timespec* rem,
-    struct posix_sigaction_args* args)
+    struct posix_timespec* rem)
 {
     ENTER;
     int ret;
@@ -178,17 +186,13 @@ int posix_nanosleep_ocall(
     if ((ret = nanosleep((struct timespec*)req, (struct timespec*)rem)) != 0)
         ret = -errno;
 
-    if (args)
-        *args = _sigaction_args;
-
     LEAVE;
     return ret;
 }
 
 int posix_wait_ocall(
     int* host_uaddr,
-    const struct posix_timespec* timeout,
-    struct posix_sigaction_args* args)
+    const struct posix_timespec* timeout)
 {
     ENTER;
     int retval = 0;
@@ -207,9 +211,6 @@ int posix_wait_ocall(
         if (retval != 0)
             retval = -errno;
     }
-
-    if (args)
-        *args = _sigaction_args;
 
     LEAVE;
     return retval;
@@ -233,10 +234,10 @@ int posix_wake_wait_ocall(
     const struct posix_timespec* timeout)
 {
     ENTER;
-    struct posix_sigaction_args args;
 
     posix_wake_ocall(waiter_host_uaddr);
-    int ret = posix_wait_ocall(self_host_uaddr, timeout, &args);
+    int ret = posix_wait_ocall(self_host_uaddr, timeout);
+
     LEAVE;
     return ret;
 }
@@ -341,7 +342,11 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
         if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
         {
             printf("ENCLAVE.SIGNAL.HANDLED\n"); fflush(stdout);
-            /* Handled */
+
+            __posix_host_page->sig_args.sig = sig;
+            __posix_host_page->sig_args.siginfo = *(struct posix_siginfo*)si;
+            __posix_host_page->sig_args.ucontext = *(struct posix_ucontext*)uc;
+
             return;
         }
 
@@ -353,7 +358,11 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
         fprintf(stderr, "*** HOST.SIGNAL: tid=%d sig=%d\n",
             posix_gettid(), sig);
         fflush(stderr);
-        _set_sigaction_args(sig, si, uc);
+
+        __posix_host_page->sig_args.sig = sig;
+        __posix_host_page->sig_args.siginfo = *(struct posix_siginfo*)si;
+        __posix_host_page->sig_args.ucontext = *(struct posix_ucontext*)uc;
+
         return;
     }
 }

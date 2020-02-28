@@ -12,13 +12,12 @@ typedef struct posix_sigaction posix_sigaction_t;
 typedef struct posix_siginfo posix_siginfo_t;
 typedef struct posix_ucontext posix_ucontext_t;
 typedef struct posix_sigset posix_sigset_t;
-typedef struct posix_sigaction_args posix_sigaction_args_t;
+typedef struct posix_sig_args posix_sig_args_t;
 
 oe_result_t posix_nanosleep_ocall(
     int* retval,
     const struct posix_timespec* req,
-    struct posix_timespec* rem,
-    struct posix_sigaction_args* args);
+    struct posix_timespec* rem);
 
 oe_result_t posix_clock_gettime_ocall(
     int* retval,
@@ -28,8 +27,7 @@ oe_result_t posix_clock_gettime_ocall(
 oe_result_t posix_wait_ocall(
     int* retval,
     int* host_uaddr,
-    const struct posix_timespec* timeout,
-    struct posix_sigaction_args* args);
+    const struct posix_timespec* timeout);
 
 oe_result_t posix_wake_ocall(int* host_uaddr);
 
@@ -53,9 +51,9 @@ oe_result_t posix_rt_sigaction_ocall(
     const struct posix_sigaction* act,
     size_t sigsetsize);
 
-oe_result_t posix_get_sigaction_args_ocall(
+oe_result_t posix_get_sig_args_ocall(
     int* retval,
-    struct posix_sigaction_args* args,
+    struct posix_sig_args* args,
     bool enclave_signal);
 
 oe_result_t posix_rt_sigprocmask_ocall(

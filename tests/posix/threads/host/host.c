@@ -20,7 +20,7 @@ extern int posix_init(oe_enclave_t* enclave);
 
 extern int posix_gettid();
 
-extern int __posix_trace;
+extern __thread struct posix_host_page* __posix_host_page;
 
 int main(int argc, const char* argv[])
 {
@@ -28,7 +28,7 @@ int main(int argc, const char* argv[])
     const uint32_t flags = OE_ENCLAVE_FLAG_DEBUG;
     const oe_enclave_type_t type = OE_ENCLAVE_TYPE_SGX;
     oe_enclave_t* enclave;
-    static int _futex;
+    int tid = posix_gettid();
 
     if (argc != 2)
     {
@@ -53,11 +53,20 @@ int main(int argc, const char* argv[])
 
     OE_TEST(posix_init(enclave) == 0);
 
-    result = posix_test_ecall(enclave, &_futex, &__posix_trace, posix_gettid());
+    if (!(__posix_host_page = calloc(1, sizeof(struct posix_host_page))))
+    {
+        fprintf(stderr, "posix_run_thread_ecall(): calloc() failed\n");
+        fflush(stderr);
+        abort();
+    }
+
+    result = posix_test_ecall(enclave, __posix_host_page, tid);
     OE_TEST(result == OE_OK);
 
     result = oe_terminate_enclave(enclave);
     OE_TEST(result == OE_OK);
+
+    free(__posix_host_page);
 
     printf("=== passed all tests (posix)\n");
 

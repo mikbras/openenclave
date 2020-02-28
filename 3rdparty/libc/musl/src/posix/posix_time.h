@@ -3,12 +3,7 @@
 
 #include <time.h>
 #include <stdint.h>
-
-struct posix_timespec
-{
-    int64_t tv_sec;
-    uint64_t tv_nsec;
-};
+#include "posix_ocalls.h"
 
 int posix_nanosleep(const struct timespec* req, struct timespec* rem);
 

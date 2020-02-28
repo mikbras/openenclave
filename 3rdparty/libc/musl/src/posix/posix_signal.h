@@ -10,7 +10,7 @@
 #define POSIX_SIGACTION 0x515d906d058a5252
 
 typedef struct posix_sigaction posix_sigaction_t;
-typedef struct posix_sigaction_args posix_sigaction_args_t;
+typedef struct posix_sig_args posix_sig_args_t;
 
 void __posix_install_exception_handler(void);
 
@@ -26,6 +26,6 @@ int posix_rt_sigprocmask(
     sigset_t* oldset,
     size_t sigsetsize);
 
-int posix_dispatch_signal(posix_sigaction_args_t* args);
+int posix_dispatch_signal(void);
 
 #endif //_POSIX_SIGNAL_H

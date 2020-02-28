@@ -16,7 +16,7 @@
 
 #define NUM_THREADS 6
 
-void posix_init(int* host_uaddr, int* trace, int tid);
+void posix_init(struct posix_host_page* host_page, int tid);
 
 extern bool oe_disable_debug_malloc_check;
 
@@ -302,11 +302,11 @@ void test_cond_broadcast(void)
     pthread_cond_destroy(&arg.c);
 }
 
-void posix_test_ecall(int* host_uaddr, int* trace, int tid)
+void posix_test_ecall(struct posix_host_page* host_page, int tid)
 {
     oe_disable_debug_malloc_check = true;
 
-    posix_init(host_uaddr, trace, tid);
+    posix_init(host_page, tid);
 
 #if 1
     //for (size_t i = 0; i < 100; i++)

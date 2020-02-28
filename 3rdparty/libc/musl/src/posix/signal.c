@@ -10,12 +10,13 @@
 #include <openenclave/internal/jump.h>
 #include "posix_signal.h"
 #include "posix_ocalls.h"
-#include "posix_ocall_types.h"
+#include "posix_ocall_structs.h"
 #include "posix_io.h"
 #include "posix_thread.h"
 #include "posix_spinlock.h"
 #include "posix_panic.h"
 #include "posix_jump.h"
+#include "posix_ocall_structs.h"
 
 #include "pthread_impl.h"
 
@@ -135,11 +136,11 @@ static void _continue_execution_hook(oe_exception_record_t* rec)
         {
             oe_result_t result;
             int retval = -1;
-            struct posix_sigaction_args args;
+            struct posix_sig_args args;
 
             memset(&args, 0xAA, sizeof(args));
 
-            result = posix_get_sigaction_args_ocall(&retval, &args, true);
+            result = posix_fetech_and_clear_sig_args_ocall(&retval, &args, true);
             if (result != OE_OK || retval != 0)
             {
                 POSIX_PANIC;
@@ -307,21 +308,35 @@ int posix_rt_sigprocmask(
     return retval;
 }
 
-int posix_dispatch_signal(posix_sigaction_args_t* args)
+static int _fetech_and_clear_sig_args(struct posix_sig_args* args)
+{
+    posix_thread_t* self = posix_self();
+
+    if (!args || !self || !self->host_page)
+        return -1;
+
+    *args = self->host_page->sig_args;
+    memset(&self->host_page->sig_args, 0, sizeof(struct posix_sig_args));
+
+    return 0;
+}
+
+int posix_dispatch_signal(void)
 {
     sigaction_handler_t handler;
     oe_jmpbuf_t env;
+    struct posix_sig_args args;
 
-    if (!args)
-        return -1;
+    if (_fetech_and_clear_sig_args(&args) != 0)
+        POSIX_PANIC("unexpected");
 
-    if (args->sig == 0)
+    if (args.sig == 0)
         return 0;
 
-    /* Get the handler from the table if any */
+    /* Get the signal handler from the table */
     {
         posix_spin_lock(&_lock);
-        handler = (sigaction_handler_t)_table[args->sig].handler;
+        handler = (sigaction_handler_t)_table[args.sig].handler;
         posix_spin_unlock(&_lock);
 
         if (!handler)
@@ -334,7 +349,7 @@ int posix_dispatch_signal(posix_sigaction_args_t* args)
         siginfo_t si;
         ucontext_t uc;
 
-        memcpy(&si, &args->siginfo, sizeof(si));
+        memcpy(&si, &args.siginfo, sizeof(si));
 
         memset(&uc, 0, sizeof(uc));
         uc.uc_mcontext.gregs[REG_RSP] = (int64_t)env.rsp;
@@ -347,9 +362,8 @@ int posix_dispatch_signal(posix_sigaction_args_t* args)
         uc.uc_mcontext.gregs[REG_R15] = (int64_t)env.r15;
 
         /* Invoke the signal handler */
-        handler(args->sig, &si, &uc);
+        handler(args.sig, &si, &uc);
 
-#if 1
         env.rsp = (uint64_t)uc.uc_mcontext.gregs[REG_RSP];
         env.rbp = (uint64_t)uc.uc_mcontext.gregs[REG_RBP];
         env.rip = (uint64_t)uc.uc_mcontext.gregs[REG_RIP];
@@ -358,7 +372,6 @@ int posix_dispatch_signal(posix_sigaction_args_t* args)
         env.r13 = (uint64_t)uc.uc_mcontext.gregs[REG_R13];
         env.r14 = (uint64_t)uc.uc_mcontext.gregs[REG_R14];
         env.r15 = (uint64_t)uc.uc_mcontext.gregs[REG_R15];
-#endif
 
         oe_longjmp(&env, 1);
         POSIX_PANIC("unreachable");

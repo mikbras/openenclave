@@ -5,6 +5,7 @@
 #include <setjmp.h>
 #include <unistd.h>
 #include <stdbool.h>
+#include "posix_ocall_structs.h"
 
 typedef struct _posix_thread posix_thread_t;
 
@@ -42,8 +43,8 @@ struct _posix_thread
     /* Used to jump from posix_exit() back to posix_run_thread_ecall() */
     jmp_buf jmpbuf;
 
-    /* Address of the host thread's futex uaddr. */
-    int* host_uaddr;
+    /* Address of the host thread's shared page */
+    struct posix_host_page* host_page;
 
     /* TID passed to posix_run_thread_ecall() */
     int tid;

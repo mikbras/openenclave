@@ -4,7 +4,7 @@
 #include "posix_time.h"
 #include "posix_io.h"
 #include "posix_ocalls.h"
-#include "posix_ocall_types.h"
+#include "posix_ocall_structs.h"
 #include "posix_panic.h"
 #include "posix_signal.h"
 
@@ -20,15 +20,14 @@ int posix_nanosleep(const struct timespec* req, struct timespec* rem)
     int retval;
     const struct posix_timespec* preq = (const struct posix_timespec*)req;
     struct posix_timespec* prem = (struct posix_timespec*)rem;
-    struct posix_sigaction_args args;
 
-    if (posix_nanosleep_ocall(&retval, preq, prem, &args) != OE_OK)
+    if (posix_nanosleep_ocall(&retval, preq, prem) != OE_OK)
     {
         POSIX_PANIC("unexpected");
         return -EINVAL;
     }
 
-    posix_dispatch_signal(&args);
+    posix_dispatch_signal();
 
     return retval;
 }

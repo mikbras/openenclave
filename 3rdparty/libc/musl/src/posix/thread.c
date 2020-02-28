@@ -72,7 +72,7 @@ int posix_getpid(void)
     return retval;
 }
 
-extern int* __posix_init_host_uaddr;
+extern struct posix_host_page* __posix_init_host_page;
 
 extern int __posix_init_tid;
 
@@ -110,7 +110,7 @@ int posix_set_thread_area(void* p)
     memset(&_main_thread, 0, sizeof(_main_thread));
     _main_thread.magic = MAGIC;
     _main_thread.td = (pthread_t)p;
-    _main_thread.host_uaddr = __posix_init_host_uaddr;
+    _main_thread.host_page = __posix_init_host_page;
 
     _set_thread_info(&_main_thread);
 
@@ -127,7 +127,10 @@ struct pthread* posix_pthread_self(void)
     return thread->td;
 }
 
-int posix_run_thread_ecall(uint64_t cookie, int tid, int* host_uaddr)
+int posix_run_thread_ecall(
+    uint64_t cookie,
+    int tid,
+    struct posix_host_page* host_page)
 {
     posix_thread_t* thread = (posix_thread_t*)cookie;
 
@@ -138,8 +141,8 @@ int posix_run_thread_ecall(uint64_t cookie, int tid, int* host_uaddr)
         return -1;
     }
 
-    thread->host_uaddr = host_uaddr;
     thread->tid = tid;
+    thread->host_page = host_page;
 
     _set_thread_info(thread);
 

@@ -11,8 +11,8 @@
 #include "posix_futex.h"
 #include "posix_io.h"
 #include "posix_spinlock.h"
-#include "posix_trace.h"
 #include "posix_time.h"
+#include "posix_trace.h"
 #include "posix_mutex.h"
 #include "posix_cond.h"
 
