@@ -44,7 +44,7 @@ struct _posix_thread
     jmp_buf jmpbuf;
 
     /* Address of the host thread's shared page */
-    struct posix_host_page* host_page;
+    struct posix_shared_block* shared_block;
 
     /* TID passed to posix_run_thread_ecall() */
     int tid;

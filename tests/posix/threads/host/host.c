@@ -20,7 +20,7 @@ extern int posix_init(oe_enclave_t* enclave);
 
 extern int posix_gettid();
 
-extern __thread struct posix_host_page* __posix_host_page;
+extern __thread struct posix_shared_block* __posix_shared_block;
 
 int main(int argc, const char* argv[])
 {
@@ -53,20 +53,20 @@ int main(int argc, const char* argv[])
 
     OE_TEST(posix_init(enclave) == 0);
 
-    if (!(__posix_host_page = calloc(1, sizeof(struct posix_host_page))))
+    if (!(__posix_shared_block = calloc(1, sizeof(struct posix_shared_block))))
     {
         fprintf(stderr, "posix_run_thread_ecall(): calloc() failed\n");
         fflush(stderr);
         abort();
     }
 
-    result = posix_test_ecall(enclave, __posix_host_page, tid);
+    result = posix_test_ecall(enclave, __posix_shared_block, tid);
     OE_TEST(result == OE_OK);
 
     result = oe_terminate_enclave(enclave);
     OE_TEST(result == OE_OK);
 
-    free(__posix_host_page);
+    free(__posix_shared_block);
 
     printf("=== passed all tests (posix)\n");
 

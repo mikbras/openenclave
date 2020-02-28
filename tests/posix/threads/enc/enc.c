@@ -16,7 +16,7 @@
 
 #define NUM_THREADS 6
 
-void posix_init(struct posix_host_page* host_page, int tid);
+void posix_init(struct posix_shared_block* shared_block, int tid);
 
 extern bool oe_disable_debug_malloc_check;
 
@@ -302,17 +302,17 @@ void test_cond_broadcast(void)
     pthread_cond_destroy(&arg.c);
 }
 
-void posix_test_ecall(struct posix_host_page* host_page, int tid)
+void posix_test_ecall(struct posix_shared_block* shared_block, int tid)
 {
     oe_disable_debug_malloc_check = true;
 
-    posix_init(host_page, tid);
+    posix_init(shared_block, tid);
 
 #if 1
     //for (size_t i = 0; i < 100; i++)
     {
-        extern int pthread_cancel_repro(void);
-        pthread_cancel_repro();
+        extern int test_pthread_cancel1(void);
+        OE_TEST(test_pthread_cancel1() == 0);
     }
 #endif
 

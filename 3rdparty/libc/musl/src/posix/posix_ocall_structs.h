@@ -49,7 +49,7 @@ struct POSIX_STRUCT(posix_,sig_args)
     struct POSIX_STRUCT(posix_,ucontext) ucontext;
 };
 
-struct POSIX_STRUCT(posix_,host_page)
+struct POSIX_STRUCT(posix_,shared_block)
 {
     struct POSIX_STRUCT(posix_,sig_args) sig_args;
 
@@ -59,6 +59,6 @@ struct POSIX_STRUCT(posix_,host_page)
 };
 
 OE_STATIC_ASSERT(
-    sizeof(struct POSIX_STRUCT(posix_,host_page)) == OE_PAGE_SIZE);
+    sizeof(struct POSIX_STRUCT(posix_,shared_block)) == OE_PAGE_SIZE);
 
 #endif //_POSIX_OCALLS_OCALL_STRUCTS_H

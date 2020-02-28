@@ -72,7 +72,7 @@ int posix_getpid(void)
     return retval;
 }
 
-extern struct posix_host_page* __posix_init_host_page;
+extern struct posix_shared_block* __posix_init_shared_block;
 
 extern int __posix_init_tid;
 
@@ -110,7 +110,7 @@ int posix_set_thread_area(void* p)
     memset(&_main_thread, 0, sizeof(_main_thread));
     _main_thread.magic = MAGIC;
     _main_thread.td = (pthread_t)p;
-    _main_thread.host_page = __posix_init_host_page;
+    _main_thread.shared_block = __posix_init_shared_block;
 
     _set_thread_info(&_main_thread);
 
@@ -130,7 +130,7 @@ struct pthread* posix_pthread_self(void)
 int posix_run_thread_ecall(
     uint64_t cookie,
     int tid,
-    struct posix_host_page* host_page)
+    struct posix_shared_block* shared_block)
 {
     posix_thread_t* thread = (posix_thread_t*)cookie;
 
@@ -142,7 +142,7 @@ int posix_run_thread_ecall(
     }
 
     thread->tid = tid;
-    thread->host_page = host_page;
+    thread->shared_block = shared_block;
 
     _set_thread_info(thread);
 

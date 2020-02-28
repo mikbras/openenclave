@@ -312,11 +312,11 @@ static int _fetech_and_clear_sig_args(struct posix_sig_args* args)
 {
     posix_thread_t* self = posix_self();
 
-    if (!args || !self || !self->host_page)
+    if (!args || !self || !self->shared_block)
         return -1;
 
-    *args = self->host_page->sig_args;
-    memset(&self->host_page->sig_args, 0, sizeof(struct posix_sig_args));
+    *args = self->shared_block->sig_args;
+    memset(&self->shared_block->sig_args, 0, sizeof(struct posix_sig_args));
 
     return 0;
 }

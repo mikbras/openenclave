@@ -76,8 +76,8 @@ int posix_cond_timedwait(
 
                     if (posix_wake_wait_ocall(
                         &retval,
-                        &waiter->host_page->futex,
-                        &self->host_page->futex,
+                        &waiter->shared_block->futex,
+                        &self->shared_block->futex,
                         timeout) != OE_OK)
                     {
                         ret = ENOSYS;
@@ -96,7 +96,7 @@ int posix_cond_timedwait(
 
                     if (posix_wait_ocall(
                         &retval,
-                        &self->host_page->futex,
+                        &self->shared_block->futex,
                         timeout) != OE_OK)
                     {
                         POSIX_PANIC("posix_wait_ocall");
@@ -145,7 +145,7 @@ int posix_cond_signal(posix_cond_t* c)
     if (!waiter)
         return 0;
 
-    posix_wake_ocall(&waiter->host_page->futex);
+    posix_wake_ocall(&waiter->shared_block->futex);
     return 0;
 }
 
@@ -175,7 +175,7 @@ int posix_cond_broadcast(posix_cond_t* c, size_t n)
     for (posix_thread_t* p = waiters.front; p; p = next)
     {
         next = p->next;
-        posix_wake_ocall(&p->host_page->futex);
+        posix_wake_ocall(&p->shared_block->futex);
     }
 
     return 0;
@@ -227,7 +227,7 @@ int posix_cond_requeue(
         for (posix_thread_t* p = wakers.front; p; p = next)
         {
             next = p->next;
-            posix_wake_ocall(&p->host_page->futex);
+            posix_wake_ocall(&p->shared_block->futex);
         }
     }
 

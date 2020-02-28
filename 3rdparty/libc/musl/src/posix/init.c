@@ -8,20 +8,20 @@
 
 #include "posix_warnings.h"
 
-struct posix_host_page* __posix_init_host_page;
+struct posix_shared_block* __posix_init_shared_block;
 
 int __posix_init_tid;
 
 static posix_spinlock_t _lock;
 
-void posix_init(struct posix_host_page* host_page, int tid)
+void posix_init(struct posix_shared_block* shared_block, int tid)
 {
     size_t aux[64];
     static const char* _environ[] = { NULL };
 
     memset(aux, 0, sizeof(aux));
 
-    __posix_init_host_page = host_page;
+    __posix_init_shared_block = shared_block;
     __posix_init_tid = tid;
     __progname = "unknown";
     __sysinfo = 0;
