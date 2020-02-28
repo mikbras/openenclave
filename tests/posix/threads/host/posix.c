@@ -135,7 +135,7 @@ done:
     return ret;
 }
 
-//#define TRACE
+#define TRACE
 
 static inline void __enter(const char* func)
 {
