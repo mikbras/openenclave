@@ -7,14 +7,15 @@
 #include "posix_thread.h"
 #include "posix_spinlock.h"
 
-typedef struct _posix_mutex
+typedef struct _posix_mutex posix_mutex_t;
+
+struct _posix_mutex
 {
     posix_spinlock_t lock;
     uint64_t refs;
     posix_thread_t* owner;
     posix_thread_queue_t queue;
-}
-posix_mutex_t;
+};
 
 int posix_mutex_init(posix_mutex_t* mutex);
 

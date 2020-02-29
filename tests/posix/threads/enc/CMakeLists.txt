@@ -15,6 +15,7 @@ add_executable(posix_enc
     jump.S
     test_pthread_cancel1.c
     test_pthread_cancel2.c
+    test_pthread_cancel3.c
     functional/argv.c
     functional/basename.c
     functional/clocale_mbfuncs.c

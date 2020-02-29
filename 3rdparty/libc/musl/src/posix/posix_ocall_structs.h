@@ -53,7 +53,8 @@ struct POSIX_STRUCT(posix_,shared_block)
 {
     struct POSIX_STRUCT(posix_,sig_args) sig_args;
     int32_t futex;
-    uint8_t padding[3020];
+    uint32_t trace;
+    uint8_t padding[3016];
 };
 
 OE_STATIC_ASSERT(

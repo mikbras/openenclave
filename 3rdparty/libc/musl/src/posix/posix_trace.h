@@ -13,4 +13,6 @@
 
 void posix_print_backtrace(void);
 
+void posix_set_trace(uint32_t value);
+
 #endif /* _POSIX_TRACE_H */

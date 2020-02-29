@@ -6,8 +6,10 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include "posix_ocall_structs.h"
+#include "posix_spinlock.h"
 
 typedef struct _posix_thread posix_thread_t;
+typedef struct _posix_mutex posix_mutex_t;
 
 struct posix_robust_list_head
 {
@@ -52,6 +54,9 @@ struct _posix_thread
     /* Robust list support */
     struct posix_robust_list_head* robust_list_head;
     size_t robust_list_len;
+
+    /* Spin here until thread is actually created */
+    posix_spinlock_t lock;
 };
 
 typedef struct _posix_thread_queue

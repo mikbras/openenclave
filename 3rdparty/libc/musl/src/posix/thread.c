@@ -19,10 +19,10 @@
 #include "posix_warnings.h"
 #include "posix_ocalls.h"
 #include "posix_signal.h"
+#include "posix_mutex.h"
+#include "posix_trace.h"
 
 #define MAGIC 0x6a25f0aa
-
-void posix_set_trace(int val);
 
 /* The thread info structure for the main thread */
 static posix_thread_t _main_thread;
@@ -151,7 +151,7 @@ int posix_run_thread_ecall(
 
     if (setjmp(thread->jmpbuf) == 0)
     {
-        /* Invoke the MUSL thread wrapper function. */
+        posix_spin_unlock(&thread->lock);
         (*thread->fn)(thread->arg);
 
         /* Never returns. */
@@ -187,6 +187,7 @@ int posix_clone(
     /* Create the thread info structure for the new thread */
     posix_thread_t* thread;
     {
+        /* ATTN: free this! */
         if (!(thread = oe_calloc(1, sizeof(posix_thread_t))))
         {
             ret = -ENOMEM;
@@ -200,6 +201,7 @@ int posix_clone(
         thread->flags = flags;
         thread->ptid = ptid;
         thread->ctid = ctid;
+        posix_spin_lock(&thread->lock);
     }
 
     /* Ask the host to call posix_run_thread_ecall() on a new thread */
@@ -219,6 +221,10 @@ int posix_clone(
             goto done;
         }
     }
+
+    /* Wait for thread to start */
+    /* ATTN: replace with futex! */
+    posix_spin_lock(&thread->lock);
 
 done:
 
@@ -253,7 +259,7 @@ void posix_exit(int status)
     posix_futex_release((volatile int*)thread->ctid);
 
     /* Hack attempt to release joiner */
-#if 0
+#if 1
     struct pthread* td = thread->td;
     ACQUIRE_FUTEX(&td->detach_state);
     int state = a_cas(&td->detach_state, DT_JOINABLE, DT_EXITING);

@@ -38,6 +38,7 @@ int main(int argc, const char* argv[])
 
     printf("MAIN.PID=%d\n", getpid());
 
+#if 0
     oe_enclave_setting_context_switchless_t setting =
     {
         8,
@@ -49,6 +50,9 @@ int main(int argc, const char* argv[])
 
     result = oe_create_posix_enclave(
         argv[1], type, flags, settings, OE_COUNTOF(settings), &enclave);
+#else
+    result = oe_create_posix_enclave(argv[1], type, flags, NULL, 0, &enclave);
+#endif
     OE_TEST(result == OE_OK);
 
     OE_TEST(posix_init(enclave) == 0);

@@ -246,6 +246,8 @@ int _emulate_illegal_instruction(sgx_ssa_gpr_t* ssa_gpr)
 */
 void oe_real_exception_dispatcher(oe_context_t* oe_context)
 {
+extern void posix_set_trace(int x);
+posix_set_trace(777);
     td_t* td = oe_get_td();
 
     // Change the rip of oe_context to the real exception address.
@@ -386,6 +388,8 @@ void oe_virtual_exception_dispatcher(
     {
         // Modify the ssa_gpr so that e_resume will go to second pass exception
         // handler.
+extern void posix_set_trace(int x);
+posix_set_trace(666);
         ssa_gpr->rip = (uint64_t)oe_exception_dispatcher;
     }
 

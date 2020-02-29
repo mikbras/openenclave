@@ -64,7 +64,11 @@ static void cancel_handler(int sig, siginfo_t *si, void *ctx)
 		return;
 	}
 
+#if 0
 	__syscall(SYS_tkill, self->tid, SIGCANCEL);
+#else
+        pthread_exit(PTHREAD_CANCELED);
+#endif
 }
 
 void __testcancel()

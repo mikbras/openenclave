@@ -55,6 +55,21 @@ int posix_gettid(void)
     return (int)syscall(SYS_gettid);
 }
 
+void posix_print_trace(void)
+{
+    if (__posix_shared_block)
+    {
+        printf("*** posix_print_trace=%d (%d)\n", __posix_shared_block->trace,
+            posix_gettid());
+        fflush(stdout);
+    }
+    else
+    {
+        printf("*** posix_print_trace=null\n");
+        fflush(stdout);
+    }
+}
+
 extern int posix_init(oe_enclave_t* enclave)
 {
     if (!enclave)
@@ -104,7 +119,7 @@ static void* _thread_func(void* arg)
     }
 
 
-#if 1
+#if 0
     printf("CHILD.EXIT=%d\n", posix_gettid());
     fflush(stdout);
 #endif
@@ -116,6 +131,20 @@ static void* _thread_func(void* arg)
 }
 
 int posix_start_thread_ocall(uint64_t cookie)
+#if 0
+{
+    int ret = -1;
+    pthread_t t;
+
+    if (pthread_create(&t, NULL, _thread_func, (void*)cookie) != 0)
+        goto done;
+
+    ret = 0;
+
+done:
+    return ret;
+}
+#else
 {
     int ret = -1;
     pthread_t t;
@@ -130,12 +159,12 @@ int posix_start_thread_ocall(uint64_t cookie)
     ret = 0;
 
 done:
-    //ATTN: crashed here! pthread_attr_destroy(&attr);
-
+    pthread_attr_destroy(&attr);
     return ret;
 }
+#endif
 
-#define TRACE
+//#define TRACE
 
 static inline void __enter(const char* func)
 {
@@ -253,7 +282,7 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 int posix_tkill_ocall(int tid, int sig)
 {
     ENTER;
-#if 1
+#if 0
     printf("%s(TID=%d, tid=%d, sig=%d)\n",
         __FUNCTION__, posix_gettid(), tid, sig);
 #endif
@@ -348,9 +377,11 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     /* If the signal originated within the enclave */
     if (hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS)
     {
+#if 1
         fprintf(stderr, "*** ENCLAVE.SIGNAL: tid=%d sig=%d\n",
             posix_gettid(), sig);
         fflush(stderr);
+#endif
 
         uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
 
@@ -365,9 +396,11 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     }
     else
     {
+#if 1
         fprintf(stderr, "*** HOST.SIGNAL: tid=%d sig=%d\n",
             posix_gettid(), sig);
         fflush(stderr);
+#endif
 
         _set_sig_args(false, sig, si, uc);
         return;
@@ -427,7 +460,6 @@ int posix_rt_sigprocmask_ocall(
     struct posix_sigset* oldset,
     size_t sigsetsize)
 {
-    ENTER;
 #if 0
     const char* howstr;
 
@@ -453,9 +485,16 @@ int posix_rt_sigprocmask_ocall(
     posix_dump_sigset(howstr, set);
 #endif
 
+#if 1
     long r = syscall(SYS_rt_sigprocmask, how, set, oldset, sigsetsize);
-    LEAVE;
     return r == 0 ? 0 : -errno;
+#else
+    (void)how;
+    (void)set;
+    (void)oldset;
+    (void)sigsetsize;
+    return 0;
+#endif
 }
 
 void posix_noop_ocall(void)

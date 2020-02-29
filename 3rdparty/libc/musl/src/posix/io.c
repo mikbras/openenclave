@@ -7,6 +7,7 @@
 #include <openenclave/internal/print.h>
 #include "posix_syscall.h"
 #include "posix_io.h"
+#include "posix_signal.h"
 
 #include "posix_warnings.h"
 
@@ -18,6 +19,8 @@ int posix_puts(const char* str)
     if (oe_host_write(0, "\n", 1) != 0)
         return -1;
 
+    posix_dispatch_signal();
+
     return 0;
 }
 
@@ -27,6 +30,8 @@ int posix_printf(const char* fmt, ...)
     va_start(ap, fmt);
     int n = oe_host_vfprintf(0, fmt, ap);
     va_end(ap);
+
+    posix_dispatch_signal();
 
     return n;
 }
@@ -43,8 +48,12 @@ ssize_t posix_write(int fd, const void* buf, size_t count)
     if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
     {
         if (oe_host_write(fd - 1, buf, count) != 0)
+        {
+            posix_dispatch_signal();
             return -1;
+        }
 
+        posix_dispatch_signal();
         return (ssize_t)count;
     }
 
@@ -61,7 +70,10 @@ ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
         for (int i = 0; i < iovcnt; i++)
         {
             if (oe_host_write(fd - 1, iov[i].iov_base, iov[i].iov_len) != 0)
+            {
+                posix_dispatch_signal();
                 return -1;
+            }
 
             count += iov[i].iov_len;
         }
@@ -70,5 +82,6 @@ ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
     }
 
     assert("posix_writev" == NULL);
+    posix_dispatch_signal();
     return -EBADFD;
 }
