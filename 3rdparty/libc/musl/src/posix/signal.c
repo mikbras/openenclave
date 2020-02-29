@@ -127,6 +127,12 @@ static uint64_t _exception_handler(oe_exception_record_t* rec)
     {
         ucontext_t uc;
 
+        if (rec->context->rsp % 16)
+            POSIX_PANIC("misaligned RSP");
+
+        if (rec->context->rbp % 16)
+            POSIX_PANIC("misaligned RBP");
+
         uc.uc_mcontext.gregs[REG_R8] = (int64_t)rec->context->r8;
         uc.uc_mcontext.gregs[REG_R9] = (int64_t)rec->context->r9;
         uc.uc_mcontext.gregs[REG_R10] = (int64_t)rec->context->r10;

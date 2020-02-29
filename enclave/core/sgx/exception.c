@@ -327,6 +327,9 @@ void oe_virtual_exception_dispatcher(
     SSA_Info ssa_info = {0};
     OE_UNUSED(arg_in);
 
+extern void posix_set_trace(int x);
+posix_set_trace(111);
+
     // Verify if the first SSA has valid exception info.
     if (_get_enclave_thread_first_ssa_info(td, &ssa_info) != 0)
     {
@@ -388,7 +391,6 @@ void oe_virtual_exception_dispatcher(
     {
         // Modify the ssa_gpr so that e_resume will go to second pass exception
         // handler.
-extern void posix_set_trace(int x);
 posix_set_trace(666);
         ssa_gpr->rip = (uint64_t)oe_exception_dispatcher;
     }

@@ -131,20 +131,6 @@ static void* _thread_func(void* arg)
 }
 
 int posix_start_thread_ocall(uint64_t cookie)
-#if 0
-{
-    int ret = -1;
-    pthread_t t;
-
-    if (pthread_create(&t, NULL, _thread_func, (void*)cookie) != 0)
-        goto done;
-
-    ret = 0;
-
-done:
-    return ret;
-}
-#else
 {
     int ret = -1;
     pthread_t t;
@@ -162,7 +148,6 @@ done:
     pthread_attr_destroy(&attr);
     return ret;
 }
-#endif
 
 //#define TRACE
 
@@ -285,6 +270,7 @@ int posix_tkill_ocall(int tid, int sig)
 #if 0
     printf("%s(TID=%d, tid=%d, sig=%d)\n",
         __FUNCTION__, posix_gettid(), tid, sig);
+    fflush(stdout);
 #endif
 
     long r = syscall(SYS_tkill, tid, sig);
@@ -416,7 +402,7 @@ int posix_rt_sigaction_ocall(
     struct posix_sigaction act = *pact;
     extern void posix_restore(void);
 
-#if 1
+#if 0
     printf("%s(tid=%d, signum=%d)\n",
         __FUNCTION__, posix_gettid(), signum);
     fflush(stdout);

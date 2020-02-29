@@ -322,7 +322,7 @@ void posix_test_ecall(struct posix_shared_block* shared_block, int tid)
     }
 #endif
 
-#if 0
+#if 1
     for (size_t i = 0; i < 100; i++)
     {
         extern int test_pthread_cancel3(void);
