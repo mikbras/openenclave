@@ -18,6 +18,7 @@
 #include "posix_jump.h"
 #include "posix_ocall_structs.h"
 #include "posix_trace.h"
+#include "posix_panic.h"
 
 #include "pthread_impl.h"
 
@@ -41,9 +42,7 @@ static void _get_sig_args(struct posix_sig_args* args, bool clear)
     posix_thread_t* self = posix_self();
 
     if (!args || !self || !self->shared_block)
-    {
-        POSIX_PANIC("unexpected");
-    }
+        return;
 
     *args = self->shared_block->sig_args;
 
@@ -127,11 +126,13 @@ static uint64_t _exception_handler(oe_exception_record_t* rec)
     {
         ucontext_t uc;
 
+#if 0
         if (rec->context->rsp % 16)
             POSIX_PANIC("misaligned RSP");
 
         if (rec->context->rbp % 16)
             POSIX_PANIC("misaligned RBP");
+#endif
 
         uc.uc_mcontext.gregs[REG_R8] = (int64_t)rec->context->r8;
         uc.uc_mcontext.gregs[REG_R9] = (int64_t)rec->context->r9;
@@ -296,4 +297,30 @@ int posix_dispatch_signal(void)
     /* control continues here if hanlder didn't change RIP */
 
     return 0;
+}
+
+extern struct posix_shared_block* __posix_init_shared_block;
+
+void posix_lock_kill(void)
+{
+    if (__posix_init_shared_block)
+    {
+        posix_spin_lock(&__posix_init_shared_block->kill_lock);
+    }
+    else
+    {
+        POSIX_PANIC("unexpected");
+    }
+}
+
+void posix_unlock_kill(void)
+{
+    if (__posix_init_shared_block)
+    {
+        posix_spin_unlock(&__posix_init_shared_block->kill_lock);
+    }
+    else
+    {
+        POSIX_PANIC("unexpected");
+    }
 }

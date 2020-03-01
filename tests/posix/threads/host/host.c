@@ -21,6 +21,7 @@ extern int posix_init(oe_enclave_t* enclave);
 extern int posix_gettid();
 
 extern __thread struct posix_shared_block* __posix_shared_block;
+extern struct posix_shared_block* __posix_init_shared_block;
 
 int main(int argc, const char* argv[])
 {
@@ -38,7 +39,7 @@ int main(int argc, const char* argv[])
 
     printf("MAIN.PID=%d\n", getpid());
 
-#if 0
+#if 1
     oe_enclave_setting_context_switchless_t setting =
     {
         8,
@@ -63,6 +64,8 @@ int main(int argc, const char* argv[])
         fflush(stderr);
         abort();
     }
+
+    __posix_init_shared_block = __posix_shared_block;
 
     result = posix_test_ecall(enclave, __posix_shared_block, tid);
     OE_TEST(result == OE_OK);

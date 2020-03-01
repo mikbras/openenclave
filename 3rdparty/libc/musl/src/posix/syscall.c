@@ -443,7 +443,8 @@ long posix_syscall(long n, ...)
     (void)x6;
 
 #if 0
-    posix_printf("SYSCALL{%s}: tid=%d\n", _syscall_name(n), posix_gettid());
+    posix_printf("SYSCALL{%s}\n", _syscall_name(n));
+    //posix_printf("SYSCALL{%s}: tid=%d\n", _syscall_name(n), posix_gettid());
 #endif
 
     switch (n)
@@ -518,7 +519,8 @@ long posix_syscall(long n, ...)
         {
             int tid = (int)x1;
             int sig = (int)x2;
-            return (long)posix_tkill(tid, sig);
+            int r = posix_tkill(tid, sig);
+            return (long)r;
         }
         case SYS_rt_sigaction:
         {
@@ -536,7 +538,6 @@ long posix_syscall(long n, ...)
             sigset_t* oldset = (void*)x3;
             size_t sigsetsize = (size_t)x4;
             return posix_rt_sigprocmask(how, set, oldset, sigsetsize);
-            return 0;
         }
         case SYS_mprotect:
         {

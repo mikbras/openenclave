@@ -16,6 +16,8 @@ struct posix_robust_list_head
     volatile void* volatile head;
 };
 
+#define POSIX_THREAD_STATE_STARTED 0xAAAABBBB
+
 struct _posix_thread
 {
     /* Should contain MAGIC */
@@ -57,6 +59,8 @@ struct _posix_thread
 
     /* Spin here until thread is actually created */
     posix_spinlock_t lock;
+
+    uint32_t state;
 };
 
 typedef struct _posix_thread_queue
@@ -157,5 +161,7 @@ int posix_tkill(int tid, int sig);
 void posix_noop(void);
 
 void posix_exit(int status);
+
+void posix_unblock_creator_thread(void);
 
 #endif /* _POSIX_THREAD_H */

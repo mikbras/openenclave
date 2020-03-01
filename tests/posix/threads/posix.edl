@@ -45,7 +45,8 @@ enclave
         struct posix_sig_args sig_args;
         int32_t futex;
         uint32_t trace;
-        uint8_t padding[3016];
+        uint32_t kill_lock;
+        uint8_t padding[3012];
     };
 
     trusted
@@ -87,7 +88,9 @@ enclave
             int clk_id,
             [out, count=1] struct posix_timespec* tp);
 
-        int posix_tkill_ocall(int tid, int sig);
+        int posix_tkill_ocall(int tid, int sig)
+            //transition_using_threads
+            ;
 
         int posix_rt_sigaction_ocall(
             int signum,
@@ -101,5 +104,12 @@ enclave
             size_t sigsetsize);
 
         void posix_noop_ocall();
+
+        ssize_t posix_write_ocall(
+            int fd,
+            [in, size=size] const void* data,
+            size_t size)
+            //transition_using_threads
+            ;
     };
 };

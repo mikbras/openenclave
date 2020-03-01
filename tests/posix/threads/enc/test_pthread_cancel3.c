@@ -5,10 +5,23 @@
 #include <stdio.h>
 #include <openenclave/enclave.h>
 #include <openenclave/internal/tests.h>
+#include <sys/syscall.h>
+#include <signal.h>
+#include "posix_t.h"
+
+#include "spinlock.h"
+
+void sleep_msec(uint64_t milliseconds);
+
+int posix_printf(const char* fmt, ...);
+void posix_noop(void);
 
 static void* _thread_func(void *arg)
 {
     (void)arg;
+
+//    posix_printf("tttttttttttttttttttttttttttttttttttttttttt\n");
+//    posix_printf("tttttttttttttttttttttttttttttttttttttttttt\n");
 
     for (;;)
         ;
@@ -21,7 +34,7 @@ int test_pthread_cancel3(void)
     pthread_t td;
     void *res;
 
-    printf("=== test_pthread_cancel3()\n");
+    posix_printf("=== test_pthread_cancel3()\n");
     fflush(stdout);
 
     OE_TEST(pthread_create(&td, 0, _thread_func, NULL) == 0);

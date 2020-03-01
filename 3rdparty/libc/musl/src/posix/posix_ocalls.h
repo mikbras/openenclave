@@ -65,4 +65,10 @@ oe_result_t posix_rt_sigprocmask_ocall(
 
 oe_result_t posix_noop_ocall(void);
 
+oe_result_t posix_write_ocall(
+    ssize_t* retval,
+    int fd,
+    const void* data,
+    size_t size);
+
 #endif //_POSIX_OCALLS_H

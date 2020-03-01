@@ -25,6 +25,7 @@
 #include <ucontext.h>
 #include "posix_u.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_signal.h"
+#include "spinlock.h"
 
 #define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
@@ -54,6 +55,68 @@ int posix_gettid(void)
 {
     return (int)syscall(SYS_gettid);
 }
+
+void sleep_msec(uint64_t milliseconds)
+{
+    struct timespec ts;
+    const struct timespec* req = &ts;
+    struct timespec rem = {0, 0};
+    static const uint64_t _SEC_TO_MSEC = 1000UL;
+    static const uint64_t _MSEC_TO_NSEC = 1000000UL;
+
+    ts.tv_sec = (time_t)(milliseconds / _SEC_TO_MSEC);
+    ts.tv_nsec = (long)((milliseconds % _SEC_TO_MSEC) * _MSEC_TO_NSEC);
+
+    while (nanosleep(req, &rem) != 0 && errno == EINTR)
+    {
+        req = &rem;
+    }
+}
+
+struct posix_shared_block* __posix_init_shared_block;
+
+void posix_print_kill(void)
+{
+    uint32_t val = __posix_init_shared_block->kill_lock;
+    printf("posix_print_kill: val=%u\n", val);
+}
+
+void posix_lock_kill(void)
+{
+    if (__posix_init_shared_block)
+        spin_lock(&__posix_init_shared_block->kill_lock);
+}
+
+void posix_unlock_kill(void)
+{
+    if (__posix_init_shared_block)
+        spin_unlock(&__posix_init_shared_block->kill_lock);
+}
+
+#define TRACE
+
+static inline void __enter(const char* func)
+{
+#if defined(TRACE)
+    printf("__enter:%s:%d\n", func, posix_gettid());
+    fflush(stdout);
+#else
+    (void)func;
+#endif
+}
+
+static inline void __leave(const char* func)
+{
+#if defined(TRACE)
+    printf("__leave:%s:%d\n", func, posix_gettid());
+    fflush(stdout);
+#else
+    (void)func;
+#endif
+}
+
+#define ENTER __enter(__FUNCTION__)
+#define LEAVE __leave(__FUNCTION__)
 
 void posix_print_trace(void)
 {
@@ -132,6 +195,7 @@ static void* _thread_func(void* arg)
 
 int posix_start_thread_ocall(uint64_t cookie)
 {
+    ENTER;
     int ret = -1;
     pthread_t t;
     pthread_attr_t attr;
@@ -146,33 +210,9 @@ int posix_start_thread_ocall(uint64_t cookie)
 
 done:
     pthread_attr_destroy(&attr);
+    LEAVE;
     return ret;
 }
-
-//#define TRACE
-
-static inline void __enter(const char* func)
-{
-#if defined(TRACE)
-    printf("__enter:%s:%d\n", func, posix_gettid());
-    fflush(stdout);
-#else
-    (void)func;
-#endif
-}
-
-static inline void __leave(const char* func)
-{
-#if defined(TRACE)
-    printf("__leave:%s:%d\n", func, posix_gettid());
-    fflush(stdout);
-#else
-    (void)func;
-#endif
-}
-
-#define ENTER __enter(__FUNCTION__)
-#define LEAVE __leave(__FUNCTION__)
 
 int posix_gettid_ocall(void)
 {
@@ -267,13 +307,17 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 int posix_tkill_ocall(int tid, int sig)
 {
     ENTER;
-#if 0
+#if 1
     printf("%s(TID=%d, tid=%d, sig=%d)\n",
         __FUNCTION__, posix_gettid(), tid, sig);
     fflush(stdout);
 #endif
 
+    posix_lock_kill();
     long r = syscall(SYS_tkill, tid, sig);
+    posix_unlock_kill();
+
+    //sleep_msec(1000);
 
     if (r != 0)
     {
@@ -446,6 +490,7 @@ int posix_rt_sigprocmask_ocall(
     struct posix_sigset* oldset,
     size_t sigsetsize)
 {
+    ENTER;
 #if 0
     const char* howstr;
 
@@ -473,6 +518,7 @@ int posix_rt_sigprocmask_ocall(
 
 #if 1
     long r = syscall(SYS_rt_sigprocmask, how, set, oldset, sigsetsize);
+    LEAVE;
     return r == 0 ? 0 : -errno;
 #else
     (void)how;
@@ -485,7 +531,43 @@ int posix_rt_sigprocmask_ocall(
 
 void posix_noop_ocall(void)
 {
+//    ENTER;
+//    LEAVE;
+}
+
+ssize_t posix_write_ocall(int fd, const void* data, size_t size)
+{
+    ssize_t ret = -1;
+
     ENTER;
-    printf("%s\n", __FUNCTION__); fflush(stdout);
+    posix_unlock_kill();
+
+    if (size == 0)
+    {
+        ret = 0;
+        goto done;
+    }
+
+    if (fd == STDOUT_FILENO)
+    {
+        if (fwrite(data, 1, size, stdout) != size)
+            goto done;
+
+        fflush(stdout);
+        ret = (ssize_t)size;
+    }
+    else if (fd == STDERR_FILENO)
+    {
+        if (fwrite(data, 1, size, stderr) != size)
+            goto done;
+
+        fflush(stderr);
+        ret = (ssize_t)size;
+    }
+
+done:
+
+    posix_lock_kill();
     LEAVE;
+    return ret;
 }

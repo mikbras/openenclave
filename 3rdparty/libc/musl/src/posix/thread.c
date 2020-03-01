@@ -21,8 +21,11 @@
 #include "posix_signal.h"
 #include "posix_mutex.h"
 #include "posix_trace.h"
+#include "posix_panic.h"
 
 #define MAGIC 0x6a25f0aa
+
+static posix_spinlock_t _lock;
 
 /* The thread info structure for the main thread */
 static posix_thread_t _main_thread;
@@ -127,6 +130,17 @@ struct pthread* posix_pthread_self(void)
     return thread->td;
 }
 
+void posix_unblock_creator_thread(void)
+{
+    posix_thread_t* self = posix_self();
+
+    if (!self)
+        POSIX_PANIC("unexpected");
+
+    self->state = POSIX_THREAD_STATE_STARTED;
+    posix_spin_unlock(&self->lock);
+}
+
 int posix_run_thread_ecall(
     uint64_t cookie,
     int tid,
@@ -137,8 +151,7 @@ int posix_run_thread_ecall(
     if (!thread || !oe_is_within_enclave(thread, sizeof(thread)) ||
         thread->magic != MAGIC)
     {
-        oe_assert(false);
-        return -1;
+        POSIX_PANIC("unexpected");
     }
 
     thread->tid = tid;
@@ -151,12 +164,14 @@ int posix_run_thread_ecall(
 
     if (setjmp(thread->jmpbuf) == 0)
     {
+#if 0
+        thread->state = POSIX_THREAD_STATE_STARTED;
         posix_spin_unlock(&thread->lock);
+#endif
         (*thread->fn)(thread->arg);
 
         /* Never returns. */
-        posix_printf("unexpected\n");
-        oe_abort();
+        POSIX_PANIC("unexpected");
     }
 
     return 0;
@@ -201,8 +216,11 @@ int posix_clone(
         thread->flags = flags;
         thread->ptid = ptid;
         thread->ctid = ctid;
-        posix_spin_lock(&thread->lock);
+        thread->state = 0;
     }
+
+    /* The thread will unlock this when it starts */
+    posix_spin_lock(&thread->lock);
 
     /* Ask the host to call posix_run_thread_ecall() on a new thread */
     {
@@ -222,9 +240,12 @@ int posix_clone(
         }
     }
 
-    /* Wait for thread to start */
     /* ATTN: replace with futex! */
+    /* Wait here for thread to start and unlock this */
     posix_spin_lock(&thread->lock);
+
+    if (thread->state != POSIX_THREAD_STATE_STARTED)
+        POSIX_PANIC("unexpected");
 
 done:
 

@@ -5,33 +5,56 @@
 #include <errno.h>
 #include <assert.h>
 #include <openenclave/internal/print.h>
+#include <openenclave/corelibc/stdio.h>
 #include "posix_syscall.h"
 #include "posix_io.h"
 #include "posix_signal.h"
+#include "posix_ocalls.h"
+#include "posix_panic.h"
 
 #include "posix_warnings.h"
 
 int posix_puts(const char* str)
 {
-    if (oe_host_write(0, str, strlen(str)) != 0)
-        return -1;
+    ssize_t retval;
+    size_t len = strlen(str);
 
-    if (oe_host_write(0, "\n", 1) != 0)
-        return -1;
+    if (posix_write_ocall(&retval, STDOUT_FILENO, str, len) != OE_OK)
+    {
+        POSIX_PANIC("unexpected");
+    }
 
-    posix_dispatch_signal();
+    if (retval < 0 || (size_t)retval != len)
+        return -1;
 
     return 0;
 }
 
 int posix_printf(const char* fmt, ...)
 {
+    /* ATTN: use dynamic memory */
+    char buf[4096];
+    ssize_t retval;
+
     va_list ap;
     va_start(ap, fmt);
-    int n = oe_host_vfprintf(0, fmt, ap);
+    int n = oe_vsnprintf(buf, sizeof(buf), fmt, ap);
     va_end(ap);
 
-    posix_dispatch_signal();
+    if (n > 0)
+    {
+        posix_lock_kill();
+
+        if (posix_write_ocall(&retval, STDOUT_FILENO, buf, (size_t)n) != OE_OK)
+        {
+            POSIX_PANIC("unexpected");
+        }
+
+        posix_unlock_kill();
+
+        posix_dispatch_signal();
+        return (int)retval;
+    }
 
     return n;
 }
@@ -47,17 +70,22 @@ ssize_t posix_write(int fd, const void* buf, size_t count)
 {
     if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
     {
-        if (oe_host_write(fd - 1, buf, count) != 0)
+        ssize_t retval;
+
+        posix_lock_kill();
+
+        if (posix_write_ocall(&retval, fd, buf, count) != OE_OK)
         {
-            posix_dispatch_signal();
-            return -1;
+            POSIX_PANIC("unexpected");
         }
 
+        posix_unlock_kill();
+
         posix_dispatch_signal();
-        return (ssize_t)count;
+        return (ssize_t)retval;
     }
 
-    assert("posix_write" == NULL);
+    POSIX_PANIC("unexpected");
     return -EBADFD;
 }
 
@@ -69,19 +97,33 @@ ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
 
         for (int i = 0; i < iovcnt; i++)
         {
-            if (oe_host_write(fd - 1, iov[i].iov_base, iov[i].iov_len) != 0)
+            ssize_t retval;
+            const char* p = iov[i].iov_base;
+            size_t n = iov[i].iov_len;
+
+            posix_lock_kill();
+
+            if (posix_write_ocall(&retval, fd, p, n) != OE_OK)
             {
-                posix_dispatch_signal();
+                POSIX_PANIC("unexpected");
                 return -1;
             }
 
-            count += iov[i].iov_len;
+            posix_unlock_kill();
+
+            if (retval != (ssize_t)n)
+            {
+                POSIX_PANIC("unexpected");
+                break;
+            }
+
+            count += (size_t)retval;
         }
 
+        posix_dispatch_signal();
         return (ssize_t)count;
     }
 
-    assert("posix_writev" == NULL);
-    posix_dispatch_signal();
+    POSIX_PANIC("unexpected");
     return -EBADFD;
 }
