@@ -20,16 +20,13 @@ static void* _thread_func(void *arg)
 {
     (void)arg;
 
-    posix_printf("tttttttttttttttttttttttttttttttttttttttttt\n");
-    posix_printf("tttttttttttttttttttttttttttttttttttttttttt\n");
-
     for (;;)
         ;
 
     return NULL;
 }
 
-int test_pthread_cancel3(void)
+int test_pthread_cancel4(void)
 {
     pthread_t td;
     void *res;

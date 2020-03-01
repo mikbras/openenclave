@@ -330,6 +330,14 @@ void posix_test_ecall(struct posix_shared_block* shared_block, int tid)
     }
 #endif
 
+#if 1
+    for (size_t i = 0; i < 100; i++)
+    {
+        extern int test_pthread_cancel4(void);
+        OE_TEST(test_pthread_cancel4() == 0);
+    }
+#endif
+
 #if 0
     test_create_thread();
     test_mutexes();

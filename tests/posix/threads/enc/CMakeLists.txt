@@ -16,6 +16,7 @@ add_executable(posix_enc
     test_pthread_cancel1.c
     test_pthread_cancel2.c
     test_pthread_cancel3.c
+    test_pthread_cancel4.c
     spinlock.c
     functional/argv.c
     functional/basename.c
