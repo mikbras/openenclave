@@ -9,12 +9,7 @@
 #include <signal.h>
 #include "posix_t.h"
 
-#include "spinlock.h"
-
-void sleep_msec(uint64_t milliseconds);
-
 int posix_printf(const char* fmt, ...);
-void posix_noop(void);
 
 static void* _thread_func(void *arg)
 {

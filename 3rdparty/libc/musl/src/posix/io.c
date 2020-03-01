@@ -19,10 +19,14 @@ int posix_puts(const char* str)
     ssize_t retval;
     size_t len = strlen(str);
 
+    posix_lock_kill();
+
     if (posix_write_ocall(&retval, STDOUT_FILENO, str, len) != OE_OK)
     {
         POSIX_PANIC("unexpected");
     }
+
+    posix_unlock_kill();
 
     if (retval < 0 || (size_t)retval != len)
         return -1;
@@ -58,13 +62,6 @@ int posix_printf(const char* fmt, ...)
 
     return n;
 }
-
-#if 0
-ssize_t posix_read(int fd, void* buf, size_t count)
-{
-    return posix_syscall3(SYS_read, fd, (long)buf, (long)count);
-}
-#endif
 
 ssize_t posix_write(int fd, const void* buf, size_t count)
 {

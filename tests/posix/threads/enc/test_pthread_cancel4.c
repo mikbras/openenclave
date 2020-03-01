@@ -9,12 +9,7 @@
 #include <signal.h>
 #include "posix_t.h"
 
-#include "spinlock.h"
-
-void sleep_msec(uint64_t milliseconds);
-
 int posix_printf(const char* fmt, ...);
-void posix_noop(void);
 
 static void* _thread_func(void *arg)
 {
@@ -32,7 +27,7 @@ int test_pthread_cancel4(void)
     void *res;
 
     posix_printf("=== test_pthread_cancel3()\n");
-    fflush(stdout);
+//    fflush(stdout);
 
     OE_TEST(pthread_create(&td, 0, _thread_func, NULL) == 0);
     OE_TEST(pthread_cancel(td) == 0);

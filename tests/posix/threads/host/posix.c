@@ -516,17 +516,9 @@ int posix_rt_sigprocmask_ocall(
     posix_dump_sigset(howstr, set);
 #endif
 
-#if 1
     long r = syscall(SYS_rt_sigprocmask, how, set, oldset, sigsetsize);
     LEAVE;
     return r == 0 ? 0 : -errno;
-#else
-    (void)how;
-    (void)set;
-    (void)oldset;
-    (void)sigsetsize;
-    return 0;
-#endif
 }
 
 void posix_noop_ocall(void)

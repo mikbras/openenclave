@@ -6,6 +6,7 @@
 #include "posix_syscall.h"
 #include "posix_io.h"
 #include "posix_mman.h"
+#include "posix_panic.h"
 
 #include "posix_warnings.h"
 
@@ -29,15 +30,13 @@ void* posix_brk(void* new_brk)
     return new_brk;
 }
 
-#if 0
 int posix_mprotect(void* addr, size_t len, int prot)
 {
     if (addr && len && (prot & (PROT_READ|PROT_WRITE)))
         return 0;
 
-    oe_assert("posix_mprotect(): panic" == NULL);
+    POSIX_PANIC("unsupported");
 
     return -EACCES;
 
 }
-#endif
