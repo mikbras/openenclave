@@ -23,6 +23,8 @@ weak_alias(dummy_0, __membarrier_init);
 static int tl_lock_count;
 static int tl_lock_waiters;
 
+extern int posix_printf(const char* fmt, ...);
+
 void __tl_lock(void)
 {
 	int tid = __pthread_self()->tid;

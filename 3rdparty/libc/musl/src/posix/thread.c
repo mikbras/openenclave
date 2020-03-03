@@ -91,6 +91,11 @@ int posix_set_tid_address(int* tidptr)
         return -EINVAL;
     }
 
+    if (!oe_is_outside_enclave(tidptr, sizeof(tidptr)))
+    {
+        POSIX_PANIC("tidptr is not outside enclave");
+    }
+
     thread->ctid = tidptr;
 
 #if 0
@@ -194,6 +199,11 @@ int posix_clone(
     oe_assert(td != NULL);
     oe_assert(td->self == td);
 
+    if (!oe_is_outside_enclave(ctid, sizeof(void*)))
+    {
+        POSIX_PANIC("ctid is not outside enclave");
+    }
+
     /* Create the thread info structure for the new thread */
     posix_thread_t* thread;
     {
@@ -288,15 +298,15 @@ void posix_exit(int status)
         oe_abort();
     }
 
-    /* Clear the ctid and Wake the joiner */
+    /* Clear the ctid (which points to __thread_list_lock) */
     a_swap(thread->ctid, 0);
     posix_futex_wake(thread->ctid, FUTEX_WAKE, 1);
 
-#if 0
+#if 1
     /* Release the joiner */
     struct pthread* td = thread->td;
-    a_cas(&FUTEX_MAP(&td->detach_state), DT_JOINABLE, DT_EXITING);
-    __wake(&FUTEX_MAP(&td->detach_state), 1, 1);
+    a_cas(&FUTEX_MAP(td->zzzdetach_state), DT_JOINABLE, DT_EXITING);
+    __wake(&FUTEX_MAP(td->zzzdetach_state), 1, 1);
 #endif
 
     /* Jump back to posix_run_thread_ecall() */

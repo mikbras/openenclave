@@ -20,6 +20,8 @@
 
 #define NUM_THREADS 6
 
+int posix_printf(const char* fmt, ...);
+
 void posix_init(struct posix_shared_block* shared_block, int tid);
 
 extern bool oe_disable_debug_malloc_check;

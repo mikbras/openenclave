@@ -31,6 +31,8 @@
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_structs.h"
 
+//#define TRACE
+
 OE_STATIC_ASSERT(sizeof(struct posix_timespec) == sizeof(struct t_timespec));
 
 OE_STATIC_ASSERT(sizeof(struct posix_sigaction) == sizeof(struct t_sigaction));
@@ -90,8 +92,6 @@ void posix_unlock_kill(void)
     if (__posix_init_shared_block)
         spin_unlock(&__posix_init_shared_block->kill_lock);
 }
-
-//#define TRACE
 
 static inline void __enter(const char* func)
 {
@@ -286,6 +286,8 @@ int posix_wait_ocall(
         if (retval == 0)
             break;
 
+break;
+
         if (errno != EAGAIN)
             break;
     }
@@ -295,12 +297,14 @@ int posix_wait_ocall(
 
     LEAVE;
 
+#if 0
     if (retval != 0 && retval != -ETIMEDOUT)
     {
         printf("futex wait failed: retval=%d\n", retval);
         assert("futex wait failed" == NULL);
         abort();
     }
+#endif
 
     return retval;
 }
