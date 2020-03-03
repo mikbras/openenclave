@@ -308,14 +308,14 @@ void posix_test_ecall(struct posix_shared_block* shared_block, int tid)
 
     posix_init(shared_block, tid);
 
-#if 1
+#if 0
     {
         extern int test_pthread_cancel1(void);
         OE_TEST(test_pthread_cancel1() == 0);
     }
 #endif
 
-#if 1
+#if 0
     {
         extern int test_pthread_cancel2(void);
         OE_TEST(test_pthread_cancel2() == 0);
@@ -323,14 +323,14 @@ void posix_test_ecall(struct posix_shared_block* shared_block, int tid)
 #endif
 
 #if 1
-    for (size_t i = 0; i < 100; i++)
+    for (size_t i = 0; i < 1000; i++)
     {
         extern int test_pthread_cancel3(void);
         OE_TEST(test_pthread_cancel3() == 0);
     }
 #endif
 
-#if 1
+#if 0
     for (size_t i = 0; i < 100; i++)
     {
         extern int test_pthread_cancel4(void);

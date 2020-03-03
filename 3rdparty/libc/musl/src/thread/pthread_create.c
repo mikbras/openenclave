@@ -8,8 +8,6 @@
 #include <stddef.h>
 #include <assert.h>
 
-extern int posix_printf(const char* fmt, ...);
-extern int posix_gettid();
 int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...);
 
 static void dummy_0()
@@ -166,6 +164,7 @@ _Noreturn void __pthread_exit(void *result)
 	 * to prevent inadvertent use and inform functions that would use
 	 * it that it's no longer available. */
 	self->tid = 0;
+posix_printf("KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK=%d\n", self->killlock[0]);
 	UNLOCK(&self->killlock[0]);
 
 	for (;;) __syscall(SYS_exit, 0);
@@ -192,8 +191,6 @@ struct start_args {
 
 static int start(void *p)
 {
-        extern void posix_unblock_creator_thread(void);
-
 	struct start_args *args = p;
 	int state = args->control;
 	if (state) {
@@ -205,7 +202,8 @@ static int start(void *p)
 		}
 	}
 
-	//__syscall(SYS_rt_sigprocmask, SIG_SETMASK, &args->sig_mask, 0, _NSIG/8);
+	__syscall(SYS_rt_sigprocmask, SIG_SETMASK, &args->sig_mask, 0, _NSIG/8);
+        extern void posix_unblock_creator_thread(void);
         posix_unblock_creator_thread();
 	__pthread_exit(args->start_func(args->start_arg));
 	return 0;

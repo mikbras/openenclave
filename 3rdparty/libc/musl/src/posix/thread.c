@@ -4,9 +4,11 @@
 
 #include <openenclave/enclave.h>
 #include <openenclave/internal/sgxtypes.h>
+#include <openenclave/internal/print.h>
 #include <openenclave/corelibc/stdlib.h>
 
 #include "pthread_impl.h"
+#include "stdio_impl.h"
 
 #include "posix_thread.h"
 #include "posix_io.h"
@@ -16,12 +18,13 @@
 #include "posix_trace.h"
 #include "posix_futex.h"
 #include "posix_futex.h"
-#include "posix_warnings.h"
 #include "posix_ocalls.h"
 #include "posix_signal.h"
 #include "posix_mutex.h"
 #include "posix_trace.h"
 #include "posix_panic.h"
+
+#include "posix_warnings.h"
 
 #define MAGIC 0x6a25f0aa
 
@@ -160,14 +163,10 @@ int posix_run_thread_ecall(
     _set_thread_info(thread);
 
     /* Set the TID for this thread */
-    a_swap(thread->ptid, posix_gettid());
+    a_swap(thread->ptid, tid);
 
     if (setjmp(thread->jmpbuf) == 0)
     {
-#if 0
-        thread->state = POSIX_THREAD_STATE_STARTED;
-        posix_spin_unlock(&thread->lock);
-#endif
         (*thread->fn)(thread->arg);
 
         /* Never returns. */
@@ -240,7 +239,6 @@ int posix_clone(
         }
     }
 
-    /* ATTN: replace with futex! */
     /* Wait here for thread to start and unlock this */
     posix_spin_lock(&thread->lock);
 
@@ -252,9 +250,47 @@ done:
     return ret;
 }
 
+static void _unlock_file_if_owner(FILE* file)
+{
+    int tid = posix_self()->tid;
+    int value = file->lock;
+
+    if ((value & ~MAYBE_WAITERS) == tid)
+    {
+        posix_thread_t* owner;
+
+        if (posix_futex_owner(&file->lock, &owner) != 0)
+            POSIX_PANIC("unexpected");
+
+        if (owner == posix_self())
+        {
+            posix_futex_release(&file->lock);
+            __unlockfile(file);
+        }
+        else
+        {
+            a_cas(&file->lock, value, 0);
+        }
+    }
+}
+
 void posix_exit(int status)
 {
     posix_thread_t* thread;
+
+    /* Release all files locked by this thread */
+#if 1
+    {
+        for (FILE* file = *__ofl_lock(); file; file = file->next)
+            _unlock_file_if_owner(file);
+
+        __ofl_unlock();
+
+        _unlock_file_if_owner(__stdin_used);
+        _unlock_file_if_owner(__stdout_used);
+        _unlock_file_if_owner(__stderr_used);
+    }
+#endif
 
     /* ATTN: ignored */
     (void)status;
@@ -288,6 +324,7 @@ void posix_exit(int status)
     __wake(&td->detach_state, 1, 1);
     RELEASE_FUTEX(&td->detach_state);
 #endif
+
 
     /* Jump back to posix_run_thread_ecall() */
     longjmp(thread->jmpbuf, 1);

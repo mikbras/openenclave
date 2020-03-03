@@ -159,7 +159,7 @@ static void* _thread_func(void* arg)
         }
     }
 
-#if 0
+#if 1
     printf("CHILD.START=%d\n", posix_gettid());
     fflush(stdout);
 #endif
@@ -182,7 +182,7 @@ static void* _thread_func(void* arg)
     }
 
 
-#if 0
+#if 1
     printf("CHILD.EXIT=%d\n", posix_gettid());
     fflush(stdout);
 #endif

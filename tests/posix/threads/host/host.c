@@ -39,7 +39,7 @@ int main(int argc, const char* argv[])
 
     printf("MAIN.PID=%d\n", getpid());
 
-#if 1
+#if 0
     oe_enclave_setting_context_switchless_t setting =
     {
         8,

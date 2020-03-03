@@ -7,9 +7,6 @@ static void dummy1(pthread_t t)
 }
 weak_alias(dummy1, __tl_sync);
 
-extern void posix_puts(const char* s);
-extern int posix_printf(const char* s, ...);
-
 static int __pthread_timedjoin_np(pthread_t t, void **res, const struct timespec *at)
 {
 	int state, cs, r = 0;

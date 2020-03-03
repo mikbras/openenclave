@@ -15,6 +15,7 @@
 #include "posix_trace.h"
 #include "posix_mutex.h"
 #include "posix_cond.h"
+#include "posix_signal.h"
 
 #define NUM_CHAINS 1024
 
@@ -38,6 +39,7 @@ static futex_t* _get(int* uaddr)
     uint64_t index = ((uint64_t)uaddr >> 4) % NUM_CHAINS;
     futex_t* futex;
 
+    posix_lock_kill();
     posix_spin_lock(&_lock);
 
     for (futex_t* p = _chains[index]; p; p = p->next)
@@ -63,8 +65,26 @@ static futex_t* _get(int* uaddr)
 done:
 
     posix_spin_unlock(&_lock);
+    posix_unlock_kill();
 
     return ret;
+}
+
+int posix_futex_owner(volatile int* uaddr, posix_thread_t** owner)
+{
+    futex_t* futex;
+
+    if (owner)
+        *owner = NULL;
+
+    if (!uaddr || !owner)
+        return -1;
+
+    if (!(futex = _get((int*)uaddr)))
+        return -1;
+
+    *owner = posix_mutex_owner(&futex->mutex);
+    return 0;
 }
 
 #if 0
@@ -113,7 +133,7 @@ static bool _is_ownwer(posix_mutex_t* m)
 
 int posix_futex_acquire(volatile int* uaddr)
 {
-    futex_t* futex = NULL;
+    futex_t* futex;
 
     if (!(futex = _get((int*)uaddr)))
         return -1;

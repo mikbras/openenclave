@@ -585,6 +585,8 @@ long posix_syscall(long n, ...)
             void* addr = (void*)x1;
             size_t length = (size_t)x2;
 
+posix_printf("SYS_munmap: tid=%d\n", posix_gettid());
+
             if (addr && length)
             {
                 memset(addr, 0, length);

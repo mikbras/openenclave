@@ -2,6 +2,9 @@
 #define _POSIX_FUTEX_H
 
 #include <time.h>
+#include "posix_thread.h"
+
+int posix_futex_owner(volatile int* uaddr, posix_thread_t** owner);
 
 int posix_futex_acquire(volatile int* uaddr);
 

@@ -70,6 +70,8 @@ static void _enclave_signal_handler(void)
 {
     struct posix_sig_args args;
 
+    posix_unlock_kill();
+
     _get_sig_args(&args, true);
 
 #if 1

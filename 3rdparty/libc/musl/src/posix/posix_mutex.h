@@ -27,6 +27,8 @@ int posix_mutex_unlock(posix_mutex_t* mutex);
 
 int posix_mutex_destroy(posix_mutex_t* mutex);
 
+posix_thread_t* posix_mutex_owner(posix_mutex_t* m);
+
 int __posix_mutex_trylock(posix_mutex_t* m, posix_thread_t* self);
 
 int __posix_mutex_unlock(posix_mutex_t* mutex, posix_thread_t** waiter);

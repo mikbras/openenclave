@@ -198,3 +198,17 @@ int posix_mutex_destroy(posix_mutex_t* mutex)
 
     return ret;
 }
+
+posix_thread_t* posix_mutex_owner(posix_mutex_t* m)
+{
+    posix_thread_t* owner;
+
+    if (!m)
+        return NULL;
+
+    posix_spin_lock(&m->lock);
+    owner = m->owner;
+    posix_spin_unlock(&m->lock);
+
+    return owner;
+}
