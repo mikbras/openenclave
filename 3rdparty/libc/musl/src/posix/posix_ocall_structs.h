@@ -1,12 +1,13 @@
 // Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
-#ifndef _POSIX_OCALLS_OCALL_STRUCTS_H
-#define _POSIX_OCALLS_OCALL_STRUCTS_H
+#ifndef _POSIX_OCALLS_SHARED_BLOCK_H
+#define _POSIX_OCALLS_SHARED_BLOCK_H
 
 #include <openenclave/bits/types.h>
 #include <openenclave/bits/result.h>
 #include <openenclave/internal/defs.h>
+#include "posix_ocall_structs.h"
 
 #ifndef POSIX_STRUCT
 #define POSIX_STRUCT(PREFIX, STRUCT) OE_CONCAT(PREFIX, STRUCT)
@@ -41,24 +42,4 @@ struct POSIX_STRUCT(posix_,sigset)
     unsigned long __bits[16];
 };
 
-struct POSIX_STRUCT(posix_,sig_args)
-{
-    int sig;
-    int enclave_sig;
-    struct POSIX_STRUCT(posix_,siginfo) siginfo;
-    struct POSIX_STRUCT(posix_,ucontext) ucontext;
-};
-
-struct POSIX_STRUCT(posix_,shared_block)
-{
-    struct POSIX_STRUCT(posix_,sig_args) sig_args;
-    int32_t futex;
-    uint32_t trace;
-    volatile uint32_t kill_lock;
-    uint8_t padding[3012];
-};
-
-OE_STATIC_ASSERT(
-    sizeof(struct POSIX_STRUCT(posix_,shared_block)) == OE_PAGE_SIZE);
-
-#endif //_POSIX_OCALLS_OCALL_STRUCTS_H
+#endif //_POSIX_OCALLS_SHARED_BLOCK_H

@@ -4,7 +4,7 @@
 int mtx_trylock(mtx_t *m)
 {
 	if (m->_m_type == PTHREAD_MUTEX_NORMAL)
-		return (a_cas(&m->_m_lock, 0, EBUSY) & EBUSY) ? thrd_busy : thrd_success;
+		return (a_cas(&FUTEX_MAP(m->zzz_m_lock), 0, EBUSY) & EBUSY) ? thrd_busy : thrd_success;
 
 	int ret = __pthread_mutex_trylock((pthread_mutex_t *)m);
 	switch (ret) {

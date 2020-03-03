@@ -32,33 +32,16 @@ enclave
         uint64_t data[16];
     };
 
-    struct posix_sig_args
-    {
-        int sig;
-        int enclave_sig;
-        struct posix_siginfo siginfo;
-        struct posix_ucontext ucontext;
-    };
-
-    struct posix_shared_block
-    {
-        struct posix_sig_args sig_args;
-        int32_t futex;
-        uint32_t trace;
-        uint32_t kill_lock;
-        uint8_t padding[3012];
-    };
-
     trusted
     {
         public void posix_test_ecall(
-            [user_check] struct posix_shared_block* shared_block,
+            [user_check] void* shared_block,
             int tid);
 
         public int posix_run_thread_ecall(
             uint64_t cookie,
             int tid,
-            [user_check] struct posix_shared_block* shared_block);
+            [user_check] void* shared_block);
     };
 
     untrusted
@@ -75,14 +58,16 @@ enclave
 
         int posix_wait_ocall(
             [user_check] int* host_uaddr,
+            int val,
             [in, count=1] const struct posix_timespec* timeout);
 
-        void posix_wake_ocall([user_check] int* host_uaddr);
+        int posix_wake_ocall([user_check] int* host_uaddr, int val);
 
-        int posix_wake_wait_ocall(
-            [user_check] int* waiter_host_uaddr,
-            [user_check] int* self_host_uaddr,
-            [in, count=1] const struct posix_timespec* timeout);
+        int posix_futex_requeue_ocall(
+            [user_check] int* uaddr,
+            int val,
+            int val2,
+            [user_check] int* uaddr2);
 
         int posix_clock_gettime_ocall(
             int clk_id,

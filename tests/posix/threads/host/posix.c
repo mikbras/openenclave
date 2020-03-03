@@ -29,6 +29,7 @@
 
 #define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_structs.h"
 
 OE_STATIC_ASSERT(sizeof(struct posix_timespec) == sizeof(struct t_timespec));
 
@@ -40,16 +41,13 @@ OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(struct t_ucontext));
 
 OE_STATIC_ASSERT(sizeof(struct posix_sigset) == sizeof(struct t_sigset));
 
-OE_STATIC_ASSERT(sizeof(struct posix_sig_args) == sizeof(struct t_sig_args));
-
-OE_STATIC_ASSERT(sizeof(struct posix_shared_block) == sizeof(struct t_shared_block));
-
-OE_STATIC_ASSERT(sizeof(struct t_shared_block) == OE_PAGE_SIZE);
-
 __thread struct posix_shared_block* __posix_shared_block = NULL;
 
 /* ATTN: single enclave instance */
 static oe_enclave_t* _enclave = NULL;
+
+volatile int __posix_uaddrs[1024];
+const size_t __posix_num_uaddrs = OE_COUNTOF(__posix_uaddrs);
 
 int posix_gettid(void)
 {
@@ -93,7 +91,7 @@ void posix_unlock_kill(void)
         spin_unlock(&__posix_init_shared_block->kill_lock);
 }
 
-#define TRACE
+//#define TRACE
 
 static inline void __enter(const char* func)
 {
@@ -151,12 +149,15 @@ static void* _thread_func(void* arg)
     /* Allocate the page shared betweent he host and the enclave */
     if (!__posix_shared_block)
     {
-        if (!(__posix_shared_block = calloc(1, sizeof(struct posix_shared_block))))
+        if (!(__posix_shared_block = calloc(1, sizeof(posix_shared_block_t))))
         {
             fprintf(stderr, "posix_run_thread_ecall(): calloc() failed\n");
             fflush(stderr);
             abort();
         }
+
+        __posix_shared_block->uaddrs = __posix_uaddrs;
+        __posix_shared_block->num_uaddrs = __posix_num_uaddrs;
     }
 
 #if 1
@@ -244,56 +245,114 @@ int posix_nanosleep_ocall(
     return ret;
 }
 
+static bool _valid_uaddr(const int* uaddr)
+{
+    assert(__posix_shared_block != NULL);
+    assert(__posix_shared_block->uaddrs == __posix_uaddrs);
+    assert(__posix_shared_block->num_uaddrs == __posix_num_uaddrs);
+
+    volatile int* start = __posix_uaddrs;
+    volatile int* end = &__posix_uaddrs[__posix_num_uaddrs];
+
+    return uaddr >= start && uaddr < end;
+}
+
 int posix_wait_ocall(
     int* host_uaddr,
+    int val,
     const struct posix_timespec* timeout)
 {
     ENTER;
     int retval = 0;
 
-    if (__sync_fetch_and_add(host_uaddr, -1) == 0)
+    if (!_valid_uaddr(host_uaddr))
     {
-            retval = (int)syscall(
-                SYS_futex,
-                host_uaddr,
-                FUTEX_WAIT_PRIVATE,
-                -1,
-                timeout,
-                NULL,
-                0);
-
-        if (retval != 0)
-            retval = -errno;
+        printf("invalid uaddr: %p\n", host_uaddr);
+        assert("invalid uaddr" == NULL);
+        abort();
     }
+
+    for (;;)
+    {
+        retval = (int)syscall(
+            SYS_futex,
+            host_uaddr,
+            FUTEX_WAIT_PRIVATE,
+            val,
+            timeout,
+            NULL,
+            0);
+
+        if (retval == 0)
+            break;
+
+        if (errno != EAGAIN)
+            break;
+    }
+
+    if (retval != 0)
+        retval = -errno;
+
+    LEAVE;
+
+    if (retval != 0 && retval != -ETIMEDOUT)
+    {
+        printf("futex wait failed: retval=%d\n", retval);
+        assert("futex wait failed" == NULL);
+        abort();
+    }
+
+    return retval;
+}
+
+int posix_wake_ocall(int* host_uaddr, int val)
+{
+    ENTER;
+    int retval;
+
+    if (!_valid_uaddr(host_uaddr))
+    {
+        printf("invalid uaddr: %p\n", host_uaddr);
+        assert("invalid uaddr" == NULL);
+        abort();
+    }
+
+    retval = (int)syscall(
+        SYS_futex, host_uaddr, FUTEX_WAKE_PRIVATE, val, NULL, NULL, 0);
+
+    if (retval != 0)
+        retval = -errno;
 
     LEAVE;
     return retval;
 }
 
-void posix_wake_ocall(int* host_uaddr)
+int posix_futex_requeue_ocall(int* uaddr, int val, int val2, int* uaddr2)
 {
+    int retval;
+
     ENTER;
 
-    if (__sync_fetch_and_add(host_uaddr, 1) != 0)
+    if (!_valid_uaddr(uaddr))
     {
-        syscall(SYS_futex, host_uaddr, FUTEX_WAKE_PRIVATE, 1, NULL, NULL, 0);
+        assert("invalid uaddr" == NULL);
+        abort();
     }
 
+    if (!_valid_uaddr(uaddr2))
+    {
+        assert("invalid uaddr2" == NULL);
+        abort();
+    }
+
+    retval = (int)syscall(
+        SYS_futex, uaddr, FUTEX_REQUEUE_PRIVATE, val, val2, uaddr2, 0);
+
+    if (retval != 0)
+        retval = -errno;
+
     LEAVE;
-}
-
-int posix_wake_wait_ocall(
-    int* waiter_host_uaddr,
-    int* self_host_uaddr,
-    const struct posix_timespec* timeout)
-{
-    ENTER;
-
-    posix_wake_ocall(waiter_host_uaddr);
-    int ret = posix_wait_ocall(self_host_uaddr, timeout);
-
-    LEAVE;
-    return ret;
+    return retval;
 }
 
 int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)

@@ -19,6 +19,7 @@
 #include "posix_ocall_structs.h"
 #include "posix_trace.h"
 #include "posix_panic.h"
+#include "posix_structs.h"
 
 #include "pthread_impl.h"
 

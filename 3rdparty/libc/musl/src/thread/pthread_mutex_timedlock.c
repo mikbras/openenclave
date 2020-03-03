@@ -27,16 +27,16 @@ static int pthread_mutex_timedlock_pi(pthread_mutex_t *restrict m, const struct 
 
 	if (!priv) self->robust_list.pending = &m->_m_next;
 
-	do e = -__futex4(&m->_m_lock, FUTEX_LOCK_PI|priv, 0, at);
+	do e = -__futex4(&FUTEX_MAP(m->zzz_m_lock), FUTEX_LOCK_PI|priv, 0, at);
 	while (e==EINTR);
 	if (e) self->robust_list.pending = 0;
 
 	switch (e) {
 	case 0:
 		/* Catch spurious success for non-robust mutexes. */
-		if (!(type&4) && ((m->_m_lock & 0x40000000) || m->_m_waiters)) {
+		if (!(type&4) && ((FUTEX_MAP(m->zzz_m_lock) & 0x40000000) || m->_m_waiters)) {
 			a_store(&m->_m_waiters, -1);
-			__syscall(SYS_futex, &m->_m_lock, FUTEX_UNLOCK_PI|priv);
+			__syscall(SYS_futex, &FUTEX_MAP(m->zzz_m_lock), FUTEX_UNLOCK_PI|priv);
 			self->robust_list.pending = 0;
 			break;
 		}
@@ -56,7 +56,7 @@ static int pthread_mutex_timedlock_pi(pthread_mutex_t *restrict m, const struct 
 int __pthread_mutex_timedlock(pthread_mutex_t *restrict m, const struct timespec *restrict at)
 {
 	if ((m->_m_type&15) == PTHREAD_MUTEX_NORMAL
-	    && !a_cas(&m->_m_lock, 0, EBUSY))
+	    && !a_cas(&FUTEX_MAP(m->zzz_m_lock), 0, EBUSY))
 		return 0;
 
 	int type = m->_m_type;
@@ -68,10 +68,10 @@ int __pthread_mutex_timedlock(pthread_mutex_t *restrict m, const struct timespec
 	if (type&8) return pthread_mutex_timedlock_pi(m, at);
 	
 	int spins = 100;
-	while (spins-- && m->_m_lock && !m->_m_waiters) a_spin();
+	while (spins-- && FUTEX_MAP(m->zzz_m_lock) && !m->_m_waiters) a_spin();
 
 	while ((r=__pthread_mutex_trylock(m)) == EBUSY) {
-		r = m->_m_lock;
+		r = FUTEX_MAP(m->zzz_m_lock);
 		int own = r & 0x3fffffff;
 		if (!own && (!r || (type&4)))
 			continue;
@@ -81,8 +81,8 @@ int __pthread_mutex_timedlock(pthread_mutex_t *restrict m, const struct timespec
 
 		a_inc(&m->_m_waiters);
 		t = r | 0x80000000;
-		a_cas(&m->_m_lock, r, t);
-		r = __timedwait(&m->_m_lock, t, CLOCK_REALTIME, at, priv);
+		a_cas(&FUTEX_MAP(m->zzz_m_lock), r, t);
+		r = __timedwait(&FUTEX_MAP(m->zzz_m_lock), t, CLOCK_REALTIME, at, priv);
 		a_dec(&m->_m_waiters);
 		if (r && r != EINTR) break;
 	}

@@ -16,12 +16,18 @@
 #include <unistd.h>
 #include "posix_u.h"
 
+#define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
+#include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_structs.h"
+
 extern int posix_init(oe_enclave_t* enclave);
 
 extern int posix_gettid();
 
 extern __thread struct posix_shared_block* __posix_shared_block;
 extern struct posix_shared_block* __posix_init_shared_block;
+extern volatile int __posix_uaddrs[];
+extern const size_t __posix_num_uaddrs;
 
 int main(int argc, const char* argv[])
 {
@@ -64,6 +70,9 @@ int main(int argc, const char* argv[])
         fflush(stderr);
         abort();
     }
+
+    __posix_shared_block->uaddrs = __posix_uaddrs;
+    __posix_shared_block->num_uaddrs = __posix_num_uaddrs;
 
     __posix_init_shared_block = __posix_shared_block;
 

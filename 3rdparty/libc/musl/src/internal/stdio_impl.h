@@ -4,10 +4,15 @@
 #include <stdio.h>
 #include "syscall.h"
 
+#ifndef FUTEX_MAP
+volatile int* posix_futex_map(volatile int* lock);
+#define FUTEX_MAP(LOCK_ADDR) posix_futex_map(&LOCK_ADDR)[0]
+#endif
+
 #define UNGET 8
 
-#define FFINALLOCK(f) ((f)->lock>=0 ? __lockfile((f)) : 0)
-#define FLOCK(f) int __need_unlock = ((f)->lock>=0 ? __lockfile((f)) : 0)
+#define FFINALLOCK(f) (FUTEX_MAP((f)->zzzlock)>=0 ? __lockfile((f)) : 0)
+#define FLOCK(f) int __need_unlock = (FUTEX_MAP((f)->zzzlock)>=0 ? __lockfile((f)) : 0)
 #define FUNLOCK(f) do { if (__need_unlock) __unlockfile((f)); } while (0)
 
 #define F_PERM 1
@@ -35,7 +40,7 @@ struct _IO_FILE {
 	int pipe_pid;
 	long lockcount;
 	int mode;
-	volatile int lock;
+	volatile int zzzlock;
 	int lbf;
 	void *cookie;
 	off_t off;

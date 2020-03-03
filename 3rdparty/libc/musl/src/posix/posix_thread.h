@@ -42,7 +42,7 @@ struct _posix_thread
     pid_t* ptid;
 
     /* The ctid parameter from posix_clone() (__thread_list_lock) */
-    volatile pid_t* ctid;
+    volatile pid_t* ctid; /* host address */
 
     /* Used to jump from posix_exit() back to posix_run_thread_ecall() */
     jmp_buf jmpbuf;
@@ -142,8 +142,6 @@ int posix_clone(
     int flags,
     void* arg,
     ...);
-
-void posix_force_exit(int status);
 
 int posix_gettid(void);
 

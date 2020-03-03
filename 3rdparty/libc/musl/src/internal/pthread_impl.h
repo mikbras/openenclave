@@ -25,7 +25,7 @@ struct pthread {
 	/* Part 2 -- implementation details, non-ABI. */
 	int tid;
 	int errno_val;
-	volatile int detach_state;
+	volatile int zzzdetach_state;
 	volatile int cancel;
 	volatile unsigned char canceldisable, cancelasync;
 	unsigned char tsd_used:1;
@@ -76,25 +76,25 @@ struct __timer {
 #define _a_policy __u.__i[3*__SU+2]
 #define _a_prio __u.__i[3*__SU+3]
 #define _m_type __u.__i[0]
-#define _m_lock __u.__vi[1]
+#define zzz_m_lock __u.__vi[1]
 #define _m_waiters __u.__vi[2]
 #define _m_prev __u.__p[3]
 #define _m_next __u.__p[4]
 #define _m_count __u.__i[5]
 #define _c_shared __u.__p[0]
-#define _c_seq __u.__vi[2]
-#define _c_waiters __u.__vi[3]
+#define zzz_c_seq __u.__vi[2]
+#define zzz_c_waiters __u.__vi[3]
 #define _c_clock __u.__i[4]
-#define _c_lock __u.__vi[8]
+#define zzz_c_lock __u.__vi[8]
 #define _c_head __u.__p[1]
 #define _c_tail __u.__p[5]
 #define _rw_lock __u.__vi[0]
 #define _rw_waiters __u.__vi[1]
 #define _rw_shared __u.__i[2]
-#define _b_lock __u.__vi[0]
+#define zzz_b_lock __u.__vi[0]
 #define _b_waiters __u.__vi[1]
 #define _b_limit __u.__i[2]
-#define _b_count __u.__vi[3]
+#define zzz_b_count __u.__vi[3]
 #define _b_waiters2 __u.__vi[4]
 #define _b_inst __u.__p[3]
 
@@ -174,7 +174,7 @@ hidden void __tl_lock(void);
 hidden void __tl_unlock(void);
 hidden void __tl_sync(pthread_t);
 
-extern hidden volatile int __thread_list_lock;
+extern hidden volatile int zzz__thread_list_lock;
 
 extern hidden unsigned __default_stacksize;
 extern hidden unsigned __default_guardsize;
@@ -187,10 +187,10 @@ extern hidden unsigned __default_guardsize;
 
 #define __ATTRP_C11_THREAD ((void*)(uintptr_t)-1)
 
-int posix_printf(const char* fmt, ...);
-int posix_futex_acquire(volatile int* uaddr);
-int posix_futex_release(volatile int* uaddr);
-#define ACQUIRE_FUTEX(UADDR) posix_futex_acquire(UADDR)
-#define RELEASE_FUTEX(UADDR) posix_futex_release(UADDR)
+#ifndef FUTEX_MAP
+volatile int* posix_futex_map(volatile int* lock);
+#define FUTEX_MAP_PTR(LOCK_ADDR) posix_futex_map(LOCK_ADDR)
+#define FUTEX_MAP(LOCK_ADDR) posix_futex_map(&LOCK_ADDR)[0]
+#endif
 
 #endif

@@ -53,10 +53,8 @@ void __unlock(volatile int *l)
 {
 	/* Check l[0] to see if we are multi-threaded. */
 	if (l[0] < 0) {
-                ACQUIRE_FUTEX(l);
 		if (a_fetch_add(l, -(INT_MIN + 1)) != (INT_MIN + 1)) {
 			__wake(l, 1, 1);
 		}
-                RELEASE_FUTEX(l);
 	}
 }

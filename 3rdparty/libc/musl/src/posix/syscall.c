@@ -22,6 +22,7 @@
 #include "posix_time.h"
 #include "posix_trace.h"
 #include "posix_signal.h"
+#include "posix_panic.h"
 #include "futex.h"
 
 #include "posix_warnings.h"
@@ -584,8 +585,6 @@ long posix_syscall(long n, ...)
         {
             void* addr = (void*)x1;
             size_t length = (size_t)x2;
-
-posix_printf("SYS_munmap: tid=%d\n", posix_gettid());
 
             if (addr && length)
             {

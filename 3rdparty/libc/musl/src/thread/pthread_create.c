@@ -26,13 +26,13 @@ static int tl_lock_waiters;
 void __tl_lock(void)
 {
 	int tid = __pthread_self()->tid;
-	int val = __thread_list_lock;
+	int val = FUTEX_MAP(zzz__thread_list_lock);
 	if (val == tid) {
 		tl_lock_count++;
 		return;
 	}
-	while ((val = a_cas(&__thread_list_lock, 0, tid)))
-		__wait(&__thread_list_lock, &tl_lock_waiters, val, 0);
+	while ((val = a_cas(&FUTEX_MAP(zzz__thread_list_lock), 0, tid)))
+		__wait(&FUTEX_MAP(zzz__thread_list_lock), &tl_lock_waiters, val, 0);
 }
 
 void __tl_unlock(void)
@@ -41,22 +41,18 @@ void __tl_unlock(void)
 		tl_lock_count--;
 		return;
 	}
-        ACQUIRE_FUTEX(&__thread_list_lock);
-	a_store(&__thread_list_lock, 0);
-	if (tl_lock_waiters) __wake(&__thread_list_lock, 1, 0);
-        RELEASE_FUTEX(&__thread_list_lock);
+	a_store(&FUTEX_MAP(zzz__thread_list_lock), 0);
+	if (tl_lock_waiters) __wake(&FUTEX_MAP(zzz__thread_list_lock), 1, 0);
 }
 
 void __tl_sync(pthread_t td)
 {
 	a_barrier();
-	int val = __thread_list_lock;
+	int val = FUTEX_MAP(zzz__thread_list_lock);
 	if (!val) return;
-	__wait(&__thread_list_lock, &tl_lock_waiters, val, 0);
+	__wait(&FUTEX_MAP(zzz__thread_list_lock), &tl_lock_waiters, val, 0);
         /* ATTN:MEB: not sure whether scope is large enough */
-        ACQUIRE_FUTEX(&__thread_list_lock);
-	if (tl_lock_waiters) __wake(&__thread_list_lock, 1, 0);
-        RELEASE_FUTEX(&__thread_list_lock);
+	if (tl_lock_waiters) __wake(&FUTEX_MAP(zzz__thread_list_lock), 1, 0);
 }
 
 _Noreturn void __pthread_exit(void *result)
@@ -119,12 +115,10 @@ _Noreturn void __pthread_exit(void *result)
 		int priv = (m->_m_type & 128) ^ 128;
 		self->robust_list.pending = rp;
 		self->robust_list.head = *rp;
-                ACQUIRE_FUTEX(&m->_m_lock);
-		int cont = a_swap(&m->_m_lock, 0x40000000);
+		int cont = a_swap(&FUTEX_MAP(m->zzz_m_lock), 0x40000000);
 		self->robust_list.pending = 0;
 		if (cont < 0 || waiters)
-			__wake(&m->_m_lock, 1, priv);
-                RELEASE_FUTEX(&m->_m_lock);
+			__wake(&FUTEX_MAP(m->zzz_m_lock), 1, priv);
 	}
 	__vm_unlock();
 
@@ -133,8 +127,7 @@ _Noreturn void __pthread_exit(void *result)
 
 	/* This atomic potentially competes with a concurrent pthread_detach
 	 * call; the loser is responsible for freeing thread resources. */
-        ACQUIRE_FUTEX(&self->detach_state);
-	int state = a_cas(&self->detach_state, DT_JOINABLE, DT_EXITING);
+	int state = a_cas(&FUTEX_MAP(self->zzzdetach_state), DT_JOINABLE, DT_EXITING);
 
 	if (state==DT_DETACHED && self->map_base) {
 		/* Detached threads must block even implementation-internal
@@ -157,14 +150,12 @@ _Noreturn void __pthread_exit(void *result)
 	}
 
 	/* Wake any joiner. */
-	__wake(&self->detach_state, 1, 1);
-        RELEASE_FUTEX(&self->detach_state);
+	__wake(&FUTEX_MAP(self->zzzdetach_state), 1, 1);
 
 	/* After the kernel thread exits, its tid may be reused. Clear it
 	 * to prevent inadvertent use and inform functions that would use
 	 * it that it's no longer available. */
 	self->tid = 0;
-posix_printf("KKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKK=%d\n", self->killlock[0]);
 	UNLOCK(&self->killlock[0]);
 
 	for (;;) __syscall(SYS_exit, 0);
@@ -232,7 +223,7 @@ weak_alias(dummy_file, __stderr_used);
 
 static void init_file_lock(FILE *f)
 {
-	if (f && f->lock<0) f->lock = 0;
+	if (f && FUTEX_MAP(f->zzzlock)<0) FUTEX_MAP(f->zzzlock) = 0;
 }
 
 int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict attrp, void *(*entry)(void *), void *restrict arg)
@@ -321,9 +312,9 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	new->tsd = (void *)tsd;
 	new->locale = &libc.global_locale;
 	if (attr._a_detach) {
-		new->detach_state = DT_DETACHED;
+		FUTEX_MAP(new->zzzdetach_state) = DT_DETACHED;
 	} else {
-		new->detach_state = DT_JOINABLE;
+		FUTEX_MAP(new->zzzdetach_state) = DT_JOINABLE;
 	}
 	new->robust_list.head = &new->robust_list.head;
 	new->CANARY = self->CANARY;
@@ -354,7 +345,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	__tl_lock();
 	libc.threads_minus_1++;
 
-	ret = posix_clone((c11 ? start_c11 : start), stack, flags, args, &new->tid, TP_ADJ(new), &__thread_list_lock);
+	ret = posix_clone((c11 ? start_c11 : start), stack, flags, args, &new->tid, TP_ADJ(new), &FUTEX_MAP(zzz__thread_list_lock));
 
 	/* All clone failures translate to EAGAIN. If explicit scheduling
 	 * was requested, attempt it before unlocking the thread list so

@@ -3,19 +3,15 @@
 
 int sem_post(sem_t *sem)
 {
-	int val, waiters, priv = sem->__val[2];
-        int release = 0;
+	int val, waiters, priv = FUTEX_MAP(sem->zzz__val[2]);
 	do {
-                if (release) RELEASE_FUTEX(sem->__val);
-		val = sem->__val[0];
-		waiters = sem->__val[1];
+		val = FUTEX_MAP(sem->zzz__val[0]);
+		waiters = FUTEX_MAP(sem->zzz__val[1]);
 		if (val == SEM_VALUE_MAX) {
 			errno = EOVERFLOW;
 			return -1;
 		}
-                ACQUIRE_FUTEX(sem->__val); release = 1;
-	} while (a_cas(sem->__val, val, val+1+(val<0)) != val);
-	if (val<0 || waiters) __wake(sem->__val, 1, priv);
-        if (release) RELEASE_FUTEX(sem->__val);
+	} while (a_cas(FUTEX_MAP_PTR(sem->zzz__val), val, val+1+(val<0)) != val);
+	if (val<0 || waiters) __wake(FUTEX_MAP_PTR(sem->zzz__val), 1, priv);
 	return 0;
 }

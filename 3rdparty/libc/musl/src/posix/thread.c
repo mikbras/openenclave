@@ -20,7 +20,6 @@
 #include "posix_futex.h"
 #include "posix_ocalls.h"
 #include "posix_signal.h"
-#include "posix_mutex.h"
 #include "posix_trace.h"
 #include "posix_panic.h"
 
@@ -144,10 +143,7 @@ void posix_unblock_creator_thread(void)
     posix_spin_unlock(&self->lock);
 }
 
-int posix_run_thread_ecall(
-    uint64_t cookie,
-    int tid,
-    struct posix_shared_block* shared_block)
+int posix_run_thread_ecall(uint64_t cookie, int tid, void* shared_block)
 {
     posix_thread_t* thread = (posix_thread_t*)cookie;
 
@@ -253,24 +249,11 @@ done:
 static void _unlock_file_if_owner(FILE* file)
 {
     int tid = posix_self()->tid;
-    int value = file->lock;
+    int value = FUTEX_MAP(file->zzzlock);
 
     if ((value & ~MAYBE_WAITERS) == tid)
     {
-        posix_thread_t* owner;
-
-        if (posix_futex_owner(&file->lock, &owner) != 0)
-            POSIX_PANIC("unexpected");
-
-        if (owner == posix_self())
-        {
-            posix_futex_release(&file->lock);
-            __unlockfile(file);
-        }
-        else
-        {
-            a_cas(&file->lock, value, 0);
-        }
+        __unlockfile(file);
     }
 }
 
@@ -305,70 +288,15 @@ void posix_exit(int status)
         oe_abort();
     }
 
-    /* Clear ctid: */
-    posix_futex_acquire(thread->ctid);
+    /* Clear the ctid and Wake the joiner */
     a_swap(thread->ctid, 0);
-    posix_futex_release(thread->ctid);
+    posix_futex_wake(thread->ctid, FUTEX_WAKE, 1);
 
-    /* Wake the joiner */
-    posix_futex_acquire((volatile int*)thread->ctid);
-    posix_futex_wake((int*)thread->ctid, FUTEX_WAKE, 1);
-    posix_futex_release((volatile int*)thread->ctid);
-
-    /* Hack attempt to release joiner */
-#if 1
+#if 0
+    /* Release the joiner */
     struct pthread* td = thread->td;
-    ACQUIRE_FUTEX(&td->detach_state);
-    int state = a_cas(&td->detach_state, DT_JOINABLE, DT_EXITING);
-    (void)state;
-    __wake(&td->detach_state, 1, 1);
-    RELEASE_FUTEX(&td->detach_state);
-#endif
-
-
-    /* Jump back to posix_run_thread_ecall() */
-    longjmp(thread->jmpbuf, 1);
-}
-
-void posix_force_exit(int status)
-{
-    posix_thread_t* thread;
-
-    /* ATTN: ignored */
-    (void)status;
-
-    posix_printf("posix_force_exit()\n");
-
-    thread = posix_self();
-    oe_assert(thread);
-
-    /* ATTN: handle main thread exits */
-    if (!thread->fn)
-    {
-        posix_printf("posix_exit() called from main thread\n");
-        oe_abort();
-    }
-
-#if 1
-    /* Clear ctid: */
-    posix_futex_acquire(thread->ctid);
-    a_swap(thread->ctid, 0);
-    posix_futex_release(thread->ctid);
-#endif
-
-    /* Wake the joiner */
-    posix_futex_acquire((volatile int*)thread->ctid);
-    posix_futex_wake((int*)thread->ctid, FUTEX_WAKE, 1);
-    posix_futex_release((volatile int*)thread->ctid);
-
-    /* Hack attempt to release joiner */
-#if 1
-    struct pthread* td = thread->td;
-    ACQUIRE_FUTEX(&td->detach_state);
-    int state = a_cas(&td->detach_state, DT_JOINABLE, DT_EXITING);
-    (void)state;
-    __wake(&td->detach_state, 1, 1);
-    RELEASE_FUTEX(&td->detach_state);
+    a_cas(&FUTEX_MAP(&td->detach_state), DT_JOINABLE, DT_EXITING);
+    __wake(&FUTEX_MAP(&td->detach_state), 1, 1);
 #endif
 
     /* Jump back to posix_run_thread_ecall() */

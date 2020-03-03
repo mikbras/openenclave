@@ -12,10 +12,16 @@ extern "C" {
 
 #include <fcntl.h>
 
+#ifndef FUTEX_MAP
+volatile int* posix_futex_map(volatile int* lock);
+#define FUTEX_MAP(LOCK_ADDR) posix_futex_map(&LOCK_ADDR)[0]
+#define FUTEX_MAP_PTR(LOCK_ADDR) posix_futex_map(LOCK_ADDR)
+#endif
+
 #define SEM_FAILED ((sem_t *)0)
 
 typedef struct {
-	volatile int __val[4*sizeof(long)/sizeof(int)];
+	volatile int zzz__val[4*sizeof(long)/sizeof(int)];
 } sem_t;
 
 int    sem_close(sem_t *);

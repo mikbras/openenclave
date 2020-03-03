@@ -24,8 +24,8 @@
 
 struct waiter {
 	struct waiter *prev, *next;
-	volatile int state, barrier;
-	volatile int *notify;
+	volatile int state, zzzbarrier;
+	volatile int *zzznotify;
 };
 
 /* Self-synchronized-destruction-safe lock functions */
@@ -41,23 +41,17 @@ static inline void lock(volatile int *l)
 
 static inline void unlock(volatile int *l)
 {
-        ACQUIRE_FUTEX(l);
 	if (a_swap(l, 0)==2)
 		__wake(l, 1, 1);
-        RELEASE_FUTEX(l);
 }
 
 /* ATTN:MEB: figure out how to test this */
 static inline void unlock_requeue(volatile int *l, volatile int *r, int w)
 {
-        ACQUIRE_FUTEX(l);
-        ACQUIRE_FUTEX(r);
 	a_store(l, 0);
 	if (w) __wake(l, 1, 1);
 	else __syscall(SYS_futex, l, FUTEX_REQUEUE|FUTEX_PRIVATE, 0, 1, r) != -ENOSYS
 		|| __syscall(SYS_futex, l, FUTEX_REQUEUE, 0, 1, r);
-        RELEASE_FUTEX(l);
-        RELEASE_FUTEX(r);
 }
 
 enum {
@@ -72,7 +66,7 @@ int __pthread_cond_timedwait(pthread_cond_t *restrict c, pthread_mutex_t *restri
 	int e, seq, clock = c->_c_clock, cs, shared=0, oldstate, tmp;
 	volatile int *fut;
 
-	if ((m->_m_type&15) && (m->_m_lock&INT_MAX) != __pthread_self()->tid)
+	if ((m->_m_type&15) && (FUTEX_MAP(m->zzz_m_lock)&INT_MAX) != __pthread_self()->tid)
 		return EPERM;
 
 	if (ts && ts->tv_nsec >= 1000000000UL)
@@ -82,21 +76,21 @@ int __pthread_cond_timedwait(pthread_cond_t *restrict c, pthread_mutex_t *restri
 
 	if (c->_c_shared) {
 		shared = 1;
-		fut = &c->_c_seq;
-		seq = c->_c_seq;
-		a_inc(&c->_c_waiters);
+		fut = &FUTEX_MAP(c->zzz_c_seq);
+		seq = FUTEX_MAP(c->zzz_c_seq);
+		a_inc(&FUTEX_MAP(c->zzz_c_waiters));
 	} else {
-		lock(&c->_c_lock);
+		lock(&FUTEX_MAP(c->zzz_c_lock));
 
-		seq = node.barrier = 2;
-		fut = &node.barrier;
+		seq = FUTEX_MAP(node.zzzbarrier) = 2;
+		fut = &FUTEX_MAP(node.zzzbarrier);
 		node.state = WAITING;
 		node.next = c->_c_head;
 		c->_c_head = &node;
 		if (!c->_c_tail) c->_c_tail = &node;
 		else node.next->prev = &node;
 
-		unlock(&c->_c_lock);
+		unlock(&FUTEX_MAP(c->zzz_c_lock));
 	}
 
 	__pthread_mutex_unlock(m);
@@ -112,11 +106,9 @@ int __pthread_cond_timedwait(pthread_cond_t *restrict c, pthread_mutex_t *restri
 		/* Suppress cancellation if a signal was potentially
 		 * consumed; this is a legitimate form of spurious
 		 * wake even if not. */
-		if (e == ECANCELED && c->_c_seq != seq) e = 0;
-                ACQUIRE_FUTEX(&c->_c_waiters);
-		if (a_fetch_add(&c->_c_waiters, -1) == -0x7fffffff)
-			__wake(&c->_c_waiters, 1, 0);
-                RELEASE_FUTEX(&c->_c_waiters);
+		if (e == ECANCELED && FUTEX_MAP(c->zzz_c_seq) != seq) e = 0;
+		if (a_fetch_add(&FUTEX_MAP(c->zzz_c_waiters), -1) == -0x7fffffff)
+			__wake(&FUTEX_MAP(c->zzz_c_waiters), 1, 0);
 		oldstate = WAITING;
 		goto relock;
 	}
@@ -129,24 +121,22 @@ int __pthread_cond_timedwait(pthread_cond_t *restrict c, pthread_mutex_t *restri
 		 * after seeing a LEAVING waiter without getting notified
 		 * via the futex notify below. */
 
-		lock(&c->_c_lock);
+		lock(&FUTEX_MAP(c->zzz_c_lock));
 		
 		if (c->_c_head == &node) c->_c_head = node.next;
 		else if (node.prev) node.prev->next = node.next;
 		if (c->_c_tail == &node) c->_c_tail = node.prev;
 		else if (node.next) node.next->prev = node.prev;
 		
-		unlock(&c->_c_lock);
+		unlock(&FUTEX_MAP(c->zzz_c_lock));
 
-		if (node.notify) {
-                        ACQUIRE_FUTEX(node.notify);
-			if (a_fetch_add(node.notify, -1)==1)
-				__wake(node.notify, 1, 1);
-                        RELEASE_FUTEX(node.notify);
+		if (node.zzznotify) {
+			if (a_fetch_add(node.zzznotify, -1)==1)
+				__wake(node.zzznotify, 1, 1);
 		}
 	} else {
 		/* Lock barrier first to control wake order. */
-		lock(&node.barrier);
+		lock(&FUTEX_MAP(node.zzzbarrier));
 	}
 
 relock:
@@ -162,7 +152,7 @@ relock:
 	/* Unlock the barrier that's holding back the next waiter, and
 	 * either wake it or requeue it to the mutex. */
 	if (node.prev)
-		unlock_requeue(&node.prev->barrier, &m->_m_lock, m->_m_type & 128);
+		unlock_requeue(&FUTEX_MAP(node.prev->zzzbarrier), &FUTEX_MAP(m->zzz_m_lock), m->_m_type & 128);
 	else
 		a_dec(&m->_m_waiters);
 
@@ -183,14 +173,15 @@ done:
 int __private_cond_signal(pthread_cond_t *c, int n)
 {
 	struct waiter *p, *first=0;
+        /* ATTN: how should this futex be released? */
 	volatile int ref = 0;
 	int cur;
 
-	lock(&c->_c_lock);
+	lock(&FUTEX_MAP(c->zzz_c_lock));
 	for (p=c->_c_tail; n && p; p=p->prev) {
 		if (a_cas(&p->state, WAITING, SIGNALED) != WAITING) {
-			ref++;
-			p->notify = &ref;
+			FUTEX_MAP(ref)++;
+			p->zzznotify = FUTEX_MAP_PTR(&ref);
 		} else {
 			n--;
 			if (!first) first=p;
@@ -204,15 +195,15 @@ int __private_cond_signal(pthread_cond_t *c, int n)
 		c->_c_head = 0;
 	}
 	c->_c_tail = p;
-	unlock(&c->_c_lock);
+	unlock(&FUTEX_MAP(c->zzz_c_lock));
 
 	/* Wait for any waiters in the LEAVING state to remove
 	 * themselves from the list before returning or allowing
 	 * signaled threads to proceed. */
-	while ((cur = ref)) __wait(&ref, 0, cur, 1);
+	while ((cur = FUTEX_MAP(ref))) __wait(&FUTEX_MAP(ref), 0, cur, 1);
 
 	/* Allow first signaled waiter, if any, to proceed. */
-	if (first) unlock(&first->barrier);
+	if (first) unlock(&FUTEX_MAP(first->zzzbarrier));
 
 	return 0;
 }

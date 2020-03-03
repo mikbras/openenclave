@@ -27,15 +27,17 @@ oe_result_t posix_clock_gettime_ocall(
 oe_result_t posix_wait_ocall(
     int* retval,
     int* host_uaddr,
+    int val,
     const struct posix_timespec* timeout);
 
-oe_result_t posix_wake_ocall(int* host_uaddr);
+oe_result_t posix_wake_ocall(int* retval, int* host_uaddr, int val);
 
-oe_result_t posix_wake_wait_ocall(
+oe_result_t posix_futex_requeue_ocall(
     int* retval,
-    int* waiter_host_uaddr,
-    int* self_host_uaddr,
-    const struct posix_timespec* timeout);
+    int* uaddr,
+    int val,
+    int val2,
+    int* uaddr2);
 
 oe_result_t posix_start_thread_ocall(int* retval, uint64_t cookie);
 

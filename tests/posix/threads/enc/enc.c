@@ -14,6 +14,10 @@
 #include "posix_t.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocalls.h"
 
+#define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
+#include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_structs.h"
+
 #define NUM_THREADS 6
 
 void posix_init(struct posix_shared_block* shared_block, int tid);
@@ -302,7 +306,7 @@ void test_cond_broadcast(void)
     pthread_cond_destroy(&arg.c);
 }
 
-void posix_test_ecall(struct posix_shared_block* shared_block, int tid)
+void posix_test_ecall(void* shared_block, int tid)
 {
     oe_disable_debug_malloc_check = true;
 
@@ -322,7 +326,7 @@ void posix_test_ecall(struct posix_shared_block* shared_block, int tid)
     }
 #endif
 
-#if 1
+#if 0
     for (size_t i = 0; i < 1000; i++)
     {
         extern int test_pthread_cancel3(void);
@@ -338,7 +342,7 @@ void posix_test_ecall(struct posix_shared_block* shared_block, int tid)
     }
 #endif
 
-#if 0
+#if 1
     test_create_thread();
     test_mutexes();
     test_timedlock();
