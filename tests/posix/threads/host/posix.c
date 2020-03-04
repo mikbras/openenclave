@@ -32,6 +32,20 @@
 #include "../../../../3rdparty/libc/musl/src/posix/posix_structs.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
 
+/* ATTN: single enclave instance */
+static oe_enclave_t* _enclave = NULL;
+
+static volatile int _uaddrs[1024];
+static const size_t _num_uaddrs = OE_COUNTOF(_uaddrs);
+
+/*
+**==============================================================================
+**
+** Verify consistent sizes of structs:
+**
+**==============================================================================
+*/
+
 OE_STATIC_ASSERT(sizeof(struct posix_timespec) == sizeof(struct t_timespec));
 
 OE_STATIC_ASSERT(sizeof(struct posix_sigaction) == sizeof(struct t_sigaction));
@@ -42,13 +56,15 @@ OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(struct t_ucontext));
 
 OE_STATIC_ASSERT(sizeof(struct posix_sigset) == sizeof(struct t_sigset));
 
-__thread struct posix_shared_block* __posix_shared_block = NULL;
+__thread struct posix_shared_block* _tls_shared_block = NULL;
 
-/* ATTN: single enclave instance */
-static oe_enclave_t* _enclave = NULL;
-
-volatile int __posix_uaddrs[1024];
-const size_t __posix_num_uaddrs = OE_COUNTOF(__posix_uaddrs);
+/*
+**==============================================================================
+**
+** Utility functions:
+**
+**==============================================================================
+*/
 
 int posix_gettid(void)
 {
@@ -184,7 +200,7 @@ static posix_shared_block_t* _thread_table_find(int tid)
 
 void posix_print_signal_lock(void)
 {
-    uint32_t val = __posix_shared_block->signal_lock;
+    uint32_t val = _tls_shared_block->signal_lock;
     printf("posix_print_signal_lock: val=%u\n", val);
 }
 
@@ -215,18 +231,18 @@ void posix_unlock_signal_by_tid(int tid)
 void posix_lock_signal(void)
 {
 #ifdef USE_SIGNAL_LOCK
-    assert(__posix_shared_block != NULL);
-    if (__posix_shared_block)
-        spin_lock(&__posix_shared_block->signal_lock);
+    assert(_tls_shared_block != NULL);
+    if (_tls_shared_block)
+        spin_lock(&_tls_shared_block->signal_lock);
 #endif
 }
 
 void posix_unlock_signal(void)
 {
 #ifdef USE_SIGNAL_LOCK
-    assert(__posix_shared_block != NULL);
-    if (__posix_shared_block)
-        spin_unlock(&__posix_shared_block->signal_lock);
+    assert(_tls_shared_block != NULL);
+    if (_tls_shared_block)
+        spin_unlock(&_tls_shared_block->signal_lock);
 #endif
 }
 
@@ -273,9 +289,9 @@ static inline void __leave(const char* func, bool lock)
 
 void posix_print_trace(void)
 {
-    if (__posix_shared_block)
+    if (_tls_shared_block)
     {
-        printf("*** posix_print_trace=%d (%d)\n", __posix_shared_block->trace,
+        printf("*** posix_print_trace=%d (%d)\n", _tls_shared_block->trace,
             posix_gettid());
         fflush(stdout);
     }
@@ -294,24 +310,31 @@ void posix_print_trace(void)
 **==============================================================================
 */
 
-extern int posix_init(oe_enclave_t* enclave)
+extern int posix_init(
+    oe_enclave_t* enclave,
+    posix_shared_block_t** shared_block_out)
 {
     int ret = -1;
     posix_shared_block_t* shared_block = NULL;
 
-    if (!enclave)
+    if (shared_block_out)
+        *shared_block_out = NULL;
+
+    if (!enclave || !shared_block_out)
         goto done;
 
     if (!(shared_block = calloc(1, sizeof(struct posix_shared_block))))
         goto done;
 
-    shared_block->uaddrs = __posix_uaddrs;
-    shared_block->num_uaddrs = __posix_num_uaddrs;
+    shared_block->uaddrs = _uaddrs;
+    shared_block->num_uaddrs = _num_uaddrs;
 
     if (_thread_table_add(posix_gettid(), shared_block) != 0)
         goto done;
 
-    __posix_shared_block = shared_block;
+    _tls_shared_block = shared_block;
+    *shared_block_out = shared_block;
+    shared_block = NULL;
 
     /* ATTN: single instance for now */
     _enclave = enclave;
@@ -319,6 +342,10 @@ extern int posix_init(oe_enclave_t* enclave)
     ret = 0;
 
 done:
+
+    if (shared_block)
+        free(shared_block);
+
     return ret;
 }
 
@@ -327,33 +354,38 @@ static void* _thread_func(void* arg)
     int retval;
     oe_result_t r;
     uint64_t cookie = (uint64_t)arg;
-
-    /* Allocate the block shared between the host and enclave */
-    if (!__posix_shared_block)
-    {
-        if (!(__posix_shared_block = calloc(1, sizeof(posix_shared_block_t))))
-        {
-            assert("calloc() failed" == NULL);
-        }
-
-        __posix_shared_block->uaddrs = __posix_uaddrs;
-        __posix_shared_block->num_uaddrs = __posix_num_uaddrs;
-    }
-
-    if (_thread_table_add(posix_gettid(), __posix_shared_block) != 0)
-    {
-        assert("_thread_table_add() failed" == NULL);
-    }
+    posix_shared_block_t* shared_block;
 
 #ifdef TRACE_THREADS
     printf("CHILD.START=%d\n", posix_gettid());
     fflush(stdout);
 #endif
 
+    assert(_tls_shared_block == NULL);
+
+    /* Allocate the block shared between the host and enclave */
+    {
+        if (!(shared_block = calloc(1, sizeof(posix_shared_block_t))))
+        {
+            assert("calloc() failed" == NULL);
+        }
+
+        shared_block->uaddrs = _uaddrs;
+        shared_block->num_uaddrs = _num_uaddrs;
+
+    }
+
+    _tls_shared_block = shared_block;
+
+    if (_thread_table_add(posix_gettid(), shared_block) != 0)
+    {
+        assert("_thread_table_add() failed" == NULL);
+    }
+
     int tid = posix_gettid();
 
     if ((r = posix_run_thread_ecall(
-        _enclave, &retval, cookie, tid, __posix_shared_block)) != OE_OK)
+        _enclave, &retval, cookie, tid, shared_block)) != OE_OK)
     {
         assert("posix_run_thread_ecall() failed" == NULL);
     }
@@ -375,8 +407,8 @@ static void* _thread_func(void* arg)
         assert("_thread_table_remove() failed" == NULL);
     }
 
-    free(__posix_shared_block);
-    __posix_shared_block = NULL;
+    free(shared_block);
+    _tls_shared_block = NULL;
 
     return NULL;
 }
@@ -434,12 +466,12 @@ int posix_nanosleep_ocall(
 
 static bool _valid_uaddr(const int* uaddr)
 {
-    assert(__posix_shared_block != NULL);
-    assert(__posix_shared_block->uaddrs == __posix_uaddrs);
-    assert(__posix_shared_block->num_uaddrs == __posix_num_uaddrs);
+    assert(_tls_shared_block != NULL);
+    assert(_tls_shared_block->uaddrs == _uaddrs);
+    assert(_tls_shared_block->num_uaddrs == _num_uaddrs);
 
-    volatile int* start = __posix_uaddrs;
-    volatile int* end = &__posix_uaddrs[__posix_num_uaddrs];
+    volatile int* start = _uaddrs;
+    volatile int* end = &_uaddrs[_num_uaddrs];
 
     return uaddr >= start && uaddr < end;
 }
@@ -632,7 +664,7 @@ static void _set_sig_args(
     siginfo_t* si,
     ucontext_t* uc)
 {
-    struct posix_sig_args* args = &__posix_shared_block->sig_args;
+    struct posix_sig_args* args = &_tls_shared_block->sig_args;
 
     memset(args, 0, sizeof(struct posix_sig_args));
     args->enclave_sig = enclave_sig,

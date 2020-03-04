@@ -20,11 +20,11 @@
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_structs.h"
 
-extern int posix_init(oe_enclave_t* enclave);
+extern int posix_init(
+    oe_enclave_t* enclave,
+    posix_shared_block_t** shared_block);
 
 extern int posix_gettid();
-
-extern __thread struct posix_shared_block* __posix_shared_block;
 
 int main(int argc, const char* argv[])
 {
@@ -33,6 +33,7 @@ int main(int argc, const char* argv[])
     const oe_enclave_type_t type = OE_ENCLAVE_TYPE_SGX;
     oe_enclave_t* enclave;
     int tid = posix_gettid();
+    posix_shared_block_t* shared_block;
 
     if (argc != 2)
     {
@@ -59,17 +60,16 @@ int main(int argc, const char* argv[])
 #endif
     OE_TEST(result == OE_OK);
 
-    OE_TEST(posix_init(enclave) == 0);
+    OE_TEST(posix_init(enclave, &shared_block) == 0);
+    OE_TEST(shared_block != NULL);
 
-    OE_TEST(__posix_shared_block != NULL);
-
-    result = posix_test_ecall(enclave, __posix_shared_block, tid);
+    result = posix_test_ecall(enclave, shared_block, tid);
     OE_TEST(result == OE_OK);
 
     result = oe_terminate_enclave(enclave);
     OE_TEST(result == OE_OK);
 
-    free(__posix_shared_block);
+    free(shared_block);
 
     printf("=== passed all tests (posix)\n");
 
