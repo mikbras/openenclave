@@ -238,15 +238,19 @@ void posix_unlock_signal(void)
 **==============================================================================
 */
 
-#define TRACE
-#define ENTER __enter(__FUNCTION__)
-#define LEAVE __leave(__FUNCTION__)
+//#define TRACE
+#define ENTER __enter(__FUNCTION__, true)
+#define LEAVE __leave(__FUNCTION__, true)
 
-static inline void __enter(const char* func)
+#define ENTER_NON_LOCKING __enter(__FUNCTION__, false)
+#define LEAVE_NON_LOCKING __leave(__FUNCTION__, false)
+
+static inline void __enter(const char* func, bool unlock)
 {
     (void)func;
 
-    posix_unlock_signal();
+    if (unlock)
+        posix_unlock_signal();
 
 #if defined(TRACE)
     printf("__enter:%s:%d\n", func, posix_gettid());
@@ -254,7 +258,7 @@ static inline void __enter(const char* func)
 #endif
 }
 
-static inline void __leave(const char* func)
+static inline void __leave(const char* func, bool lock)
 {
     (void)func;
 
@@ -263,7 +267,8 @@ static inline void __leave(const char* func)
     fflush(stdout);
 #endif
 
-    posix_lock_signal();
+    if (lock)
+        posix_lock_signal();
 }
 
 void posix_print_trace(void)
@@ -549,7 +554,7 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 
 int posix_tkill_ocall(int tid, int sig)
 {
-    ENTER;
+    ENTER_NON_LOCKING;
     int ret = -1;
     int retval;
 
@@ -565,7 +570,7 @@ int posix_tkill_ocall(int tid, int sig)
 
     ret = (retval == 0) ? 0 : -errno;
 
-    LEAVE;
+    LEAVE_NON_LOCKING;
     return ret;
 }
 

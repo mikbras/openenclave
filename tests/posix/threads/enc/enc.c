@@ -314,7 +314,9 @@ void posix_test_ecall(void* shared_block, int tid)
 
     posix_init(shared_block, tid);
 
-#if 1
+#define RUN_ALL
+
+#ifdef RUN_ALL
     //for (size_t i = 0; i < 2; i++)
     {
         extern int test_pthread_cancel1(void);
@@ -322,7 +324,7 @@ void posix_test_ecall(void* shared_block, int tid)
     }
 #endif
 
-#if 1
+#ifdef RUN_ALL
     //for (size_t i = 0; i < 2; i++)
     {
         extern int test_pthread_cancel2(void);
@@ -330,7 +332,7 @@ void posix_test_ecall(void* shared_block, int tid)
     }
 #endif
 
-#if 1
+#ifdef RUN_ALL
     for (size_t i = 0; i < 1000; i++)
     {
         extern int test_pthread_cancel3(void);
@@ -338,7 +340,7 @@ void posix_test_ecall(void* shared_block, int tid)
     }
 #endif
 
-#if 0
+#ifdef RUN_ALL
     for (size_t i = 0; i < 100; i++)
     {
         extern int test_pthread_cancel4(void);
@@ -346,17 +348,22 @@ void posix_test_ecall(void* shared_block, int tid)
     }
 #endif
 
-#if 0
+#ifdef ZZZ_RUN_ALL
     test_create_thread();
     test_mutexes();
     test_timedlock();
     test_cond_signal();
     test_cond_broadcast();
+#endif
 
+#ifdef ZZZ_RUN_ALL
     extern void test_functional(void);
     test_functional();
+#endif
 
+#ifdef ZZZ_RUN_ALL
     extern void test_regression(void);
+    //for (size_t i = 0; i < 1000; i++)
     test_regression();
 #endif
 

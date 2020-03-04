@@ -301,10 +301,13 @@ void test_regression(void)
     OE_TEST(rlimit_open_files_main(argc, argv, envp) == 0);
 #endif
 
+for (size_t i = 0; i < 1000; i++)
+{
     extern int scanf_bytes_consumed_main(int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running scanf_bytes_consumed_main\n");
     OE_TEST(scanf_bytes_consumed_main(argc, argv, envp) == 0);
+}
 
     extern int scanf_match_literal_eof_main(int argc, const char* argv[], const char* envp[]);
     t_status = 0;
