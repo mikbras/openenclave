@@ -72,8 +72,6 @@ void sleep_msec(uint64_t milliseconds)
     }
 }
 
-struct posix_shared_block* __posix_init_shared_block;
-
 /*
 **==============================================================================
 **
@@ -186,7 +184,7 @@ static posix_shared_block_t* _thread_table_find(int tid)
 
 void posix_print_signal_lock(void)
 {
-    uint32_t val = __posix_init_shared_block->signal_lock;
+    uint32_t val = __posix_shared_block->signal_lock;
     printf("posix_print_signal_lock: val=%u\n", val);
 }
 
@@ -290,11 +288,30 @@ void posix_print_trace(void)
 
 extern int posix_init(oe_enclave_t* enclave)
 {
-    if (!enclave)
-        return -1;
+    int ret = -1;
+    posix_shared_block_t* shared_block = NULL;
 
+    if (!enclave)
+        goto done;
+
+    if (!(shared_block = calloc(1, sizeof(struct posix_shared_block))))
+        goto done;
+
+    shared_block->uaddrs = __posix_uaddrs;
+    shared_block->num_uaddrs = __posix_num_uaddrs;
+
+    if (_thread_table_add(posix_gettid(), shared_block) != 0)
+        goto done;
+
+    __posix_shared_block = shared_block;
+
+    /* ATTN: single instance for now */
     _enclave = enclave;
-    return 0;
+
+    ret = 0;
+
+done:
+    return ret;
 }
 
 static void* _thread_func(void* arg)
@@ -315,9 +332,6 @@ static void* _thread_func(void* arg)
         __posix_shared_block->num_uaddrs = __posix_num_uaddrs;
     }
 
-/*
-ATTN: also add the main thread
-*/
     if (_thread_table_add(posix_gettid(), __posix_shared_block) != 0)
     {
         assert("_thread_table_add() failed" == NULL);
@@ -546,7 +560,7 @@ int posix_tkill_ocall(int tid, int sig)
 
     posix_lock_signal_by_tid(tid);
     retval = (int)syscall(SYS_tkill, tid, sig);
-    posix_unlock_signal_by_tid(tid);
+    //posix_unlock_signal_by_tid(tid);
 
     ret = (retval == 0) ? 0 : -errno;
 
@@ -623,6 +637,8 @@ static void _set_sig_args(
 
 static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 {
+    posix_unlock_signal();
+
     /* Build the host exception context */
     oe_host_exception_context_t hec = {0};
     hec.rax = (uint64_t)uc->uc_mcontext.gregs[REG_RAX];

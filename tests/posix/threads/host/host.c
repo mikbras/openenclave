@@ -25,9 +25,6 @@ extern int posix_init(oe_enclave_t* enclave);
 extern int posix_gettid();
 
 extern __thread struct posix_shared_block* __posix_shared_block;
-extern struct posix_shared_block* __posix_init_shared_block;
-extern volatile int __posix_uaddrs[];
-extern const size_t __posix_num_uaddrs;
 
 int main(int argc, const char* argv[])
 {
@@ -64,17 +61,7 @@ int main(int argc, const char* argv[])
 
     OE_TEST(posix_init(enclave) == 0);
 
-    if (!(__posix_shared_block = calloc(1, sizeof(struct posix_shared_block))))
-    {
-        fprintf(stderr, "posix_run_thread_ecall(): calloc() failed\n");
-        fflush(stderr);
-        abort();
-    }
-
-    __posix_shared_block->uaddrs = __posix_uaddrs;
-    __posix_shared_block->num_uaddrs = __posix_num_uaddrs;
-
-    __posix_init_shared_block = __posix_shared_block;
+    OE_TEST(__posix_shared_block != NULL);
 
     result = posix_test_ecall(enclave, __posix_shared_block, tid);
     OE_TEST(result == OE_OK);
