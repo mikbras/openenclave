@@ -784,6 +784,10 @@ ssize_t posix_write_ocall(int fd, const void* data, size_t size)
         fflush(stderr);
         ret = (ssize_t)size;
     }
+    else
+    {
+        assert("posix_write_ocall() panic" == NULL);
+    }
 
 done:
 

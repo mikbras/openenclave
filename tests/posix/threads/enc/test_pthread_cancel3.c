@@ -11,17 +11,20 @@
 
 int posix_printf(const char* fmt, ...);
 
-#define posix_printf printf
-
 static void* _thread_func(void *arg)
 {
     (void)arg;
 
-    posix_printf("tttttttttttttttttttttttttttttttttttttttttt\n");
-    posix_printf("uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu\n");
+    for (;;)
+    {
+        printf("_thread_func(): loop\n");
+        fflush(stdout);
+    }
 
+#if 0
     for (;;)
         ;
+#endif
 
     return NULL;
 }
