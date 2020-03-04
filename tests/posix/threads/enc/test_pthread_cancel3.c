@@ -18,7 +18,7 @@ static void* _thread_func(void *arg)
     (void)arg;
 
     posix_printf("tttttttttttttttttttttttttttttttttttttttttt\n");
-    posix_printf("tttttttttttttttttttttttttttttttttttttttttt\n");
+    posix_printf("uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuu\n");
 
     for (;;)
         ;

@@ -8,6 +8,7 @@
 #include <openenclave/internal/jump.h>
 #include <openenclave/corelibc/stdlib.h>
 #include <openenclave/internal/jump.h>
+#include "posix_common.h"
 #include "posix_signal.h"
 #include "posix_ocalls.h"
 #include "posix_ocall_structs.h"
@@ -71,11 +72,9 @@ static void _enclave_signal_handler(void)
 {
     struct posix_sig_args args;
 
-    posix_unlock_kill();
-
     _get_sig_args(&args, true);
 
-#if 1
+#if 0
     posix_printf("_enclave_signal_handler(): sig=%d\n", args.sig);
 #endif
 
@@ -91,7 +90,9 @@ static void _enclave_signal_handler(void)
     ucontext_t* uc = &_thread_ucontext;
 
     /* Invoke the sigacation funtion */
+    //posix_unlock_signal();
     (*sigaction)(args.sig, si, uc);
+oe_abort();
 
     /* Resume executation */
     {
@@ -239,7 +240,7 @@ int posix_rt_sigprocmask(
 
 int posix_dispatch_signal(void)
 {
-    sigaction_handler_t handler;
+    sigaction_handler_t handler = NULL;
     oe_jmpbuf_t env;
     struct posix_sig_args args;
 
@@ -293,6 +294,7 @@ int posix_dispatch_signal(void)
         env.r14 = (uint64_t)uc.uc_mcontext.gregs[REG_R14];
         env.r15 = (uint64_t)uc.uc_mcontext.gregs[REG_R15];
 
+        //posix_unlock_signal();
         oe_longjmp(&env, 1);
         POSIX_PANIC("unreachable");
     }
@@ -304,14 +306,23 @@ int posix_dispatch_signal(void)
 
 extern struct posix_shared_block* __posix_init_shared_block;
 
-#define USE_KILL_LOCK
-
-void posix_lock_kill(void)
+static posix_shared_block_t* _get_shared_block(void)
 {
-#ifdef USE_KILL_LOCK
-    if (__posix_init_shared_block)
+    posix_thread_t* self = posix_self();
+
+    if (!self || !self->shared_block)
+        POSIX_PANIC("unexpected");
+
+    return self->shared_block;
+}
+
+void posix_lock_signal(void)
+{
+#ifdef USE_SIGNAL_LOCK
+    posix_shared_block_t* shared_block = _get_shared_block();
+    if (shared_block)
     {
-        posix_spin_lock(&__posix_init_shared_block->kill_lock);
+        posix_spin_lock(&shared_block->signal_lock);
     }
     else
     {
@@ -320,12 +331,13 @@ void posix_lock_kill(void)
 #endif
 }
 
-void posix_unlock_kill(void)
+void posix_unlock_signal(void)
 {
-#ifdef USE_KILL_LOCK
-    if (__posix_init_shared_block)
+#ifdef USE_SIGNAL_LOCK
+    posix_shared_block_t* shared_block = _get_shared_block();
+    if (shared_block)
     {
-        posix_spin_unlock(&__posix_init_shared_block->kill_lock);
+        posix_spin_unlock(&shared_block->signal_lock);
     }
     else
     {

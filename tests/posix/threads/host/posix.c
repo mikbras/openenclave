@@ -28,10 +28,9 @@
 #include "spinlock.h"
 
 #define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
-#include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_common.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_structs.h"
-
-//#define TRACE
+#include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
 
 OE_STATIC_ASSERT(sizeof(struct posix_timespec) == sizeof(struct t_timespec));
 
@@ -75,27 +74,173 @@ void sleep_msec(uint64_t milliseconds)
 
 struct posix_shared_block* __posix_init_shared_block;
 
-void posix_print_kill(void)
+/*
+**==============================================================================
+**
+** The thread table:
+**
+**==============================================================================
+*/
+
+typedef struct _thread_table_entry
 {
-    uint32_t val = __posix_init_shared_block->kill_lock;
-    printf("posix_print_kill: val=%u\n", val);
+    int tid;
+    struct posix_shared_block* shared_block;
+}
+thread_table_entry_t;
+
+static thread_table_entry_t _thread_table[128];
+static const size_t THREAD_TABLE_SIZE = OE_COUNTOF(_thread_table);
+static size_t _thread_table_size;
+static spinlock_t _thread_table_lock;
+
+static int _thread_table_add(int tid, posix_shared_block_t* shared_block)
+{
+    int ret = -1;
+
+    spin_lock(&_thread_table_lock);
+
+    if (tid < 0 || !shared_block)
+        goto done;
+
+    if (_thread_table_size == THREAD_TABLE_SIZE)
+        goto done;
+
+    _thread_table[_thread_table_size].tid = tid;
+    _thread_table[_thread_table_size].shared_block = shared_block;
+    _thread_table_size++;
+
+    ret = 0;
+
+done:
+
+    if (ret != 0)
+        assert(__FUNCTION__ == NULL);
+
+    spin_unlock(&_thread_table_lock);
+    return ret;
 }
 
-void posix_lock_kill(void)
+static int _thread_table_remove(int tid)
 {
-#if 1
-    if (__posix_init_shared_block)
-        spin_lock(&__posix_init_shared_block->kill_lock);
+    int ret = -1;
+    bool found = false;
+
+    spin_lock(&_thread_table_lock);
+
+    for (size_t i = 0; i < _thread_table_size; i++)
+    {
+        if (_thread_table[i].tid == tid)
+        {
+            found = true;
+            _thread_table[i] = _thread_table[_thread_table_size - 1];
+            _thread_table_size--;
+            break;
+        }
+    }
+
+    if (!found)
+        goto done;
+
+    ret = 0;
+
+done:
+
+    if (ret != 0)
+        assert(__FUNCTION__ == NULL);
+
+    spin_unlock(&_thread_table_lock);
+    return ret;
+}
+
+static posix_shared_block_t* _thread_table_find(int tid)
+{
+    posix_shared_block_t* ret = NULL;
+
+    spin_lock(&_thread_table_lock);
+
+    for (size_t i = 0; i < _thread_table_size; i++)
+    {
+        if (_thread_table[i].tid == tid)
+        {
+            ret = _thread_table[i].shared_block;
+            break;
+        }
+    }
+
+    spin_unlock(&_thread_table_lock);
+
+    if (!ret)
+        assert(__FUNCTION__ == NULL);
+
+    return ret;
+}
+
+/*
+**==============================================================================
+**
+** signal locks:
+**
+**==============================================================================
+*/
+
+void posix_print_signal_lock(void)
+{
+    uint32_t val = __posix_init_shared_block->signal_lock;
+    printf("posix_print_signal_lock: val=%u\n", val);
+}
+
+void posix_lock_signal_by_tid(int tid)
+{
+#ifdef USE_SIGNAL_LOCK
+    posix_shared_block_t* shared_block;
+
+    if (!(shared_block = _thread_table_find(tid)))
+        assert("_thread_table_find() failed" == NULL);
+
+    spin_lock(&shared_block->signal_lock);
 #endif
 }
 
-void posix_unlock_kill(void)
+void posix_unlock_signal_by_tid(int tid)
 {
-#if 1
-    if (__posix_init_shared_block)
-        spin_unlock(&__posix_init_shared_block->kill_lock);
+#ifdef USE_SIGNAL_LOCK
+    posix_shared_block_t* shared_block;
+
+    if (!(shared_block = _thread_table_find(tid)))
+        assert("_thread_table_find() failed" == NULL);
+
+    spin_unlock(&shared_block->signal_lock);
 #endif
 }
+
+void posix_lock_signal(void)
+{
+#ifdef USE_SIGNAL_LOCK
+    assert(__posix_shared_block != NULL);
+    if (__posix_shared_block)
+        spin_lock(&__posix_shared_block->signal_lock);
+#endif
+}
+
+void posix_unlock_signal(void)
+{
+#ifdef USE_SIGNAL_LOCK
+    assert(__posix_shared_block != NULL);
+    if (__posix_shared_block)
+        spin_unlock(&__posix_shared_block->signal_lock);
+#endif
+}
+
+/*
+**==============================================================================
+**
+** tracing
+**
+**==============================================================================
+*/
+
+//#define TRACE
 
 static inline void __enter(const char* func)
 {
@@ -135,6 +280,14 @@ void posix_print_trace(void)
     }
 }
 
+/*
+**==============================================================================
+**
+**
+**
+**==============================================================================
+*/
+
 extern int posix_init(oe_enclave_t* enclave)
 {
     if (!enclave)
@@ -150,18 +303,24 @@ static void* _thread_func(void* arg)
     oe_result_t r;
     uint64_t cookie = (uint64_t)arg;
 
-    /* Allocate the page shared betweent he host and the enclave */
+    /* Allocate the block shared between the host and enclave */
     if (!__posix_shared_block)
     {
         if (!(__posix_shared_block = calloc(1, sizeof(posix_shared_block_t))))
         {
-            fprintf(stderr, "posix_run_thread_ecall(): calloc() failed\n");
-            fflush(stderr);
-            abort();
+            assert("calloc() failed" == NULL);
         }
 
         __posix_shared_block->uaddrs = __posix_uaddrs;
         __posix_shared_block->num_uaddrs = __posix_num_uaddrs;
+    }
+
+/*
+ATTN: also add the main thread
+*/
+    if (_thread_table_add(posix_gettid(), __posix_shared_block) != 0)
+    {
+        assert("_thread_table_add() failed" == NULL);
     }
 
 #ifdef TRACE_THREADS
@@ -174,15 +333,12 @@ static void* _thread_func(void* arg)
     if ((r = posix_run_thread_ecall(
         _enclave, &retval, cookie, tid, __posix_shared_block)) != OE_OK)
     {
-        fprintf(stderr, "posix_run_thread_ecall(): result=%u\n", r);
-        fflush(stderr);
-        abort();
+        assert("posix_run_thread_ecall() failed" == NULL);
     }
 
     if (retval != 0)
     {
         fprintf(stderr, "posix_run_thread_ecall(): retval=%d\n", retval);
-        fflush(stderr);
         abort();
     }
 
@@ -191,6 +347,11 @@ static void* _thread_func(void* arg)
     printf("CHILD.EXIT=%d\n", posix_gettid());
     fflush(stdout);
 #endif
+
+    if (_thread_table_remove(posix_gettid()) != 0)
+    {
+        assert("_thread_table_remove() failed" == NULL);
+    }
 
     free(__posix_shared_block);
     __posix_shared_block = NULL;
@@ -373,27 +534,24 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 
 int posix_tkill_ocall(int tid, int sig)
 {
+    int ret = -1;
+    int retval;
     ENTER;
+
 #if 1
     printf("%s(TID=%d, tid=%d, sig=%d)\n",
         __FUNCTION__, posix_gettid(), tid, sig);
     fflush(stdout);
 #endif
 
-    posix_lock_kill();
-    long r = syscall(SYS_tkill, tid, sig);
-    posix_unlock_kill();
+    posix_lock_signal_by_tid(tid);
+    retval = (int)syscall(SYS_tkill, tid, sig);
+    posix_unlock_signal_by_tid(tid);
 
-    //sleep_msec(1000);
-
-    if (r != 0)
-    {
-        LEAVE;
-        return -errno;
-    }
+    ret = (retval == 0) ? 0 : -errno;
 
     LEAVE;
-    return 0;
+    return ret;
 }
 
 /* ATTN: duplicate of OE definition */
@@ -484,6 +642,9 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 
         if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
         {
+            fprintf(stderr, "*** ENCLAVE.SIGNAL.CONTINUE: tid=%d sig=%d\n",
+                posix_gettid(), sig);
+            fflush(stderr);
             _set_sig_args(true, sig, si, uc);
             return;
         }
@@ -599,7 +760,7 @@ ssize_t posix_write_ocall(int fd, const void* data, size_t size)
     ssize_t ret = -1;
 
     ENTER;
-    posix_unlock_kill();
+    posix_unlock_signal();
 
     if (size == 0)
     {
@@ -626,7 +787,7 @@ ssize_t posix_write_ocall(int fd, const void* data, size_t size)
 
 done:
 
-    posix_lock_kill();
+    posix_lock_signal();
     LEAVE;
     return ret;
 }

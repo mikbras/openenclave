@@ -25,7 +25,7 @@ struct posix_shared_block
     struct posix_sig_args sig_args;
     int32_t futex;
     uint32_t trace;
-    volatile uint32_t kill_lock;
+    volatile uint32_t signal_lock;
     uint32_t padding;
     volatile int* uaddrs;
     size_t num_uaddrs;

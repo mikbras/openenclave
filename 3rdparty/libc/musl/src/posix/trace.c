@@ -1,5 +1,6 @@
 #include <openenclave/enclave.h>
 #include <openenclave/internal/backtrace.h>
+#include "posix_common.h"
 #include "posix_trace.h"
 #include "posix_spinlock.h"
 #include "posix_thread.h"

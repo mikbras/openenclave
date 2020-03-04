@@ -1,3 +1,4 @@
+#include "posix_common.h"
 #include "posix_spinlock.h"
 
 #include "posix_warnings.h"

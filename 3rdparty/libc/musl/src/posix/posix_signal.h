@@ -30,8 +30,8 @@ int posix_dispatch_signal(void);
 
 int posix_fetch_and_clear_sig_args(struct posix_sig_args* args);
 
-void posix_lock_kill(void);
+void posix_lock_signal(void);
 
-void posix_unlock_kill(void);
+void posix_unlock_signal(void);
 
 #endif //_POSIX_SIGNAL_H

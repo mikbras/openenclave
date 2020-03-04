@@ -1,5 +1,6 @@
 #include <openenclave/enclave.h>
 #include <openenclave/corelibc/stdio.h>
+#include "posix_common.h"
 #include "posix_panic.h"
 #include "posix_io.h"
 

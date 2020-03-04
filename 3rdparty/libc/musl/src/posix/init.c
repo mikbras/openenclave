@@ -1,6 +1,7 @@
 #include <unistd.h>
 #include <string.h>
 #include "libc.h"
+#include "posix_common.h"
 #include "pthread_impl.h"
 #include "posix_signal.h"
 #include "posix_spinlock.h"

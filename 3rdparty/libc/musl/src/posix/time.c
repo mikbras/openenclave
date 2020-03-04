@@ -1,6 +1,7 @@
 #include <errno.h>
 #include <openenclave/enclave.h>
 #include <openenclave/internal/defs.h>
+#include "posix_common.h"
 #include "posix_time.h"
 #include "posix_io.h"
 #include "posix_ocalls.h"

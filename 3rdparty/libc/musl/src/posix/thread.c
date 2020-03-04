@@ -10,6 +10,7 @@
 #include "pthread_impl.h"
 #include "stdio_impl.h"
 
+#include "posix_common.h"
 #include "posix_thread.h"
 #include "posix_io.h"
 #include "posix_syscall.h"
@@ -352,7 +353,9 @@ int posix_tkill(int tid, int sig)
 {
     int retval;
 
+#if 0
     POSIX_PANIC("posix_tkill() unsupported");
+#endif
 
     if (posix_tkill_ocall(&retval, tid, sig) != OE_OK)
         return -ENOSYS;

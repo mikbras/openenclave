@@ -3,6 +3,7 @@
 #include <sys/mman.h>
 #include <openenclave/internal/syscall/unistd.h>
 #include <openenclave/corelibc/assert.h>
+#include "posix_common.h"
 #include "posix_syscall.h"
 #include "posix_io.h"
 #include "posix_mman.h"

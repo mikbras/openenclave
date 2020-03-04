@@ -391,7 +391,6 @@ posix_set_trace(111);
     {
         // Modify the ssa_gpr so that e_resume will go to second pass exception
         // handler.
-posix_set_trace(666);
         ssa_gpr->rip = (uint64_t)oe_exception_dispatcher;
     }
 
@@ -402,6 +401,7 @@ posix_set_trace(666);
     // Acknowledge this exception is an enclave exception, host should let keep
     // running, and let enclave handle the exception.
     *arg_out = OE_EXCEPTION_CONTINUE_EXECUTION;
+posix_set_trace(666);
     return;
 }
 

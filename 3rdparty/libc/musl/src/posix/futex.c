@@ -7,6 +7,7 @@
 #include <openenclave/internal/thread.h>
 #include <openenclave/internal/sgxtypes.h>
 #include "futex.h"
+#include "posix_common.h"
 #include "posix_warnings.h"
 #include "posix_futex.h"
 #include "posix_io.h"
@@ -73,6 +74,7 @@ volatile int* posix_futex_map(volatile int* lock)
 #if 0
     __block_all_sigs(&set);
 #endif
+    posix_lock_signal();
     posix_spin_lock(&_lock);
 
     for (futex_t* p = _chains[index]; p; p = p->next)
@@ -100,6 +102,7 @@ volatile int* posix_futex_map(volatile int* lock)
 done:
 
     posix_spin_unlock(&_lock);
+    posix_unlock_signal();
 #if 0
     __restore_sigs(&set);
 #endif

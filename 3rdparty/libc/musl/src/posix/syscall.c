@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <openenclave/corelibc/stdlib.h>
 #include <openenclave/corelibc/assert.h>
+#include "posix_common.h"
 #include "pthread_impl.h"
 #include "posix_syscall.h"
 #include "posix_mman.h"
