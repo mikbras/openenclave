@@ -64,7 +64,7 @@ _Noreturn void __pthread_exit(void *result)
 
 	self->canceldisable = 1;
 	self->cancelasync = 0;
-	self->result = result;
+	self->zzzresult = result;
 
 	while (self->cancelbuf) {
 		void (*f)(void *) = self->cancelbuf->__f;
@@ -79,7 +79,7 @@ _Noreturn void __pthread_exit(void *result)
 	 * its kernel tid is controlled by killlock. For detached threads,
 	 * any use past this point would have undefined behavior, but for
 	 * joinable threads it's a valid usage that must be handled. */
-	LOCK(&self->killlock[0]);
+	LOCK(&FUTEX_MAP(self->zzzkilllock[0]));
 
 	/* The thread list lock must be AS-safe, and thus requires
 	 * application signals to be blocked before it can be taken. */
@@ -92,7 +92,7 @@ _Noreturn void __pthread_exit(void *result)
 	if (self->next == self) {
 		__tl_unlock();
 		__restore_sigs(&set);
-		UNLOCK(&self->killlock[0]);
+		UNLOCK(&FUTEX_MAP(self->zzzkilllock[0]));
 		exit(0);
 	}
 
@@ -158,7 +158,7 @@ _Noreturn void __pthread_exit(void *result)
 	 * to prevent inadvertent use and inform functions that would use
 	 * it that it's no longer available. */
 	self->tid = 0;
-	UNLOCK(&self->killlock[0]);
+	UNLOCK(&FUTEX_MAP(self->zzzkilllock[0]));
 
 	for (;;) __syscall(SYS_exit, 0);
 }

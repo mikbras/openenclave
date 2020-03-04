@@ -63,10 +63,16 @@ volatile int* posix_futex_map(volatile int* lock)
     volatile int* ret = NULL;
     uint64_t index = ((uint64_t)lock >> 4) % NUM_CHAINS;
     futex_t* futex;
+#if 0
+    sigset_t set;
+#endif
 
     if (!oe_is_within_enclave((void*)lock, sizeof(*lock)))
         POSIX_PANIC("lock not within enclave");
 
+#if 0
+    __block_all_sigs(&set);
+#endif
     posix_spin_lock(&_lock);
 
     for (futex_t* p = _chains[index]; p; p = p->next)
@@ -94,6 +100,9 @@ volatile int* posix_futex_map(volatile int* lock)
 done:
 
     posix_spin_unlock(&_lock);
+#if 0
+    __restore_sigs(&set);
+#endif
 
     return ret;
 }
@@ -108,7 +117,11 @@ int posix_futex_wait(
     int r;
 
     if (!oe_is_outside_enclave((void*)uaddr, sizeof(*uaddr)))
+    {
+        posix_printf("wait: illeagl uaddr\n");
+        posix_print_backtrace();
         POSIX_PANIC("wait: uaddr not outside enclave");
+    }
 
     if (!uaddr || (op != FUTEX_WAIT && op != (FUTEX_WAIT|FUTEX_PRIVATE)))
     {
@@ -140,7 +153,11 @@ int posix_futex_wake(volatile int* uaddr, int op, int val)
     int r;
 
     if (!oe_is_outside_enclave((void*)uaddr, sizeof(*uaddr)))
+    {
+        posix_printf("wait: illeagl uaddr\n");
+        posix_print_backtrace();
         POSIX_PANIC("wake: uaddr not outside enclave");
+    }
 
     if (!uaddr || (op != FUTEX_WAKE && op != (FUTEX_WAKE|FUTEX_PRIVATE)))
     {

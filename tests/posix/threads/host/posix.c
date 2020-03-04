@@ -83,14 +83,18 @@ void posix_print_kill(void)
 
 void posix_lock_kill(void)
 {
+#if 1
     if (__posix_init_shared_block)
         spin_lock(&__posix_init_shared_block->kill_lock);
+#endif
 }
 
 void posix_unlock_kill(void)
 {
+#if 1
     if (__posix_init_shared_block)
         spin_unlock(&__posix_init_shared_block->kill_lock);
+#endif
 }
 
 static inline void __enter(const char* func)
@@ -160,7 +164,7 @@ static void* _thread_func(void* arg)
         __posix_shared_block->num_uaddrs = __posix_num_uaddrs;
     }
 
-#if 1
+#ifdef TRACE_THREADS
     printf("CHILD.START=%d\n", posix_gettid());
     fflush(stdout);
 #endif
@@ -183,7 +187,7 @@ static void* _thread_func(void* arg)
     }
 
 
-#if 1
+#ifdef TRACE_THREADS
     printf("CHILD.EXIT=%d\n", posix_gettid());
     fflush(stdout);
 #endif

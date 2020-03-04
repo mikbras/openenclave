@@ -27,6 +27,28 @@
 
 #include "posix_warnings.h"
 
+#define USE_DLMALLOC
+
+static void _free(void* ptr)
+{
+#if defined(USE_DLMALLOC)
+    extern void dlfree(void* ptr);
+    dlfree(ptr);
+#else
+    oe_free(ptr);
+#endif
+}
+
+static void* _memalign(size_t alignment, size_t size)
+{
+#if defined(USE_DLMALLOC)
+    extern void* dlmemalign(size_t alignment, size_t size);
+    return dlmemalign(alignment, size);
+#else
+    return oe_memalign(alignment, size);
+#endif
+}
+
 static const char* _syscall_name(long n)
 {
     typedef struct _pair
@@ -534,7 +556,7 @@ long posix_syscall(long n, ...)
         case SYS_rt_sigprocmask:
         {
             errno = 0;
-#if 0
+#if 1
             int how = (int)x1;
             const sigset_t* set = (void*)x2;
             sigset_t* oldset = (void*)x3;
@@ -572,7 +594,7 @@ long posix_syscall(long n, ...)
             {
                 uint8_t* ptr;
 
-                if (!(ptr = oe_memalign(4096, length)))
+                if (!(ptr = _memalign(4096, length)))
                 {
                     oe_assert("oe_memalign() failed" == NULL);
                     return -ENOMEM;
@@ -592,7 +614,7 @@ long posix_syscall(long n, ...)
             if (addr && length)
             {
                 memset(addr, 0, length);
-                oe_free(addr);
+                _free(addr);
                 return 0;
             }
 

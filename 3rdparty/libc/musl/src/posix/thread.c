@@ -302,7 +302,7 @@ void posix_exit(int status)
     a_swap(thread->ctid, 0);
     posix_futex_wake(thread->ctid, FUTEX_WAKE, 1);
 
-#if 1
+#if 0
     /* Release the joiner */
     struct pthread* td = thread->td;
     a_cas(&FUTEX_MAP(td->zzzdetach_state), DT_JOINABLE, DT_EXITING);
@@ -351,6 +351,8 @@ long posix_set_robust_list(struct posix_robust_list_head* head, size_t len)
 int posix_tkill(int tid, int sig)
 {
     int retval;
+
+    POSIX_PANIC("posix_tkill() unsupported");
 
     if (posix_tkill_ocall(&retval, tid, sig) != OE_OK)
         return -ENOSYS;

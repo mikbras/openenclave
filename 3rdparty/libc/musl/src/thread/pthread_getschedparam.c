@@ -4,7 +4,7 @@
 int pthread_getschedparam(pthread_t t, int *restrict policy, struct sched_param *restrict param)
 {
 	int r;
-	LOCK(&t->killlock[0]);
+	LOCK(&FUTEX_MAP(t->zzzkilllock[0]));
 	if (!t->tid) {
 		r = ESRCH;
 	} else {
@@ -13,6 +13,6 @@ int pthread_getschedparam(pthread_t t, int *restrict policy, struct sched_param 
 			*policy = __syscall(SYS_sched_getscheduler, t->tid);
 		}
 	}
-	UNLOCK(&t->killlock[0]);
+	UNLOCK(&FUTEX_MAP(t->zzzkilllock[0]));
 	return r;
 }

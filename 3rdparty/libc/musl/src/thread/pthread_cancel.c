@@ -56,6 +56,7 @@ static void cancel_handler(int sig, siginfo_t *si, void *ctx)
 
 	_sigaddset(&uc->uc_sigmask, SIGCANCEL);
 
+/* ATTN:MEB */
 	if (self->cancelasync || pc >= (uintptr_t)__cp_begin && pc < (uintptr_t)__cp_end) {
 		uc->uc_mcontext.MC_PC = (uintptr_t)__cp_cancel;
 #ifdef CANCEL_GOT
@@ -67,7 +68,8 @@ static void cancel_handler(int sig, siginfo_t *si, void *ctx)
 #if 0
 	__syscall(SYS_tkill, self->tid, SIGCANCEL);
 #else
-        pthread_exit(PTHREAD_CANCELED);
+        /* ATTN:MEB */
+        __cancel();
 #endif
 }
 

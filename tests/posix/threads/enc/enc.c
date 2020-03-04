@@ -329,7 +329,7 @@ void posix_test_ecall(void* shared_block, int tid)
 #endif
 
 #if 0
-    for (size_t i = 0; i < 1000; i++)
+    for (size_t i = 0; i < 100; i++)
     {
         extern int test_pthread_cancel3(void);
         OE_TEST(test_pthread_cancel3() == 0);
@@ -352,7 +352,7 @@ void posix_test_ecall(void* shared_block, int tid)
     test_cond_broadcast();
 #endif
 
-#if 0
+#if 1
     extern void test_functional(void);
     test_functional();
 

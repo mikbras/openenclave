@@ -35,7 +35,7 @@ struct pthread {
 	void *stack;
 	size_t stack_size;
 	size_t guard_size;
-	void *result;
+	void *zzzresult;
 	struct __ptcb *cancelbuf;
 	void **tsd;
 	struct {
@@ -45,7 +45,7 @@ struct pthread {
 	} robust_list;
 	volatile int timer_id;
 	locale_t locale;
-	volatile int killlock[1];
+	volatile int zzzkilllock[1];
 	char *dlerror_buf;
 	void *stdio_locks;
 
@@ -187,6 +187,7 @@ extern hidden unsigned __default_guardsize;
 
 #define __ATTRP_C11_THREAD ((void*)(uintptr_t)-1)
 
+extern int posix_printf(const char* fmt, ...);
 #ifndef FUTEX_MAP
 volatile int* posix_futex_map(volatile int* lock);
 #define FUTEX_MAP_PTR(LOCK_ADDR) posix_futex_map(LOCK_ADDR)

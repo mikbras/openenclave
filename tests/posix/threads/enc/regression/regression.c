@@ -185,10 +185,12 @@ void test_regression(void)
     OE_TEST(pthread_atfork_errno_clobber_main(argc, argv, envp) == 0);
 #endif
 
+#if 0
     extern int pthread_cancel_sem_wait_main(int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running pthread_cancel_sem_wait_main\n");
     OE_TEST(pthread_cancel_sem_wait_main(argc, argv, envp) == 0);
+#endif
 
     extern int pthread_condattr_setclock_main(int argc, const char* argv[], const char* envp[]);
     t_status = 0;
@@ -340,7 +342,7 @@ void test_regression(void)
     printf("=== running sigprocmask_internal_main\n");
     OE_TEST(sigprocmask_internal_main(argc, argv, envp) == 0);
 
-#if 1 /* NEXT: signal recipient outside the enclave */
+#if 0 /* NEXT: signal recipient outside the enclave */
     extern int sigreturn_main(int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running sigreturn_main\n");

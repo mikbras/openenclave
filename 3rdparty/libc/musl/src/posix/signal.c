@@ -304,8 +304,11 @@ int posix_dispatch_signal(void)
 
 extern struct posix_shared_block* __posix_init_shared_block;
 
+#define USE_KILL_LOCK
+
 void posix_lock_kill(void)
 {
+#ifdef USE_KILL_LOCK
     if (__posix_init_shared_block)
     {
         posix_spin_lock(&__posix_init_shared_block->kill_lock);
@@ -314,10 +317,12 @@ void posix_lock_kill(void)
     {
         POSIX_PANIC("unexpected");
     }
+#endif
 }
 
 void posix_unlock_kill(void)
 {
+#ifdef USE_KILL_LOCK
     if (__posix_init_shared_block)
     {
         posix_spin_unlock(&__posix_init_shared_block->kill_lock);
@@ -326,4 +331,5 @@ void posix_unlock_kill(void)
     {
         POSIX_PANIC("unexpected");
     }
+#endif
 }

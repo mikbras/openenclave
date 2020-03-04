@@ -6,6 +6,7 @@ void test_functional(void)
     const char* argv[] = { "main", NULL, NULL };
     const char** envp = argv + argc + 1;
 
+#if 0
     for (size_t i = 0; i < 10; i++)
     {
         extern int pthread_cancel_main(
@@ -14,8 +15,8 @@ void test_functional(void)
         printf("=== running pthread_cancel_main\n");
         OE_TEST(pthread_cancel_main(argc, argv, envp) == 0);
     }
+#endif
 
-return;
     extern int argv_main(int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running argv_main\n");
