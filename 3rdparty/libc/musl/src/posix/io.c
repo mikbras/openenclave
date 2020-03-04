@@ -22,7 +22,8 @@ int posix_puts(const char* str)
 
     posix_lock_signal();
 
-    if (posix_write_ocall(&retval, STDOUT_FILENO, str, len) != OE_OK)
+    if (POSIX_OCALL(
+        posix_write_ocall(&retval, STDOUT_FILENO, str, len)) != OE_OK)
     {
         POSIX_PANIC("unexpected");
     }

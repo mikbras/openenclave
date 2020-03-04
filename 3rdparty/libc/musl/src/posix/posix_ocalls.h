@@ -73,4 +73,16 @@ oe_result_t posix_write_ocall(
     const void* data,
     size_t size);
 
+void posix_begin_ocall(void);
+void posix_end_ocall(void);
+
+#define POSIX_OCALL(EXPR)    \
+    ({                       \
+        oe_result_t __r;     \
+        posix_begin_ocall(); \
+        __r = EXPR;          \
+        posix_end_ocall();   \
+        __r;                 \
+    })
+
 #endif //_POSIX_OCALLS_H
