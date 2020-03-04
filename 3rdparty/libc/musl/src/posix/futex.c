@@ -132,8 +132,8 @@ int posix_futex_wait(
         goto done;
     }
 
-    if (posix_wait_ocall(
-        &r, (int*)uaddr, val, (posix_timespec_t*)timeout) != OE_OK)
+    if (POSIX_OCALL(posix_wait_ocall(
+        &r, (int*)uaddr, val, (posix_timespec_t*)timeout)) != OE_OK)
     {
         ret = -EINVAL;
         goto done;
@@ -168,7 +168,7 @@ int posix_futex_wake(volatile int* uaddr, int op, int val)
         goto done;
     }
 
-    if (posix_wake_ocall(&r, (int*)uaddr, val) != OE_OK)
+    if (POSIX_OCALL(posix_wake_ocall(&r, (int*)uaddr, val)) != OE_OK)
     {
         ret = -EINVAL;
         goto done;
@@ -219,7 +219,8 @@ int posix_futex_requeue(
         goto done;
     }
 
-    if (posix_futex_requeue_ocall(&r, (int*)uaddr, val, val2, uaddr2) != OE_OK)
+    if (POSIX_OCALL(posix_futex_requeue_ocall(
+        &r, (int*)uaddr, val, val2, uaddr2)) != OE_OK)
     {
         ret = -EINVAL;
         goto done;

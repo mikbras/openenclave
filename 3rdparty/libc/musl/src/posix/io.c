@@ -20,15 +20,11 @@ int posix_puts(const char* str)
     ssize_t retval;
     size_t len = strlen(str);
 
-    posix_lock_signal();
-
-    if (POSIX_OCALL(
-        posix_write_ocall(&retval, STDOUT_FILENO, str, len)) != OE_OK)
+    if (POSIX_OCALL(posix_write_ocall(
+        &retval, STDOUT_FILENO, str, len)) != OE_OK)
     {
         POSIX_PANIC("unexpected");
     }
-
-    posix_unlock_signal();
 
     if (retval < 0 || (size_t)retval != len)
         return -1;
@@ -49,14 +45,11 @@ int posix_printf(const char* fmt, ...)
 
     if (n > 0)
     {
-        posix_lock_signal();
-
-        if (posix_write_ocall(&retval, STDOUT_FILENO, buf, (size_t)n) != OE_OK)
+        if (POSIX_OCALL(posix_write_ocall(
+            &retval, STDOUT_FILENO, buf, (size_t)n)) != OE_OK)
         {
             POSIX_PANIC("unexpected");
         }
-
-        posix_unlock_signal();
 
         posix_dispatch_signal();
         return (int)retval;
@@ -71,14 +64,10 @@ ssize_t posix_write(int fd, const void* buf, size_t count)
     {
         ssize_t retval;
 
-        posix_lock_signal();
-
-        if (posix_write_ocall(&retval, fd, buf, count) != OE_OK)
+        if (POSIX_OCALL(posix_write_ocall(&retval, fd, buf, count)) != OE_OK)
         {
             POSIX_PANIC("unexpected");
         }
-
-        posix_unlock_signal();
 
         posix_dispatch_signal();
         return (ssize_t)retval;
@@ -100,15 +89,11 @@ ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
             const char* p = iov[i].iov_base;
             size_t n = iov[i].iov_len;
 
-            posix_lock_signal();
-
-            if (posix_write_ocall(&retval, fd, p, n) != OE_OK)
+            if (POSIX_OCALL(posix_write_ocall(&retval, fd, p, n)) != OE_OK)
             {
                 POSIX_PANIC("unexpected");
                 return -1;
             }
-
-            posix_unlock_signal();
 
             if (retval != (ssize_t)n)
             {

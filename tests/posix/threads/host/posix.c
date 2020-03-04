@@ -233,35 +233,38 @@ void posix_unlock_signal(void)
 /*
 **==============================================================================
 **
-** tracing
+** ENTER/LEAVE
 **
 **==============================================================================
 */
 
-//#define TRACE
+#define TRACE
+#define ENTER __enter(__FUNCTION__)
+#define LEAVE __leave(__FUNCTION__)
 
 static inline void __enter(const char* func)
 {
+    (void)func;
+
+    posix_unlock_signal();
+
 #if defined(TRACE)
     printf("__enter:%s:%d\n", func, posix_gettid());
     fflush(stdout);
-#else
-    (void)func;
 #endif
 }
 
 static inline void __leave(const char* func)
 {
+    (void)func;
+
 #if defined(TRACE)
     printf("__leave:%s:%d\n", func, posix_gettid());
     fflush(stdout);
-#else
-    (void)func;
 #endif
-}
 
-#define ENTER __enter(__FUNCTION__)
-#define LEAVE __leave(__FUNCTION__)
+    posix_lock_signal();
+}
 
 void posix_print_trace(void)
 {
@@ -474,8 +477,6 @@ break;
     if (retval != 0)
         retval = -errno;
 
-    LEAVE;
-
 #if 0
     if (retval != 0 && retval != -ETIMEDOUT)
     {
@@ -485,6 +486,7 @@ break;
     }
 #endif
 
+    LEAVE;
     return retval;
 }
 
@@ -512,9 +514,8 @@ int posix_wake_ocall(int* host_uaddr, int val)
 
 int posix_futex_requeue_ocall(int* uaddr, int val, int val2, int* uaddr2)
 {
-    int retval;
-
     ENTER;
+    int retval;
 
     if (!_valid_uaddr(uaddr))
     {
@@ -548,9 +549,9 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 
 int posix_tkill_ocall(int tid, int sig)
 {
+    ENTER;
     int ret = -1;
     int retval;
-    ENTER;
 
 #if 1
     printf("%s(TID=%d, tid=%d, sig=%d)\n",
@@ -725,7 +726,6 @@ void posix_dump_sigset(const char* msg, const posix_sigset* set)
 
     printf("\n");
     fflush(stdout);
-
 }
 
 int posix_rt_sigprocmask_ocall(
@@ -767,16 +767,14 @@ int posix_rt_sigprocmask_ocall(
 
 void posix_noop_ocall(void)
 {
-//    ENTER;
-//    LEAVE;
+    ENTER;
+    LEAVE;
 }
 
 ssize_t posix_write_ocall(int fd, const void* data, size_t size)
 {
-    ssize_t ret = -1;
-
     ENTER;
-    posix_unlock_signal();
+    ssize_t ret = -1;
 
     if (size == 0)
     {
@@ -807,7 +805,6 @@ ssize_t posix_write_ocall(int fd, const void* data, size_t size)
 
 done:
 
-    posix_lock_signal();
     LEAVE;
     return ret;
 }

@@ -72,7 +72,7 @@ int posix_getpid(void)
 {
     int retval;
 
-    if (posix_getpid_ocall(&retval) != OE_OK)
+    if (POSIX_OCALL(posix_getpid_ocall(&retval)) != OE_OK)
         return -EINVAL;
 
     return retval;
@@ -102,7 +102,7 @@ int posix_set_tid_address(int* tidptr)
 #if 0
     int retval;
 
-    if (posix_gettid_ocall(&retval) != OE_OK)
+    if (POSIX_OCALL(posix_gettid_ocall(&retval)) != OE_OK)
     {
         posix_printf("posix_gettid_ocall() panic\n");
         oe_abort();
@@ -233,7 +233,7 @@ int posix_clone(
         int retval = -1;
         uint64_t cookie = (uint64_t)thread;
 
-        if (posix_start_thread_ocall(&retval, cookie) != OE_OK)
+        if (POSIX_OCALL(posix_start_thread_ocall(&retval, cookie)) != OE_OK)
         {
             ret = -ENOMEM;
             goto done;
@@ -357,7 +357,7 @@ int posix_tkill(int tid, int sig)
     POSIX_PANIC("posix_tkill() unsupported");
 #endif
 
-    if (posix_tkill_ocall(&retval, tid, sig) != OE_OK)
+    if (POSIX_OCALL(posix_tkill_ocall(&retval, tid, sig)) != OE_OK)
         return -ENOSYS;
 
     posix_dispatch_signal();
@@ -366,7 +366,8 @@ int posix_tkill(int tid, int sig)
 
 void posix_noop(void)
 {
-    posix_noop_ocall();
+    if (POSIX_OCALL(posix_noop_ocall()) != OE_OK)
+        POSIX_PANIC("unexpected");
 }
 
 void posix_abort(void)

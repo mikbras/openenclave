@@ -92,7 +92,6 @@ static void _enclave_signal_handler(void)
     /* Invoke the sigacation funtion */
     //posix_unlock_signal();
     (*sigaction)(args.sig, si, uc);
-oe_abort();
 
     /* Resume executation */
     {
@@ -210,8 +209,11 @@ int posix_rt_sigaction(
     if (!act)
         return 0;
 
-    if (posix_rt_sigaction_ocall(&r, signum, act, sigsetsize) != OE_OK)
+    if (POSIX_OCALL(posix_rt_sigaction_ocall(
+        &r, signum, act, sigsetsize)) != OE_OK)
+    {
         return -EINVAL;
+    }
 
     return r;
 }
@@ -224,12 +226,12 @@ int posix_rt_sigprocmask(
 {
     int retval;
 
-    if (posix_rt_sigprocmask_ocall(
+    if (POSIX_OCALL(posix_rt_sigprocmask_ocall(
         &retval,
         how,
         (const struct posix_sigset*)set,
         (struct posix_sigset*)oldset,
-        sigsetsize) != OE_OK)
+        sigsetsize)) != OE_OK)
     {
         return -EINVAL;
     }
@@ -294,7 +296,6 @@ int posix_dispatch_signal(void)
         env.r14 = (uint64_t)uc.uc_mcontext.gregs[REG_R14];
         env.r15 = (uint64_t)uc.uc_mcontext.gregs[REG_R15];
 
-        //posix_unlock_signal();
         oe_longjmp(&env, 1);
         POSIX_PANIC("unreachable");
     }

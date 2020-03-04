@@ -22,7 +22,7 @@ int posix_nanosleep(const struct timespec* req, struct timespec* rem)
     const struct posix_timespec* preq = (const struct posix_timespec*)req;
     struct posix_timespec* prem = (struct posix_timespec*)rem;
 
-    if (posix_nanosleep_ocall(&retval, preq, prem) != OE_OK)
+    if (POSIX_OCALL(posix_nanosleep_ocall(&retval, preq, prem)) != OE_OK)
     {
         POSIX_PANIC("unexpected");
         return -EINVAL;
@@ -38,7 +38,7 @@ int posix_clock_gettime(clockid_t clk_id, struct timespec* tp)
     int retval;
     struct posix_timespec* ptp = (struct posix_timespec*)tp;
 
-    if (posix_clock_gettime_ocall(&retval, clk_id, ptp) != OE_OK)
+    if (POSIX_OCALL(posix_clock_gettime_ocall(&retval, clk_id, ptp)) != OE_OK)
         return -ENOSYS;
 
     return retval;
