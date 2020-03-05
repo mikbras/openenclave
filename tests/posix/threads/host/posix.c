@@ -25,12 +25,12 @@
 #include <ucontext.h>
 #include "posix_u.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_signal.h"
-#include "spinlock.h"
 
 #define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
 #include "../../../../3rdparty/libc/musl/src/posix/posix_common.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_structs.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_spinlock.h"
 
 /* ATTN: single enclave instance */
 static oe_enclave_t* _enclave = NULL;
@@ -106,13 +106,13 @@ thread_table_entry_t;
 static thread_table_entry_t _thread_table[128];
 static const size_t THREAD_TABLE_SIZE = OE_COUNTOF(_thread_table);
 static size_t _thread_table_size;
-static spinlock_t _thread_table_lock;
+static posix_spinlock_t _thread_table_lock;
 
 static int _thread_table_add(int tid, posix_shared_block_t* shared_block)
 {
     int ret = -1;
 
-    spin_lock(&_thread_table_lock);
+    posix_spin_lock(&_thread_table_lock);
 
     if (tid < 0 || !shared_block)
         goto done;
@@ -131,7 +131,7 @@ done:
     if (ret != 0)
         assert(__FUNCTION__ == NULL);
 
-    spin_unlock(&_thread_table_lock);
+    posix_spin_unlock(&_thread_table_lock);
     return ret;
 }
 
@@ -140,7 +140,7 @@ static int _thread_table_remove(int tid)
     int ret = -1;
     bool found = false;
 
-    spin_lock(&_thread_table_lock);
+    posix_spin_lock(&_thread_table_lock);
 
     for (size_t i = 0; i < _thread_table_size; i++)
     {
@@ -163,7 +163,7 @@ done:
     if (ret != 0)
         assert(__FUNCTION__ == NULL);
 
-    spin_unlock(&_thread_table_lock);
+    posix_spin_unlock(&_thread_table_lock);
     return ret;
 }
 
@@ -171,7 +171,7 @@ static posix_shared_block_t* _thread_table_find(int tid)
 {
     posix_shared_block_t* ret = NULL;
 
-    spin_lock(&_thread_table_lock);
+    posix_spin_lock(&_thread_table_lock);
 
     for (size_t i = 0; i < _thread_table_size; i++)
     {
@@ -182,7 +182,7 @@ static posix_shared_block_t* _thread_table_find(int tid)
         }
     }
 
-    spin_unlock(&_thread_table_lock);
+    posix_spin_unlock(&_thread_table_lock);
 
     if (!ret)
         assert(__FUNCTION__ == NULL);
@@ -212,7 +212,7 @@ void posix_lock_signal_by_tid(int tid)
     if (!(shared_block = _thread_table_find(tid)))
         assert("_thread_table_find() failed" == NULL);
 
-    spin_lock(&shared_block->signal_lock);
+    posix_spin_lock(&shared_block->signal_lock);
 #endif
 }
 
@@ -224,7 +224,7 @@ void posix_unlock_signal_by_tid(int tid)
     if (!(shared_block = _thread_table_find(tid)))
         assert("_thread_table_find() failed" == NULL);
 
-    spin_unlock(&shared_block->signal_lock);
+    posix_spin_unlock(&shared_block->signal_lock);
 #endif
 }
 
@@ -233,7 +233,7 @@ void posix_lock_signal(void)
 #ifdef USE_SIGNAL_LOCK
     assert(_tls_shared_block != NULL);
     if (_tls_shared_block)
-        spin_lock(&_tls_shared_block->signal_lock);
+        posix_spin_lock(&_tls_shared_block->signal_lock);
 #endif
 }
 
@@ -242,7 +242,7 @@ void posix_unlock_signal(void)
 #ifdef USE_SIGNAL_LOCK
     assert(_tls_shared_block != NULL);
     if (_tls_shared_block)
-        spin_unlock(&_tls_shared_block->signal_lock);
+        posix_spin_unlock(&_tls_shared_block->signal_lock);
 #endif
 }
 

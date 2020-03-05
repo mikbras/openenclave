@@ -348,7 +348,7 @@ void posix_test_ecall(void* shared_block, int tid)
     }
 #endif
 
-#ifdef ZZZ_RUN_ALL
+#ifdef RUN_ALL
     test_create_thread();
     test_mutexes();
     test_timedlock();
@@ -356,12 +356,12 @@ void posix_test_ecall(void* shared_block, int tid)
     test_cond_broadcast();
 #endif
 
-#ifdef ZZZ_RUN_ALL
+#ifdef RUN_ALL
     extern void test_functional(void);
     test_functional();
 #endif
 
-#ifdef ZZZ_RUN_ALL
+#ifdef RUN_ALL
     extern void test_regression(void);
     //for (size_t i = 0; i < 1000; i++)
     test_regression();

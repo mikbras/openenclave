@@ -11,6 +11,8 @@
 #include <openenclave/internal/utils.h>
 #include <stdlib.h>
 
+#define free oe_free
+
 static inline oe_result_t _check_asymmetric_key_params(
     const oe_asymmetric_key_params_t* key_params)
 {
