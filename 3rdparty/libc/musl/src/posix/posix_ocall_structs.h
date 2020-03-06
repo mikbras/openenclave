@@ -1,8 +1,8 @@
 // Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
-#ifndef _POSIX_OCALLS_SHARED_BLOCK_H
-#define _POSIX_OCALLS_SHARED_BLOCK_H
+#ifndef _POSIX_OCALL_STRUCTS
+#define _POSIX_OCALL_STRUCTS
 
 #include <openenclave/bits/types.h>
 #include <openenclave/bits/result.h>
@@ -42,4 +42,4 @@ struct POSIX_STRUCT(posix_,sigset)
     unsigned long __bits[16];
 };
 
-#endif //_POSIX_OCALLS_SHARED_BLOCK_H
+#endif /* _POSIX_OCALL_STRUCTS */

@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include "posix_ocall_structs.h"
+#include "posix_structs.h"
 #include "posix_spinlock.h"
 
 typedef struct _posix_thread posix_thread_t;
@@ -131,6 +132,8 @@ static __inline__ bool posix_thread_queue_empty(
 }
 
 posix_thread_t* posix_self(void);
+
+posix_shared_block_t* posix_shared_block(void);
 
 int posix_set_tid_address(int* tidptr);
 

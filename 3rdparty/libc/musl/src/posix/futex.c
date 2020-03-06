@@ -74,7 +74,7 @@ volatile int* posix_futex_map(volatile int* lock)
 #if 0
     __block_all_sigs(&set);
 #endif
-    posix_lock_signal();
+    posix_lock_signal(0xff);
     posix_spin_lock(&_lock);
 
     for (futex_t* p = _chains[index]; p; p = p->next)
@@ -102,7 +102,7 @@ volatile int* posix_futex_map(volatile int* lock)
 done:
 
     posix_spin_unlock(&_lock);
-    posix_unlock_signal();
+    posix_unlock_signal(0xff);
 #if 0
     __restore_sigs(&set);
 #endif
@@ -133,7 +133,7 @@ int posix_futex_wait(
     }
 
     if (POSIX_OCALL(posix_wait_ocall(
-        &r, (int*)uaddr, val, (posix_timespec_t*)timeout)) != OE_OK)
+        &r, (int*)uaddr, val, (posix_timespec_t*)timeout), 0xa80662c7) != OE_OK)
     {
         ret = -EINVAL;
         goto done;
@@ -167,8 +167,8 @@ int posix_futex_wake(volatile int* uaddr, int op, int val)
         ret = -EINVAL;
         goto done;
     }
-
-    if (POSIX_OCALL(posix_wake_ocall(&r, (int*)uaddr, val)) != OE_OK)
+    if (POSIX_OCALL(posix_wake_ocall(
+        &r, (int*)uaddr, val), 0xd22ad62b) != OE_OK)
     {
         ret = -EINVAL;
         goto done;
@@ -220,7 +220,7 @@ int posix_futex_requeue(
     }
 
     if (POSIX_OCALL(posix_futex_requeue_ocall(
-        &r, (int*)uaddr, val, val2, uaddr2)) != OE_OK)
+        &r, (int*)uaddr, val, val2, uaddr2), 0xa836050e) != OE_OK)
     {
         ret = -EINVAL;
         goto done;

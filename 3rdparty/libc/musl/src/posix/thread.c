@@ -72,7 +72,7 @@ int posix_getpid(void)
 {
     int retval;
 
-    if (POSIX_OCALL(posix_getpid_ocall(&retval)) != OE_OK)
+    if (POSIX_OCALL(posix_getpid_ocall(&retval), 0xdd7082d3) != OE_OK)
         return -EINVAL;
 
     return retval;
@@ -111,6 +111,8 @@ int posix_set_tid_address(int* tidptr)
 
     /* ATTN: assumes that only the main thread calls this */
     int tid = __posix_init_tid;
+
+    thread->tid = tid;
 
     return tid;
 }
@@ -233,7 +235,8 @@ int posix_clone(
         int retval = -1;
         uint64_t cookie = (uint64_t)thread;
 
-        if (POSIX_OCALL(posix_start_thread_ocall(&retval, cookie)) != OE_OK)
+        if (POSIX_OCALL(posix_start_thread_ocall(
+            &retval, cookie), 0x30549117) != OE_OK)
         {
             ret = -ENOMEM;
             goto done;
@@ -349,28 +352,32 @@ long posix_set_robust_list(struct posix_robust_list_head* head, size_t len)
     return 0;
 }
 
-int posix_tkill(int tid, int sig)
-{
-    int retval;
-
-#if 0
-    POSIX_PANIC("posix_tkill() unsupported");
-#endif
-
-    if (POSIX_OCALL(posix_tkill_ocall(&retval, tid, sig)) != OE_OK)
-        return -ENOSYS;
-
-    posix_dispatch_signal();
-    return retval;
-}
-
 void posix_noop(void)
 {
-    if (POSIX_OCALL(posix_noop_ocall()) != OE_OK)
+    if (POSIX_OCALL(posix_noop_ocall(), 0x27e3cffa) != OE_OK)
         POSIX_PANIC("unexpected");
 }
 
 void posix_abort(void)
 {
     oe_abort();
+}
+
+posix_shared_block_t* posix_shared_block(void)
+{
+    posix_thread_t* self;
+
+    if (!(self = posix_self()))
+    {
+        POSIX_PANIC("posix_self returned null");
+        return NULL;
+    }
+
+    if (!self->shared_block)
+    {
+        POSIX_PANIC("null shared block");
+        return NULL;
+    }
+
+    return self->shared_block;
 }

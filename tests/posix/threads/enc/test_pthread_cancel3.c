@@ -34,8 +34,7 @@ int test_pthread_cancel3(void)
     pthread_t td;
     void *res;
 
-    //posix_printf("=== test_pthread_cancel3()\n");
-    //fflush(stdout);
+    posix_printf("=== test_pthread_cancel3()\n");
 
     OE_TEST(pthread_create(&td, 0, _thread_func, NULL) == 0);
     OE_TEST(pthread_cancel(td) == 0);

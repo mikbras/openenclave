@@ -8,6 +8,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include <execinfo.h>
+#include <stdarg.h>
 #include <openenclave/host.h>
 #include <openenclave/internal/error.h>
 #include <openenclave/internal/tests.h>
@@ -31,6 +32,7 @@
 #include "../../../../3rdparty/libc/musl/src/posix/posix_structs.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_spinlock.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_panic.h"
 
 /* ATTN: single enclave instance */
 static oe_enclave_t* _enclave = NULL;
@@ -57,6 +59,12 @@ OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(struct t_ucontext));
 OE_STATIC_ASSERT(sizeof(struct posix_sigset) == sizeof(struct t_sigset));
 
 __thread struct posix_shared_block* _tls_shared_block = NULL;
+
+posix_shared_block_t* posix_shared_block(void)
+{
+    assert(_tls_shared_block != NULL);
+    return _tls_shared_block;
+}
 
 /*
 **==============================================================================
@@ -86,6 +94,33 @@ void sleep_msec(uint64_t milliseconds)
     {
         req = &rem;
     }
+}
+
+
+void posix_panic(
+    const char* file,
+    unsigned int line,
+    const char* func,
+    const char* msg)
+{
+    fprintf(stderr, "host: posix_panic: %s(%u): %s(): %s\n",
+        file, line, func, msg);
+    fflush(stderr);
+    abort();
+}
+
+__attribute__((format(printf, 1, 2)))
+__attribute__((used))
+static void _trace(const char* fmt, ...)
+{
+    char buf[1024];
+    va_list ap;
+
+    va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    fprintf(stdout, "TRACE: %s\n", buf);
+    fflush(stdout);
+    va_end(ap);
 }
 
 /*
@@ -198,13 +233,36 @@ static posix_shared_block_t* _thread_table_find(int tid)
 **==============================================================================
 */
 
-void posix_print_signal_lock(void)
+uint32_t posix_signal_lock(void)
 {
-    uint32_t val = _tls_shared_block->signal_lock;
-    printf("posix_print_signal_lock: val=%u\n", val);
+    return _tls_shared_block ? _tls_shared_block->signal_lock : 0xff;
 }
 
-void posix_lock_signal_by_tid(int tid)
+void posix_print_signal_lock(void)
+{
+    if (_tls_shared_block)
+    {
+        _trace("tid=%d lock=%x lock_id=%x",
+            posix_gettid(),
+            _tls_shared_block->signal_lock,
+            _tls_shared_block->signal_lock_id);
+    }
+}
+
+void posix_print_signal_lock_by_tid(int tid)
+{
+    posix_shared_block_t* shared_block;
+
+    if (!(shared_block = _thread_table_find(tid)))
+        assert("_thread_table_find() failed" == NULL);
+
+    _trace("print.sig.log: tid=%d lock=%x lock_id=%x",
+        tid,
+        shared_block->signal_lock,
+        shared_block->signal_lock_id);
+}
+
+void posix_lock_signal_by_tid(int tid, uint32_t lock_id)
 {
 #ifdef USE_SIGNAL_LOCK
     posix_shared_block_t* shared_block;
@@ -213,10 +271,11 @@ void posix_lock_signal_by_tid(int tid)
         assert("_thread_table_find() failed" == NULL);
 
     posix_spin_lock(&shared_block->signal_lock);
+    shared_block->signal_lock_id = lock_id;
 #endif
 }
 
-void posix_unlock_signal_by_tid(int tid)
+void posix_unlock_signal_by_tid(int tid, uint32_t lock_id)
 {
 #ifdef USE_SIGNAL_LOCK
     posix_shared_block_t* shared_block;
@@ -224,25 +283,32 @@ void posix_unlock_signal_by_tid(int tid)
     if (!(shared_block = _thread_table_find(tid)))
         assert("_thread_table_find() failed" == NULL);
 
+    shared_block->signal_lock_id = lock_id;
     posix_spin_unlock(&shared_block->signal_lock);
 #endif
 }
 
-void posix_lock_signal(void)
+void posix_lock_signal(uint32_t lock_id)
 {
 #ifdef USE_SIGNAL_LOCK
     assert(_tls_shared_block != NULL);
     if (_tls_shared_block)
+    {
         posix_spin_lock(&_tls_shared_block->signal_lock);
+        _tls_shared_block->signal_lock_id = lock_id;
+    }
 #endif
 }
 
-void posix_unlock_signal(void)
+void posix_unlock_signal(uint32_t lock_id)
 {
 #ifdef USE_SIGNAL_LOCK
     assert(_tls_shared_block != NULL);
     if (_tls_shared_block)
+    {
+        _tls_shared_block->signal_lock_id = lock_id;
         posix_spin_unlock(&_tls_shared_block->signal_lock);
+    }
 #endif
 }
 
@@ -254,7 +320,7 @@ void posix_unlock_signal(void)
 **==============================================================================
 */
 
-//#define TRACE
+#define TRACE
 #define ENTER __enter(__FUNCTION__, true)
 #define LEAVE __leave(__FUNCTION__, true)
 
@@ -264,13 +330,11 @@ void posix_unlock_signal(void)
 static inline void __enter(const char* func, bool unlock)
 {
     (void)func;
-
     if (unlock)
-        posix_unlock_signal();
+        posix_unlock_signal(0x1434aba3);
 
 #if defined(TRACE)
-    printf("__enter:%s:%d\n", func, posix_gettid());
-    fflush(stdout);
+    _trace("__enter:%s:%d", func, posix_gettid());
 #endif
 }
 
@@ -279,26 +343,23 @@ static inline void __leave(const char* func, bool lock)
     (void)func;
 
 #if defined(TRACE)
-    printf("__leave:%s:%d\n", func, posix_gettid());
-    fflush(stdout);
+    _trace("__leave:%s:%d", func, posix_gettid());
 #endif
 
     if (lock)
-        posix_lock_signal();
+        posix_lock_signal(0x36f70ab0);
 }
 
 void posix_print_trace(void)
 {
     if (_tls_shared_block)
     {
-        printf("*** posix_print_trace=%d (%d)\n", _tls_shared_block->trace,
+        _trace("posix_print_trace=%d (%d)", _tls_shared_block->trace,
             posix_gettid());
-        fflush(stdout);
     }
     else
     {
-        printf("*** posix_print_trace=null\n");
-        fflush(stdout);
+        _trace("posix_print_trace=null");
     }
 }
 
@@ -357,8 +418,7 @@ static void* _thread_func(void* arg)
     posix_shared_block_t* shared_block;
 
 #ifdef TRACE_THREADS
-    printf("CHILD.START=%d\n", posix_gettid());
-    fflush(stdout);
+    _trace("CHILD.START=%d", posix_gettid());
 #endif
 
     assert(_tls_shared_block == NULL);
@@ -392,14 +452,13 @@ static void* _thread_func(void* arg)
 
     if (retval != 0)
     {
-        fprintf(stderr, "posix_run_thread_ecall(): retval=%d\n", retval);
+        _trace("posix_run_thread_ecall(): retval=%d", retval);
         abort();
     }
 
 
 #ifdef TRACE_THREADS
-    printf("CHILD.EXIT=%d\n", posix_gettid());
-    fflush(stdout);
+    _trace("CHILD.EXIT=%d", posix_gettid());
 #endif
 
     if (_thread_table_remove(posix_gettid()) != 0)
@@ -486,9 +545,7 @@ int posix_wait_ocall(
 
     if (!_valid_uaddr(host_uaddr))
     {
-        printf("invalid uaddr: %p\n", host_uaddr);
-        assert("invalid uaddr" == NULL);
-        abort();
+        POSIX_PANIC("invalid uaddr");
     }
 
     for (;;)
@@ -514,15 +571,6 @@ break;
     if (retval != 0)
         retval = -errno;
 
-#if 0
-    if (retval != 0 && retval != -ETIMEDOUT)
-    {
-        printf("futex wait failed: retval=%d\n", retval);
-        assert("futex wait failed" == NULL);
-        abort();
-    }
-#endif
-
     LEAVE;
     return retval;
 }
@@ -533,11 +581,7 @@ int posix_wake_ocall(int* host_uaddr, int val)
     int retval;
 
     if (!_valid_uaddr(host_uaddr))
-    {
-        printf("invalid uaddr: %p\n", host_uaddr);
-        assert("invalid uaddr" == NULL);
-        abort();
-    }
+        POSIX_PANIC("invalid uaddr");
 
     retval = (int)syscall(
         SYS_futex, host_uaddr, FUTEX_WAKE_PRIVATE, val, NULL, NULL, 0);
@@ -586,23 +630,28 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 
 int posix_tkill_ocall(int tid, int sig)
 {
-    ENTER_NON_LOCKING;
+    /* signal lock has been acquired */
+    //ENTER_NON_LOCKING;
+    ENTER;
     int ret = -1;
     int retval;
 
 #if 1
-    printf("%s(TID=%d, tid=%d, sig=%d)\n",
+    _trace("%s(TID=%d, tid=%d, sig=%d)",
         __FUNCTION__, posix_gettid(), tid, sig);
-    fflush(stdout);
+    //posix_print_signal_lock_by_tid(tid);
+    //posix_lock_signal_by_tid(tid, 0xdd4b68c4);
+    //posix_print_signal_lock_by_tid(tid);
 #endif
 
-    posix_lock_signal_by_tid(tid);
+printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n"); fflush(stdout);
     retval = (int)syscall(SYS_tkill, tid, sig);
-    //posix_unlock_signal_by_tid(tid);
+printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n"); fflush(stdout);
 
     ret = (retval == 0) ? 0 : -errno;
 
-    LEAVE_NON_LOCKING;
+    //LEAVE_NON_LOCKING;
+    LEAVE;
     return ret;
 }
 
@@ -658,24 +707,63 @@ int posix_print_backtrace(void)
     return 0;
 }
 
-static void _set_sig_args(
-    int enclave_sig,
-    int sig,
-    siginfo_t* si,
-    ucontext_t* uc)
+static int _sig_queue_push_back(posix_sig_queue_node_t* node)
 {
-    struct posix_sig_args* args = &_tls_shared_block->sig_args;
+    int ret = -1;
+    posix_shared_block_t* shared_block;
+    bool locked = false;
 
-    memset(args, 0, sizeof(struct posix_sig_args));
-    args->enclave_sig = enclave_sig,
-    args->sig = sig;
-    args->siginfo = *(struct posix_siginfo*)si;
-    args->ucontext = *(struct posix_ucontext*)uc;
+    if (!node || !(shared_block = posix_shared_block()))
+        goto done;
+
+    posix_spin_lock(&shared_block->sig_queue_lock);
+    locked = true;
+
+    /* Free nodes on the free list */
+    posix_list_free((posix_list_t*)&shared_block->sig_queue_free_list, free);
+
+    /* Append node to list */
+    posix_list_push_back(
+        (posix_list_t*)&shared_block->sig_queue,
+        (posix_list_node_t*)node);
+
+    ret = 0;
+
+done:
+
+    if (locked)
+        posix_spin_unlock(&shared_block->sig_queue_lock);
+
+    return ret;
+}
+
+static posix_sig_queue_node_t* _sig_queue_node_new(
+    int signum,
+    int is_enclave_signal,
+    siginfo_t* siginfo,
+    ucontext_t* ucontext)
+{
+    posix_sig_queue_node_t* node;
+
+    if (!(node = calloc(1, sizeof(posix_sig_queue_node_t))))
+        return NULL;
+
+    node->magic = POSIX_SIG_QUEUE_NODE_MAGIC;
+    node->signum = signum;
+    node->is_enclave_signal = is_enclave_signal,
+    node->siginfo = *(struct posix_siginfo*)siginfo;
+    node->ucontext = *(struct posix_ucontext*)ucontext;
+
+    return node;
 }
 
 static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 {
-    posix_unlock_signal();
+    int tid = posix_gettid();
+
+    //posix_unlock_signal(0xe8c47388);
+
+printf("========================================\n"); fflush(stdout);
 
     /* Build the host exception context */
     oe_host_exception_context_t hec = {0};
@@ -687,34 +775,47 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     if (hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS)
     {
 #if 1
-        fprintf(stderr, "*** ENCLAVE.SIGNAL: tid=%d sig=%d\n",
-            posix_gettid(), sig);
-        fflush(stderr);
+        _trace("*** ENCLAVE.SIGNAL: tid=%d sig=%d", tid, sig);
 #endif
 
         uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
 
         if (action == OE_EXCEPTION_CONTINUE_EXECUTION)
         {
-            fprintf(stderr, "*** ENCLAVE.SIGNAL.CONTINUE: tid=%d sig=%d\n",
+            posix_sig_queue_node_t* node;
+
+#if 0
+            _trace("*** ENCLAVE.SIGNAL.CONTINUE: tid=%d sig=%d",
                 posix_gettid(), sig);
-            fflush(stderr);
-            _set_sig_args(true, sig, si, uc);
+#endif
+
+            if (!(node = _sig_queue_node_new(sig, 1, si, uc)))
+                POSIX_PANIC("_sig_queue_node_new()");
+
+            if (_sig_queue_push_back(node) != 0)
+                POSIX_PANIC("_sig_queue_node_new()");
+
+posix_print_signal_lock();
+            //posix_unlock_signal();
             return;
         }
 
-        fprintf(stderr, "unhanlded signal: %d\n", sig); fflush(stderr);
-        abort();
+        POSIX_PANIC("unhanlded signal");
     }
     else
     {
+        posix_sig_queue_node_t* node;
+
 #if 1
-        fprintf(stderr, "*** HOST.SIGNAL: tid=%d sig=%d\n",
-            posix_gettid(), sig);
-        fflush(stderr);
+        _trace("**HOST.SIGNAL: signum=%d tid=%d", sig, tid);
 #endif
 
-        _set_sig_args(false, sig, si, uc);
+        if (!(node = _sig_queue_node_new(sig, 0, si, uc)))
+            POSIX_PANIC("_sig_queue_node_new()");
+
+        if (_sig_queue_push_back(node) != 0)
+            POSIX_PANIC("_sig_queue_node_new()");
+
         return;
     }
 }
@@ -728,17 +829,12 @@ int posix_rt_sigaction_ocall(
     struct posix_sigaction act = *pact;
     extern void posix_restore(void);
 
-#if 0
-    printf("%s(tid=%d, signum=%d)\n",
-        __FUNCTION__, posix_gettid(), signum);
-    fflush(stdout);
-#endif
-
     errno = 0;
 
     act.handler = (uint64_t)_posix_host_signal_handler;
     act.restorer = (uint64_t)posix_restore;
 
+printf("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS\n"); fflush(stdout);
     long r = syscall(SYS_rt_sigaction, signum, &act, NULL, sigsetsize);
 
     if (r != 0)
@@ -811,6 +907,7 @@ void posix_noop_ocall(void)
 ssize_t posix_write_ocall(int fd, const void* data, size_t size)
 {
     ENTER;
+
     ssize_t ret = -1;
 
     if (size == 0)

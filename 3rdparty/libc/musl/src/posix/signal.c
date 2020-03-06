@@ -39,59 +39,112 @@ static posix_spinlock_t _lock;
 
 typedef void (*sigaction_handler_t)(int, siginfo_t*, void*);
 
-static void _get_sig_args(struct posix_sig_args* args, bool clear)
+static __thread ucontext_t _thread_ucontext;
+
+static int _sig_queue_pop_front(posix_sig_queue_node_t* node_out)
 {
-    posix_thread_t* self = posix_self();
+    int ret = -1;
+    posix_shared_block_t* shared_block;
+    posix_sig_queue_node_t* node;
+    bool locked = false;
 
-    if (!args || !self || !self->shared_block)
-        return;
+    //posix_lock_signal();
 
-    *args = self->shared_block->sig_args;
+    if (!node_out || !(shared_block = posix_shared_block()))
+        goto done;
 
-    if (clear)
-        memset(&self->shared_block->sig_args, 0, sizeof(struct posix_sig_args));
-}
+    posix_spin_lock(&shared_block->sig_queue_lock);
+    locked = true;
 
-static void _clear_sig_args(void)
-{
-    posix_thread_t* self = posix_self();
-
-    if (!self || !self->shared_block)
+    /* Remove the next node from the queue */
+    if (!(node = (posix_sig_queue_node_t*)posix_list_pop_front(
+        (posix_list_t*)&shared_block->sig_queue)))
     {
-        POSIX_PANIC("unexpected");
+        goto done;
     }
 
-    memset(&self->shared_block->sig_args, 0, sizeof(struct posix_sig_args));
+    /* Add node to the free list */
+    posix_list_push_back(
+        (posix_list_t*)&shared_block->sig_queue_free_list,
+        (posix_list_node_t*)node);
+
+    *node_out = *node;
+
+    ret = 0;
+
+done:
+
+    if (locked)
+        posix_spin_unlock(&shared_block->sig_queue_lock);
+
+    //posix_unlock_signal();
+
+    return ret;
 }
 
-typedef void (*sigaction_function_t)(int, siginfo_t*, void*);
+static int _sig_queue_peek_front(posix_sig_queue_node_t* node_out)
+{
+    int ret = -1;
+    posix_shared_block_t* shared_block;
+    posix_sig_queue_node_t* node;
+    bool locked = false;
 
-static __thread ucontext_t _thread_ucontext;
+    //posix_lock_signal();
+
+    if (node_out)
+        memset(node_out, 0, sizeof(posix_sig_queue_node_t));
+
+    if (!node_out || !(shared_block = posix_shared_block()))
+        goto done;
+
+    posix_spin_lock(&shared_block->sig_queue_lock);
+    locked = true;
+
+    if (!(node = shared_block->sig_queue.head))
+        goto done;
+
+    *node_out = *node;
+
+    ret = 0;
+
+done:
+
+    if (locked)
+        posix_spin_unlock(&shared_block->sig_queue_lock);
+
+    //posix_unlock_signal();
+
+    return ret;
+}
 
 static void _enclave_signal_handler(void)
 {
-    struct posix_sig_args args;
-
-    _get_sig_args(&args, true);
+    posix_sig_queue_node_t node;
 
 #if 0
-    posix_printf("_enclave_signal_handler(): sig=%d\n", args.sig);
+    posix_unlock_signal(0xee);
+#endif
+
+    if (_sig_queue_pop_front(&node) != 0)
+        POSIX_PANIC("unexpected");
+
+#if 1
+    posix_printf("_enclave_signal_handler(): sig=%d\n", node.signum);
 #endif
 
     posix_spin_lock(&_lock);
-    uint64_t handler = _table[args.sig].handler;
+    uint64_t handler = _table[node.signum].handler;
     posix_spin_unlock(&_lock);
 
     if (!handler)
         POSIX_PANIC("unexpected");
 
-    sigaction_function_t sigaction = (sigaction_function_t)handler;
-    siginfo_t* si = (siginfo_t*)&args.siginfo;
+    sigaction_handler_t sigaction = (sigaction_handler_t)handler;
+    siginfo_t* si = (siginfo_t*)&node.siginfo;
     ucontext_t* uc = &_thread_ucontext;
 
     /* Invoke the sigacation funtion */
-    //posix_unlock_signal();
-    (*sigaction)(args.sig, si, uc);
+    (*sigaction)(node.signum, si, uc);
 
     /* Resume executation */
     {
@@ -210,7 +263,7 @@ int posix_rt_sigaction(
         return 0;
 
     if (POSIX_OCALL(posix_rt_sigaction_ocall(
-        &r, signum, act, sigsetsize)) != OE_OK)
+        &r, signum, act, sigsetsize), 0xa9b209b4) != OE_OK)
     {
         return -EINVAL;
     }
@@ -224,6 +277,7 @@ int posix_rt_sigprocmask(
     sigset_t* oldset,
     size_t sigsetsize)
 {
+#if 0
     int retval;
 
     if (POSIX_OCALL(posix_rt_sigprocmask_ocall(
@@ -231,35 +285,54 @@ int posix_rt_sigprocmask(
         how,
         (const struct posix_sigset*)set,
         (struct posix_sigset*)oldset,
-        sigsetsize)) != OE_OK)
+        sigsetsize), 0x92c59019) != OE_OK)
     {
         return -EINVAL;
     }
 
     posix_dispatch_signal();
     return retval;
+#else
+    (void)how;
+    (void)set;
+    (void)oldset;
+    (void)sigsetsize;
+    return 0;
+#endif
 }
 
 int posix_dispatch_signal(void)
 {
     sigaction_handler_t handler = NULL;
     oe_jmpbuf_t env;
-    struct posix_sig_args args;
+    posix_sig_queue_node_t node;
 
-    _get_sig_args(&args, false);
-
-    if (args.sig == 0)
+    if (_sig_queue_peek_front(&node) != 0)
         return 0;
 
-    if (args.enclave_sig)
-        return 0;
+    if (node.magic != POSIX_SIG_QUEUE_NODE_MAGIC)
+    {
+        POSIX_PANIC("invalid signal queue node");
+        return -1;
+    }
 
-    _clear_sig_args();
+    /* If the signal interrupted the enclave (rather than the host) */
+    if (node.is_enclave_signal)
+    {
+        /* The enclave signal handler will consume this signal */
+        return 0;
+    }
+
+    if (_sig_queue_pop_front(&node) != 0)
+    {
+        POSIX_PANIC("signal queue empty");
+        return -1;
+    }
 
     /* Get the signal handler from the table */
     {
         posix_spin_lock(&_lock);
-        handler = (sigaction_handler_t)_table[args.sig].handler;
+        handler = (sigaction_handler_t)_table[node.signum].handler;
         posix_spin_unlock(&_lock);
 
         if (!handler)
@@ -272,7 +345,7 @@ int posix_dispatch_signal(void)
         siginfo_t si;
         ucontext_t uc;
 
-        memcpy(&si, &args.siginfo, sizeof(si));
+        memcpy(&si, &node.siginfo, sizeof(si));
 
         memset(&uc, 0, sizeof(uc));
         uc.uc_mcontext.gregs[REG_RSP] = (int64_t)env.rsp;
@@ -285,7 +358,7 @@ int posix_dispatch_signal(void)
         uc.uc_mcontext.gregs[REG_R15] = (int64_t)env.r15;
 
         /* Invoke the signal handler */
-        handler(args.sig, &si, &uc);
+        handler(node.signum, &si, &uc);
 
         env.rsp = (uint64_t)uc.uc_mcontext.gregs[REG_RSP];
         env.rbp = (uint64_t)uc.uc_mcontext.gregs[REG_RBP];
@@ -317,13 +390,14 @@ static posix_shared_block_t* _get_shared_block(void)
     return self->shared_block;
 }
 
-void posix_lock_signal(void)
+void posix_lock_signal(uint32_t id)
 {
 #ifdef USE_SIGNAL_LOCK
     posix_shared_block_t* shared_block = _get_shared_block();
     if (shared_block)
     {
         posix_spin_lock(&shared_block->signal_lock);
+        shared_block->signal_lock_id = id;
     }
     else
     {
@@ -332,12 +406,20 @@ void posix_lock_signal(void)
 #endif
 }
 
-void posix_unlock_signal(void)
+void posix_unlock_signal(uint32_t lock_id)
 {
 #ifdef USE_SIGNAL_LOCK
     posix_shared_block_t* shared_block = _get_shared_block();
     if (shared_block)
     {
+        if (shared_block->signal_lock == 0)
+        {
+            posix_printf("tid=%d lock_id=%x\n",
+                posix_gettid(), shared_block->signal_lock_id);
+            POSIX_PANIC("already unlocked");
+        }
+
+        shared_block->signal_lock_id = lock_id;
         posix_spin_unlock(&shared_block->signal_lock);
     }
     else
@@ -345,4 +427,15 @@ void posix_unlock_signal(void)
         POSIX_PANIC("unexpected");
     }
 #endif
+}
+
+int posix_tkill(int tid, int sig)
+{
+    int retval;
+
+    if (POSIX_OCALL(posix_tkill_ocall(&retval, tid, sig), 0x8aaf2494) != OE_OK)
+        return -ENOSYS;
+
+    posix_dispatch_signal();
+    return retval;
 }

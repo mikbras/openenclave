@@ -10,11 +10,8 @@ void posix_panic(
     const char* func,
     const char* msg)
 {
-    char buf[1024];
+    posix_printf(
+        "enclave: posix_panic: %s(%u): %s(): %s\n", file, line, func, msg);
 
-    oe_snprintf(buf, sizeof(buf),
-        "posix_panic: %s(%u): %s(): %s\n", file, line, func, msg);
-
-    posix_puts(buf);
     oe_abort();
 }

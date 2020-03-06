@@ -93,8 +93,6 @@ enclave
         ssize_t posix_write_ocall(
             int fd,
             [in, size=size] const void* data,
-            size_t size)
-            //transition_using_threads
-            ;
+            size_t size);
     };
 };
