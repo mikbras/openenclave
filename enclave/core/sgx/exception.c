@@ -22,6 +22,8 @@
 
 #define MAX_EXCEPTION_HANDLER_COUNT 64
 
+extern void posix_set_trace(uint32_t x);
+
 // The spin lock to synchronize the exception handler access.
 static oe_spinlock_t g_exception_lock = OE_SPINLOCK_INITIALIZER;
 
@@ -246,8 +248,7 @@ int _emulate_illegal_instruction(sgx_ssa_gpr_t* ssa_gpr)
 */
 void oe_real_exception_dispatcher(oe_context_t* oe_context)
 {
-extern void posix_set_trace(int x);
-posix_set_trace(777);
+    posix_set_trace(0xdcbbf416);
     td_t* td = oe_get_td();
 
     // Change the rip of oe_context to the real exception address.
@@ -319,6 +320,7 @@ uint64_t __oe_exception_arg;
 **
 **==============================================================================
 */
+
 void oe_virtual_exception_dispatcher(
     td_t* td,
     uint64_t arg_in,
@@ -327,8 +329,7 @@ void oe_virtual_exception_dispatcher(
     SSA_Info ssa_info = {0};
     OE_UNUSED(arg_in);
 
-extern void posix_set_trace(int x);
-posix_set_trace(111);
+    posix_set_trace(0x4b2024c1);
 
     // Verify if the first SSA has valid exception info.
     if (_get_enclave_thread_first_ssa_info(td, &ssa_info) != 0)
@@ -401,7 +402,8 @@ posix_set_trace(111);
     // Acknowledge this exception is an enclave exception, host should let keep
     // running, and let enclave handle the exception.
     *arg_out = OE_EXCEPTION_CONTINUE_EXECUTION;
-posix_set_trace(666);
+
+posix_set_trace(0xaaaabbbb);
     return;
 }
 

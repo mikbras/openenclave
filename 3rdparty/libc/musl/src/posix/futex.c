@@ -64,17 +64,12 @@ volatile int* posix_futex_map(volatile int* lock)
     volatile int* ret = NULL;
     uint64_t index = ((uint64_t)lock >> 4) % NUM_CHAINS;
     futex_t* futex;
-#if 0
-    sigset_t set;
-#endif
+
+    posix_shared_block()->redzone = 2;
 
     if (!oe_is_within_enclave((void*)lock, sizeof(*lock)))
         POSIX_PANIC("lock not within enclave");
 
-#if 0
-    __block_all_sigs(&set);
-#endif
-    posix_lock_signal(0xff);
     posix_spin_lock(&_lock);
 
     for (futex_t* p = _chains[index]; p; p = p->next)
@@ -102,10 +97,10 @@ volatile int* posix_futex_map(volatile int* lock)
 done:
 
     posix_spin_unlock(&_lock);
-    posix_unlock_signal(0xff);
-#if 0
-    __restore_sigs(&set);
-#endif
+
+    posix_shared_block()->redzone = 0;
+
+    posix_dispatch_redzone_signals();
 
     return ret;
 }

@@ -96,7 +96,6 @@ void sleep_msec(uint64_t milliseconds)
     }
 }
 
-
 void posix_panic(
     const char* file,
     unsigned int line,
@@ -228,133 +227,40 @@ static posix_shared_block_t* _thread_table_find(int tid)
 /*
 **==============================================================================
 **
-** signal locks:
-**
-**==============================================================================
-*/
-
-uint32_t posix_signal_lock(void)
-{
-    return _tls_shared_block ? _tls_shared_block->signal_lock : 0xff;
-}
-
-void posix_print_signal_lock(void)
-{
-    if (_tls_shared_block)
-    {
-        _trace("tid=%d lock=%x lock_id=%x",
-            posix_gettid(),
-            _tls_shared_block->signal_lock,
-            _tls_shared_block->signal_lock_id);
-    }
-}
-
-void posix_print_signal_lock_by_tid(int tid)
-{
-    posix_shared_block_t* shared_block;
-
-    if (!(shared_block = _thread_table_find(tid)))
-        assert("_thread_table_find() failed" == NULL);
-
-    _trace("print.sig.log: tid=%d lock=%x lock_id=%x",
-        tid,
-        shared_block->signal_lock,
-        shared_block->signal_lock_id);
-}
-
-void posix_lock_signal_by_tid(int tid, uint32_t lock_id)
-{
-#ifdef USE_SIGNAL_LOCK
-    posix_shared_block_t* shared_block;
-
-    if (!(shared_block = _thread_table_find(tid)))
-        assert("_thread_table_find() failed" == NULL);
-
-    posix_spin_lock(&shared_block->signal_lock);
-    shared_block->signal_lock_id = lock_id;
-#endif
-}
-
-void posix_unlock_signal_by_tid(int tid, uint32_t lock_id)
-{
-#ifdef USE_SIGNAL_LOCK
-    posix_shared_block_t* shared_block;
-
-    if (!(shared_block = _thread_table_find(tid)))
-        assert("_thread_table_find() failed" == NULL);
-
-    shared_block->signal_lock_id = lock_id;
-    posix_spin_unlock(&shared_block->signal_lock);
-#endif
-}
-
-void posix_lock_signal(uint32_t lock_id)
-{
-#ifdef USE_SIGNAL_LOCK
-    assert(_tls_shared_block != NULL);
-    if (_tls_shared_block)
-    {
-        posix_spin_lock(&_tls_shared_block->signal_lock);
-        _tls_shared_block->signal_lock_id = lock_id;
-    }
-#endif
-}
-
-void posix_unlock_signal(uint32_t lock_id)
-{
-#ifdef USE_SIGNAL_LOCK
-    assert(_tls_shared_block != NULL);
-    if (_tls_shared_block)
-    {
-        _tls_shared_block->signal_lock_id = lock_id;
-        posix_spin_unlock(&_tls_shared_block->signal_lock);
-    }
-#endif
-}
-
-/*
-**==============================================================================
-**
 ** ENTER/LEAVE
 **
 **==============================================================================
 */
 
 #define TRACE
-#define ENTER __enter(__FUNCTION__, true)
-#define LEAVE __leave(__FUNCTION__, true)
+#define ENTER __enter(__FUNCTION__)
+#define LEAVE __leave(__FUNCTION__)
 
-#define ENTER_NON_LOCKING __enter(__FUNCTION__, false)
-#define LEAVE_NON_LOCKING __leave(__FUNCTION__, false)
-
-static inline void __enter(const char* func, bool unlock)
+static inline void __enter(const char* func)
 {
+    posix_shared_block()->redzone++;
     (void)func;
-    if (unlock)
-        posix_unlock_signal(0x1434aba3);
 
 #if defined(TRACE)
     _trace("__enter:%s:%d", func, posix_gettid());
 #endif
 }
 
-static inline void __leave(const char* func, bool lock)
+static inline void __leave(const char* func)
 {
     (void)func;
 
 #if defined(TRACE)
     _trace("__leave:%s:%d", func, posix_gettid());
 #endif
-
-    if (lock)
-        posix_lock_signal(0x36f70ab0);
+    posix_shared_block()->redzone--;
 }
 
 void posix_print_trace(void)
 {
     if (_tls_shared_block)
     {
-        _trace("posix_print_trace=%d (%d)", _tls_shared_block->trace,
+        _trace("posix_print_trace=%08x (%d)", _tls_shared_block->trace,
             posix_gettid());
     }
     else
@@ -631,24 +537,29 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
 int posix_tkill_ocall(int tid, int sig)
 {
     /* signal lock has been acquired */
-    //ENTER_NON_LOCKING;
     ENTER;
     int ret = -1;
     int retval;
+    posix_shared_block_t* shared_block = NULL;
+
+    if (!(shared_block = _thread_table_find(tid)))
+        assert("_thread_table_find() failed" == NULL);
 
 #if 1
     _trace("%s(TID=%d, tid=%d, sig=%d)",
         __FUNCTION__, posix_gettid(), tid, sig);
-    //posix_print_signal_lock_by_tid(tid);
-    posix_lock_signal_by_tid(tid, 0xdd4b68c4);
-    //posix_print_signal_lock_by_tid(tid);
 #endif
+
+    while (shared_block->redzone == 2)
+    {
+printf("RRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRRR=%d\n", shared_block->redzone);
+fflush(stdout);
+    }
 
     retval = (int)syscall(SYS_tkill, tid, sig);
 
     ret = (retval == 0) ? 0 : -errno;
 
-    //LEAVE_NON_LOCKING;
     LEAVE;
     return ret;
 }
@@ -761,10 +672,6 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 {
     int tid = posix_gettid();
 
-    posix_unlock_signal(0xe8c47388);
-
-printf("========================================\n"); fflush(stdout);
-
     /* Build the host exception context */
     oe_host_exception_context_t hec = {0};
     hec.rax = (uint64_t)uc->uc_mcontext.gregs[REG_RAX];
@@ -775,7 +682,8 @@ printf("========================================\n"); fflush(stdout);
     if (hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS)
     {
 #if 1
-        _trace("*** ENCLAVE.SIGNAL: tid=%d sig=%d", tid, sig);
+        _trace("*** ENCLAVE.SIGNAL: tid=%d sig=%d redzone=%d", tid, sig,
+            posix_shared_block()->redzone);
 #endif
 
         uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
@@ -784,7 +692,7 @@ printf("========================================\n"); fflush(stdout);
         {
             posix_sig_queue_node_t* node;
 
-#if 0
+#if 1
             _trace("*** ENCLAVE.SIGNAL.CONTINUE: tid=%d sig=%d",
                 posix_gettid(), sig);
 #endif
@@ -805,7 +713,8 @@ printf("========================================\n"); fflush(stdout);
         posix_sig_queue_node_t* node;
 
 #if 1
-        _trace("**HOST.SIGNAL: signum=%d tid=%d", sig, tid);
+        _trace("**HOST.SIGNAL: signum=%d tid=%d redzone=%d", sig, tid,
+            posix_shared_block()->redzone);
 #endif
 
         if (!(node = _sig_queue_node_new(sig, 0, si, uc)))
@@ -832,7 +741,6 @@ int posix_rt_sigaction_ocall(
     act.handler = (uint64_t)_posix_host_signal_handler;
     act.restorer = (uint64_t)posix_restore;
 
-printf("SSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSSS\n"); fflush(stdout);
     long r = syscall(SYS_rt_sigaction, signum, &act, NULL, sigsetsize);
 
     if (r != 0)

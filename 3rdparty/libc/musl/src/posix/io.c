@@ -51,7 +51,6 @@ int posix_printf(const char* fmt, ...)
             POSIX_PANIC("unexpected");
         }
 
-        posix_dispatch_signal();
         return (int)retval;
     }
 
@@ -70,7 +69,6 @@ ssize_t posix_write(int fd, const void* buf, size_t count)
             POSIX_PANIC("unexpected");
         }
 
-        posix_dispatch_signal();
         return (ssize_t)retval;
     }
 
@@ -106,7 +104,6 @@ ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
             count += (size_t)retval;
         }
 
-        posix_dispatch_signal();
         return (ssize_t)count;
     }
 

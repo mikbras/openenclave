@@ -314,34 +314,33 @@ void posix_test_ecall(void* shared_block, int tid)
 
     posix_init(shared_block, tid);
 
-//#define RUN_ALL
+#define RUN_ALL 0
 
-#ifdef RUN_ALL
-    //for (size_t i = 0; i < 2; i++)
+#if RUN_ALL
+    for (size_t i = 0; i < 1; i++)
     {
         extern int test_pthread_cancel1(void);
         OE_TEST(test_pthread_cancel1() == 0);
     }
 #endif
 
-#ifdef RUN_ALL
-    //for (size_t i = 0; i < 100; i++)
+#if RUN_ALL
+    for (size_t i = 0; i < 1; i++)
     {
         extern int test_pthread_cancel2(void);
         OE_TEST(test_pthread_cancel2() == 0);
     }
 #endif
 
-//#ifdef RUN_ALL
-#if  1
-    for (size_t i = 0; i < 100; i++)
+#if 1 // RUN_ALL
+    for (size_t i = 0; i < 1; i++)
     {
         extern int test_pthread_cancel3(void);
         OE_TEST(test_pthread_cancel3() == 0);
     }
 #endif
 
-#ifdef RUN_ALL
+#if RUN_ALL
     for (size_t i = 0; i < 100; i++)
     {
         extern int test_pthread_cancel4(void);
@@ -349,8 +348,7 @@ void posix_test_ecall(void* shared_block, int tid)
     }
 #endif
 
-#if 0
-#ifdef RUN_ALL
+#if RUN_ALL
     test_create_thread();
     test_mutexes();
     test_timedlock();
@@ -358,16 +356,15 @@ void posix_test_ecall(void* shared_block, int tid)
     test_cond_broadcast();
 #endif
 
-#ifdef RUN_ALL
+#if RUN_ALL
     extern void test_functional(void);
     test_functional();
 #endif
 
-#ifdef RUN_ALL
+#if RUN_ALL
     extern void test_regression(void);
     //for (size_t i = 0; i < 1000; i++)
     test_regression();
-#endif
 #endif
 
     // Requires FUTEX_LOCK_PI implementation

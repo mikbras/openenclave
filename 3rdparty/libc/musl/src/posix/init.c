@@ -7,12 +7,11 @@
 #include "posix_spinlock.h"
 #include "posix_ocall_structs.h"
 #include "posix_trace.h"
+#include "posix_thread.h"
 
 #include "posix_warnings.h"
 
 struct posix_shared_block* __posix_init_shared_block;
-
-int __posix_init_tid;
 
 static posix_spinlock_t _lock;
 
@@ -21,10 +20,10 @@ void posix_init(struct posix_shared_block* shared_block, int tid)
     size_t aux[64];
     static const char* _environ[] = { NULL };
 
+    posix_init_main_thread(shared_block, tid);
+
     memset(aux, 0, sizeof(aux));
 
-    __posix_init_shared_block = shared_block;
-    __posix_init_tid = tid;
     __progname = "unknown";
     __sysinfo = 0;
     __environ = (char**)_environ;

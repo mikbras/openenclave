@@ -47,14 +47,14 @@ struct posix_shared_block
 {
     int32_t futex;
     uint32_t trace;
-    volatile uint32_t signal_lock;
-    uint32_t signal_lock_id;
-    uint32_t padding;
     volatile int* uaddrs;
     size_t num_uaddrs;
     posix_sig_queue_t sig_queue;
     posix_sig_queue_t sig_queue_free_list;
     posix_spinlock_t sig_queue_lock;
+
+    /* Non-zero if executing within the redzone (the syscall layer) */
+    int redzone;
 };
 
 #endif /* _POSIX_STRUCTS_H */

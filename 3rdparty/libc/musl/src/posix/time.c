@@ -29,8 +29,6 @@ int posix_nanosleep(const struct timespec* req, struct timespec* rem)
         return -EINVAL;
     }
 
-    posix_dispatch_signal();
-
     return retval;
 }
 

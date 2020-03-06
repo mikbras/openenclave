@@ -61,6 +61,7 @@ struct _posix_thread
     /* Spin here until thread is actually created */
     posix_spinlock_t lock;
 
+    /* POSIX_THREAD_STATE_STARTED or zero */
     uint32_t state;
 };
 
@@ -164,5 +165,7 @@ void posix_noop(void);
 void posix_exit(int status);
 
 void posix_unblock_creator_thread(void);
+
+int posix_init_main_thread(posix_shared_block_t* shared_block, int tid);
 
 #endif /* _POSIX_THREAD_H */

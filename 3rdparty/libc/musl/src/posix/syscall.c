@@ -446,26 +446,15 @@ static int _ioctl_tiocgwinsz(int fd, unsigned long request, long arg)
 
 #define TIOCGWINSZ 0x5413
 
-long posix_syscall(long n, ...)
+static long _dispatch_syscall(
+    long n,
+    long x1,
+    long x2,
+    long x3,
+    long x4,
+    long x5,
+    long x6)
 {
-    va_list ap;
-
-    va_start(ap, n);
-    long x1 = va_arg(ap, long);
-    long x2 = va_arg(ap, long);
-    long x3 = va_arg(ap, long);
-    long x4 = va_arg(ap, long);
-    long x5 = va_arg(ap, long);
-    long x6 = va_arg(ap, long);
-    va_end(ap);
-
-    (void)x1;
-    (void)x2;
-    (void)x3;
-    (void)x4;
-    (void)x5;
-    (void)x6;
-
 #if 0
     posix_printf("SYSCALL{%s}\n", _syscall_name(n));
     //posix_printf("SYSCALL{%s}: tid=%d\n", _syscall_name(n), posix_gettid());
@@ -699,4 +688,27 @@ long posix_syscall(long n, ...)
     posix_printf("unhandled syscall: %s\n", _syscall_name(n));
     assert(false);
     return -1;
+}
+
+long posix_syscall(long n, ...)
+{
+    long ret;
+    va_list ap;
+
+    va_start(ap, n);
+    long x1 = va_arg(ap, long);
+    long x2 = va_arg(ap, long);
+    long x3 = va_arg(ap, long);
+    long x4 = va_arg(ap, long);
+    long x5 = va_arg(ap, long);
+    long x6 = va_arg(ap, long);
+    va_end(ap);
+
+    posix_shared_block()->redzone = 1;
+    ret = _dispatch_syscall(n, x1, x2, x3, x4, x5, x6);
+    posix_shared_block()->redzone = 0;
+
+    posix_dispatch_redzone_signals();
+
+    return ret;
 }

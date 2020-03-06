@@ -304,6 +304,7 @@ oe_enter:
 .type oe_exception_dispatcher, @function
 oe_exception_dispatcher:
 .cfi_startproc
+
     // Start the new stack under the red zone.
     sub $ABI_REDZONE_BYTE_SIZE, %rsp
 
@@ -337,7 +338,6 @@ oe_exception_dispatcher:
     // Restore the previous rdi to rdi of OE_CONTEXT.
     movq ED_SAVED_RDI, %rax
     movq %rax, OE_CONTEXT_RDI(%rdi)
-
     call oe_real_exception_dispatcher
 
     // Should never reach here since oe_real_exception_dispatcher will not return.

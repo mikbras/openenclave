@@ -80,8 +80,6 @@ int posix_getpid(void)
 
 extern struct posix_shared_block* __posix_init_shared_block;
 
-extern int __posix_init_tid;
-
 int posix_set_tid_address(int* tidptr)
 {
     posix_thread_t* thread;
@@ -109,24 +107,29 @@ int posix_set_tid_address(int* tidptr)
     }
 #endif
 
-    /* ATTN: assumes that only the main thread calls this */
-    int tid = __posix_init_tid;
+    return thread->tid;
+}
 
-    thread->tid = tid;
+int posix_init_main_thread(posix_shared_block_t* shared_block, int tid)
+{
+    memset(&_main_thread, 0, sizeof(_main_thread));
+    _main_thread.magic = MAGIC;
+    _main_thread.shared_block = shared_block;
+    _main_thread.tid = tid;
+    _set_thread_info(&_main_thread);
 
-    return tid;
+    return 0;
 }
 
 /* This is called only by the main thread. */
 int posix_set_thread_area(void* p)
 {
-    memset(&_main_thread, 0, sizeof(_main_thread));
-    _main_thread.magic = MAGIC;
-    _main_thread.td = (pthread_t)p;
-    _main_thread.shared_block = __posix_init_shared_block;
+    posix_thread_t* self = posix_self();
 
-    _set_thread_info(&_main_thread);
+    if (!self)
+        POSIX_PANIC("posix_set_thread_area(): null pthread self");
 
+    self->td = (pthread_t)p;
     return 0;
 }
 
@@ -369,13 +372,13 @@ posix_shared_block_t* posix_shared_block(void)
 
     if (!(self = posix_self()))
     {
-        POSIX_PANIC("posix_self returned null");
+        POSIX_PANIC("posix_shared_block(): posix_self() failed");
         return NULL;
     }
 
     if (!self->shared_block)
     {
-        POSIX_PANIC("null shared block");
+        POSIX_PANIC("posix_shared_block(): null shared block");
         return NULL;
     }
 
