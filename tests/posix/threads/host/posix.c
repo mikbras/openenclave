@@ -640,13 +640,11 @@ int posix_tkill_ocall(int tid, int sig)
     _trace("%s(TID=%d, tid=%d, sig=%d)",
         __FUNCTION__, posix_gettid(), tid, sig);
     //posix_print_signal_lock_by_tid(tid);
-    //posix_lock_signal_by_tid(tid, 0xdd4b68c4);
+    posix_lock_signal_by_tid(tid, 0xdd4b68c4);
     //posix_print_signal_lock_by_tid(tid);
 #endif
 
-printf("<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n"); fflush(stdout);
     retval = (int)syscall(SYS_tkill, tid, sig);
-printf(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n"); fflush(stdout);
 
     ret = (retval == 0) ? 0 : -errno;
 
@@ -719,8 +717,10 @@ static int _sig_queue_push_back(posix_sig_queue_node_t* node)
     posix_spin_lock(&shared_block->sig_queue_lock);
     locked = true;
 
+#if 1
     /* Free nodes on the free list */
     posix_list_free((posix_list_t*)&shared_block->sig_queue_free_list, free);
+#endif
 
     /* Append node to list */
     posix_list_push_back(
@@ -761,7 +761,7 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 {
     int tid = posix_gettid();
 
-    //posix_unlock_signal(0xe8c47388);
+    posix_unlock_signal(0xe8c47388);
 
 printf("========================================\n"); fflush(stdout);
 
@@ -795,8 +795,6 @@ printf("========================================\n"); fflush(stdout);
             if (_sig_queue_push_back(node) != 0)
                 POSIX_PANIC("_sig_queue_node_new()");
 
-posix_print_signal_lock();
-            //posix_unlock_signal();
             return;
         }
 
