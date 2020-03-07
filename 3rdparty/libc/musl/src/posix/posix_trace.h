@@ -1,6 +1,7 @@
 #ifndef _POSIX_TRACE_H
 #define _POSIX_TRACE_H
 
+#include <stdint.h>
 #include "posix_io.h"
 
 #define TRACE \
