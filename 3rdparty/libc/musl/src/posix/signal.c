@@ -139,7 +139,7 @@ static void _greenzone_signal_handler(void)
     if (_sig_queue_pop_front(&node) != 0)
         POSIX_PANIC("unexpected");
 
-#if 1
+#if 0
     posix_printf("_greenzone_signal_handler(): sig=%d\n", node.signum);
 #endif
 
@@ -188,6 +188,11 @@ static void _greenzone_signal_handler(void)
 
 extern uint64_t __oe_exception_arg;
 
+#ifdef USE_CUSTOM_STAVCK
+#define STACK_SIZE (64*1024)
+static __thread void* _tls_stack;
+#endif
+
 static uint64_t _exception_handler(oe_exception_record_t* rec)
 {
     posix_set_trace(0xf7c4b81e);
@@ -222,6 +227,23 @@ static uint64_t _exception_handler(oe_exception_record_t* rec)
             uc.uc_mcontext.gregs[REG_RIP] = (int64_t)rec->context->rip;
 
             _tls_ucontext = uc;
+
+#ifdef USE_CUSTOM_STACK
+            {
+                if (!_tls_stack)
+                {
+                    if (!(_tls_stack = oe_memalign(4096, STACK_SIZE)))
+                    {
+                        POSIX_PANIC("oops");
+                    }
+                }
+
+                memset(_tls_stack, 0, STACK_SIZE);
+
+                rec->context->rsp = (uint64_t)_tls_stack + (STACK_SIZE / 2);
+                rec->context->rbp = (uint64_t)_tls_stack + (STACK_SIZE / 2);
+            }
+#endif
             rec->context->rip = (uint64_t)_greenzone_signal_handler;
         }
 
@@ -290,6 +312,7 @@ int posix_rt_sigprocmask(
     sigset_t* oldset,
     size_t sigsetsize)
 {
+#if 0
     int retval;
 
     if (POSIX_OCALL(posix_rt_sigprocmask_ocall(
@@ -303,6 +326,13 @@ int posix_rt_sigprocmask(
     }
 
     return retval;
+#else
+    (void)how;
+    (void)set;
+    (void)oldset;
+    (void)sigsetsize;
+    return 0;
+#endif
 }
 
 int posix_dispatch_redzone_signals(void)
@@ -314,8 +344,6 @@ int posix_dispatch_redzone_signals(void)
     /* Dispatch all entries in the signal queue until empty */
     while (!_sig_queue_empty())
     {
-posix_printf("DDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDDD: %d\n",
-posix_gettid());
         /* Get the front node from the signal queue */
         if (_sig_queue_pop_front(&node) != 0)
         {

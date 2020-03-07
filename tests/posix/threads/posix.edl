@@ -94,5 +94,7 @@ enclave
             int fd,
             [in, size=size] const void* data,
             size_t size);
+
+        void posix_raw_puts_ocall([in, string] const char* str);
     };
 };

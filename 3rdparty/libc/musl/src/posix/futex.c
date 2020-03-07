@@ -65,8 +65,6 @@ volatile int* posix_futex_map(volatile int* lock)
     uint64_t index = ((uint64_t)lock >> 4) % NUM_CHAINS;
     futex_t* futex;
 
-    posix_shared_block()->redzone = 2;
-
     if (!oe_is_within_enclave((void*)lock, sizeof(*lock)))
         POSIX_PANIC("lock not within enclave");
 
@@ -97,10 +95,6 @@ volatile int* posix_futex_map(volatile int* lock)
 done:
 
     posix_spin_unlock(&_lock);
-
-    posix_shared_block()->redzone = 0;
-
-    posix_dispatch_redzone_signals();
 
     return ret;
 }

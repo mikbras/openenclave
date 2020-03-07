@@ -52,6 +52,7 @@ struct posix_shared_block
     posix_sig_queue_t sig_queue;
     posix_sig_queue_t sig_queue_free_list;
     posix_spinlock_t sig_queue_lock;
+    posix_spinlock_t ocall_lock;
 
     /* Non-zero if executing within the redzone (the syscall layer) */
     int redzone;

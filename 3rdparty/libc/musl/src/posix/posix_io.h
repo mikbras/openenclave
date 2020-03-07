@@ -14,4 +14,6 @@ int posix_printf(const char* fmt, ...);
 
 int posix_puts(const char* str);
 
+void posix_raw_puts(const char* str);
+
 #endif /* _POSIX_IO_H */

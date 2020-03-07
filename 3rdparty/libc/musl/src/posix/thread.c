@@ -193,8 +193,9 @@ int posix_clone(
     int ret = 0;
     va_list ap;
 
-    /* Ignored */
     (void)child_stack;
+
+    posix_shared_block()->redzone = 1;
 
     va_start(ap, arg);
     pid_t* ptid = va_arg(ap, pid_t*);
@@ -259,6 +260,8 @@ int posix_clone(
         POSIX_PANIC("unexpected");
 
 done:
+
+    posix_shared_block()->redzone = 0;
 
     return ret;
 }

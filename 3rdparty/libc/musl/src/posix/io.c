@@ -36,7 +36,6 @@ int posix_printf(const char* fmt, ...)
 {
     /* ATTN: use dynamic memory */
     char buf[4096];
-    ssize_t retval;
 
     va_list ap;
     va_start(ap, fmt);
@@ -45,6 +44,8 @@ int posix_printf(const char* fmt, ...)
 
     if (n > 0)
     {
+        ssize_t retval;
+
         if (POSIX_OCALL(posix_write_ocall(
             &retval, STDOUT_FILENO, buf, (size_t)n), 0x0134b0f4) != OE_OK)
         {
@@ -109,4 +110,9 @@ ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
 
     POSIX_PANIC("unexpected");
     return -EBADFD;
+}
+
+void posix_raw_puts(const char* str)
+{
+    posix_raw_puts_ocall(str);
 }
