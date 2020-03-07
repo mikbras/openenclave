@@ -368,7 +368,7 @@ static void* _thread_func(void* arg)
     int tid = posix_gettid();
 
     if ((r = posix_run_thread_ecall(
-        _enclave, &retval, cookie, tid, shared_block)) != OE_OK)
+        _enclave, &retval, cookie, pthread_self(), tid, shared_block)) != OE_OK)
     {
         assert("posix_run_thread_ecall() failed" == NULL);
     }
@@ -378,7 +378,6 @@ static void* _thread_func(void* arg)
         _trace("posix_run_thread_ecall(): retval=%d", retval);
         abort();
     }
-
 
     if (_thread_table_remove(posix_gettid()) != 0)
     {
@@ -398,7 +397,7 @@ static void* _thread_func(void* arg)
 
 int posix_start_thread_ocall(uint64_t cookie)
 {
-#define DETACHED
+//#define DETACHED
     BEGIN_OCALL;
     int ret = -1;
     pthread_t t;
@@ -887,4 +886,9 @@ void posix_raw_puts_ocall(const char* str)
 {
     fprintf(stdout, "%s", str);
     fflush(stdout);
+}
+
+int posix_join_ocall(uint64_t host_pthread)
+{
+    return pthread_join((pthread_t)host_pthread, NULL);
 }

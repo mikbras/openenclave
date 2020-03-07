@@ -27,7 +27,15 @@ static int __pthread_timedjoin_np(pthread_t t, void **res, const struct timespec
 
 int __pthread_join(pthread_t t, void **res)
 {
-	return __pthread_timedjoin_np(t, res, 0);
+	int r = __pthread_timedjoin_np(t, res, 0);
+
+        if (r == 0)
+        {
+            extern int posix_join(pthread_t pthread);
+            return posix_join(t);
+        }
+
+        return r;
 }
 
 static int __pthread_tryjoin_np(pthread_t t, void **res)

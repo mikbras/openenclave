@@ -79,6 +79,8 @@ void posix_end_ocall(uint32_t lock_id);
 
 oe_result_t posix_raw_puts_ocall(const char* str);
 
+oe_result_t posix_join_ocall(int* retval, uint64_t pthread_id);
+
 #define POSIX_OCALL(EXPR, LOCK_ID)  \
     ({                              \
         oe_result_t __r;            \

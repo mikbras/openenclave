@@ -339,7 +339,7 @@ void posix_test_ecall(void* shared_block, int tid)
         fflush(stdout);
         extern int test_pthread_cancel3(void);
         OE_TEST(test_pthread_cancel3() == 0);
-        sleep_msec(100);
+        //sleep_msec(100);
     }
 #endif
 

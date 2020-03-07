@@ -40,6 +40,7 @@ enclave
 
         public int posix_run_thread_ecall(
             uint64_t cookie,
+            uint64_t host_pthread,
             int tid,
             [user_check] void* shared_block);
     };
@@ -94,6 +95,8 @@ enclave
             int fd,
             [in, size=size] const void* data,
             size_t size);
+
+        int posix_join_ocall(uint64_t host_pthread);
 
         void posix_raw_puts_ocall([in, string] const char* str);
     };

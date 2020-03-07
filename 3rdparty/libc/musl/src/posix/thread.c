@@ -154,7 +154,101 @@ void posix_unblock_creator_thread(void)
     posix_spin_unlock(&self->lock);
 }
 
-int posix_run_thread_ecall(uint64_t cookie, int tid, void* shared_block)
+/*
+**==============================================================================
+**
+** The pthread table:
+**
+**==============================================================================
+*/
+
+typedef struct pthread_table_node
+{
+    pthread_t pthread;
+    uint64_t host_pthread;
+}
+pthread_table_node_t;
+
+/* ATTN: clean this up */
+#define PTHREAD_TABLE_SIZE 1024
+static pthread_table_node_t _pthread_table[PTHREAD_TABLE_SIZE];
+static size_t _pthread_table_size;
+static posix_spinlock_t _pthread_table_lock;
+
+static int _pthread_table_add(pthread_t pthread, uint64_t host_pthread)
+{
+    int ret = -1;
+
+    posix_spin_lock(&_pthread_table_lock);
+
+    if (_pthread_table_size < PTHREAD_TABLE_SIZE)
+    {
+        _pthread_table[_pthread_table_size].pthread = pthread;
+        _pthread_table[_pthread_table_size].host_pthread = host_pthread;
+        _pthread_table_size++;
+        ret = 0;
+    }
+
+    posix_spin_unlock(&_pthread_table_lock);
+
+    return ret;
+}
+
+static int _pthread_table_remove(pthread_t pthread)
+{
+    int ret = -1;
+
+    posix_spin_lock(&_pthread_table_lock);
+
+    for (size_t i = 0; i < _pthread_table_size; i++)
+    {
+        if (_pthread_table[i].pthread == pthread)
+        {
+            _pthread_table[i] = _pthread_table[_pthread_table_size-1];
+            _pthread_table_size--;
+            ret = 0;
+            break;
+        }
+    }
+
+    posix_spin_unlock(&_pthread_table_lock);
+
+    return ret;
+}
+
+static uint64_t _pthread_table_find(pthread_t pthread)
+{
+    uint64_t host_pthread = (uint64_t)-1;
+
+    posix_spin_lock(&_pthread_table_lock);
+
+    for (size_t i = 0; i < _pthread_table_size; i++)
+    {
+        if (_pthread_table[i].pthread == pthread)
+        {
+            host_pthread = _pthread_table[i].host_pthread;
+            break;
+        }
+    }
+
+    posix_spin_unlock(&_pthread_table_lock);
+
+    return host_pthread;
+}
+
+/*
+**==============================================================================
+**
+**
+**
+**==============================================================================
+*/
+
+int posix_run_thread_ecall(
+    uint64_t cookie,
+    uint64_t host_pthread,
+    int tid,
+    void* shared_block)
 {
     posix_thread_t* thread = (posix_thread_t*)cookie;
 
@@ -164,8 +258,18 @@ int posix_run_thread_ecall(uint64_t cookie, int tid, void* shared_block)
         POSIX_PANIC("unexpected");
     }
 
+    if (thread->td == NULL)
+    {
+        POSIX_PANIC("unexpected");
+    }
+
     thread->tid = tid;
     thread->shared_block = shared_block;
+
+    if (_pthread_table_add(thread->td, host_pthread) != 0)
+    {
+        POSIX_PANIC("unexpected");
+    }
 
     _set_thread_info(thread);
 
@@ -386,4 +490,28 @@ posix_shared_block_t* posix_shared_block(void)
     }
 
     return self->shared_block;
+}
+
+int posix_join(pthread_t pthread)
+{
+    int retval = -1;
+    uint64_t host_pthread;
+
+    posix_shared_block()->redzone = 1;
+
+    if ((host_pthread = _pthread_table_find(pthread)) == (uint64_t)-1)
+        POSIX_PANIC("_pthread_table_find()");
+
+    if (_pthread_table_remove(pthread) != 0)
+        POSIX_PANIC("_pthread_table_remove()");
+
+    if (POSIX_OCALL(posix_join_ocall(
+        &retval, host_pthread), 0x488c5ac0) != OE_OK)
+    {
+        POSIX_PANIC("posix_join_ocall()");
+    }
+
+    posix_shared_block()->redzone = 0;
+
+    return retval;
 }
