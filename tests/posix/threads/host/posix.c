@@ -247,10 +247,11 @@ static inline void _begin_ocall(const char* func)
     if (posix_shared_block()->ocall_lock != 1)
         assert("panic" == NULL);
 
-    if (posix_shared_block()->redzone != 2)
+    if (posix_shared_block()->zone != POSIX_ZONE_OCALL)
         assert("panic" == NULL);
 
-    posix_shared_block()->redzone++;
+    posix_shared_block()->zone = POSIX_ZONE_HOST;
+
     posix_spin_unlock(&posix_shared_block()->ocall_lock);
     (void)func;
 }
@@ -259,11 +260,12 @@ static inline void _end_ocall(const char* func)
 {
     (void)func;
 
-    if (posix_shared_block()->redzone != 3)
+    posix_spin_lock(&posix_shared_block()->ocall_lock);
+
+    if (posix_shared_block()->zone != POSIX_ZONE_HOST)
         assert("panic" == NULL);
 
-    posix_spin_lock(&posix_shared_block()->ocall_lock);
-    posix_shared_block()->redzone--;
+    posix_shared_block()->zone = POSIX_ZONE_OCALL;
 
     if (posix_shared_block()->ocall_lock != 1)
         assert("panic" == NULL);
@@ -585,7 +587,7 @@ printf("AFTER.LOCK\n");
     (void)_thread_table_find;
 #endif
 
-printf("BEFORE.KILL: redzone=%u\n", shared_block->redzone); fflush(stdout);
+printf("BEFORE.KILL: zone=%u\n", shared_block->zone); fflush(stdout);
     retval = (int)syscall(SYS_tkill, tid, sig);
 printf("AFTER.KILL.............................\n"); fflush(stdout);
 
@@ -715,8 +717,8 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     if (hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS)
     {
 #if 1
-        _trace("*** ENCLAVE.SIGNAL: tid=%d sig=%d redzone=%d", tid, sig,
-            posix_shared_block()->redzone);
+        _trace("*** ENCLAVE.SIGNAL: tid=%d sig=%d zone=%d", tid, sig,
+            posix_shared_block()->zone);
 #endif
 
         uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
@@ -746,8 +748,8 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
         posix_sig_queue_node_t* node;
 
 #if 1
-        _trace("**HOST.SIGNAL: signum=%d tid=%d redzone=%d", sig, tid,
-            posix_shared_block()->redzone);
+        _trace("**HOST.SIGNAL: signum=%d tid=%d zone=%d", sig, tid,
+            posix_shared_block()->zone);
 #endif
 
         if (!(node = _sig_queue_node_new(sig, 0, si, uc)))

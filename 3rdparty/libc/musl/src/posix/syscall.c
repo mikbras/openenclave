@@ -704,9 +704,9 @@ long posix_syscall(long n, ...)
     long x6 = va_arg(ap, long);
     va_end(ap);
 
-    posix_shared_block()->redzone = 1;
+    posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
     ret = _dispatch_syscall(n, x1, x2, x3, x4, x5, x6);
-    posix_shared_block()->redzone = 0;
+    posix_shared_block()->zone = POSIX_ZONE_USER;
 
     posix_dispatch_redzone_signals();
 

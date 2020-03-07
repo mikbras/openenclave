@@ -299,7 +299,7 @@ int posix_clone(
 
     (void)child_stack;
 
-    posix_shared_block()->redzone = 1;
+    posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
 
     va_start(ap, arg);
     pid_t* ptid = va_arg(ap, pid_t*);
@@ -365,7 +365,7 @@ int posix_clone(
 
 done:
 
-    posix_shared_block()->redzone = 0;
+    posix_shared_block()->zone = POSIX_ZONE_USER;
 
     return ret;
 }
@@ -497,7 +497,7 @@ int posix_join(pthread_t pthread)
     int retval = -1;
     uint64_t host_pthread;
 
-    posix_shared_block()->redzone = 1;
+    posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
 
     if ((host_pthread = _pthread_table_find(pthread)) == (uint64_t)-1)
         POSIX_PANIC("_pthread_table_find()");
@@ -511,7 +511,7 @@ int posix_join(pthread_t pthread)
         POSIX_PANIC("posix_join_ocall()");
     }
 
-    posix_shared_block()->redzone = 0;
+    posix_shared_block()->zone = POSIX_ZONE_USER;
 
     return retval;
 }

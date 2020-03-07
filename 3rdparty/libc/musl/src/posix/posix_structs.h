@@ -42,6 +42,15 @@ struct posix_sig_queue
     posix_sig_queue_node_t* tail;
 };
 
+typedef enum _posix_zone
+{
+    POSIX_ZONE_USER,
+    POSIX_ZONE_SYSCALL = 1,
+    POSIX_ZONE_OCALL = 2,
+    POSIX_ZONE_HOST = 3,
+}
+posix_zone_t;
+
 typedef struct posix_shared_block posix_shared_block_t;
 struct posix_shared_block
 {
@@ -54,8 +63,8 @@ struct posix_shared_block
     posix_spinlock_t sig_queue_lock;
     posix_spinlock_t ocall_lock;
 
-    /* Non-zero if executing within the redzone (the syscall layer) */
-    int redzone;
+    /* Which zone this thread is currently running in. */
+    posix_zone_t zone;
 };
 
 #endif /* _POSIX_STRUCTS_H */

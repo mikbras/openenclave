@@ -121,7 +121,7 @@ done:
 /*
 **==============================================================================
 **
-** _greenzone_signal_handler()
+** _user_zone_signal_handler()
 **
 **     This function handles enclave signals that ocurred above the redzone
 **     (i.e., above the syscall layer). It invokes the user's signal handler.
@@ -129,18 +129,18 @@ done:
 **==============================================================================
 */
 
-static void _greenzone_signal_handler(void)
+static void _user_zone_signal_handler(void)
 {
     posix_sig_queue_node_t node;
 
-    if (posix_shared_block()->redzone)
+    if (posix_shared_block()->zone != POSIX_ZONE_USER)
         POSIX_PANIC("unexpected");
 
     if (_sig_queue_pop_front(&node) != 0)
         POSIX_PANIC("unexpected");
 
 #if 0
-    posix_printf("_greenzone_signal_handler(): sig=%d\n", node.signum);
+    posix_printf("_user_zone_signal_handler(): sig=%d\n", node.signum);
 #endif
 
     if (node.signum == 0)
@@ -188,7 +188,8 @@ static void _greenzone_signal_handler(void)
 
 extern uint64_t __oe_exception_arg;
 
-#ifdef USE_CUSTOM_STAVCK
+//#define USE_CUSTOM_STACK
+#ifdef USE_CUSTOM_STACK
 #define STACK_SIZE (64*1024)
 static __thread void* _tls_stack;
 #endif
@@ -202,11 +203,11 @@ static uint64_t _exception_handler(oe_exception_record_t* rec)
         posix_shared_block_t* shared_block = posix_shared_block();
         ucontext_t uc;
 
-        // If not in the redzone (within the syscall layer), then invoke
-        // _greenzone_signal_handler(). Else posix_dispatch_redzone_signals()
+        // If the exceptoin occurred in the user zone, then dispatch to
+        // _user_zone_signal_handler(). Else posix_dispatch_redzone_signals()
         // will directly invoke the user's signal handler upon exiting the
         // redzone.
-        if (!shared_block->redzone)
+        if (shared_block->zone == POSIX_ZONE_USER)
         {
             uc.uc_mcontext.gregs[REG_R8] = (int64_t)rec->context->r8;
             uc.uc_mcontext.gregs[REG_R9] = (int64_t)rec->context->r9;
@@ -244,7 +245,7 @@ static uint64_t _exception_handler(oe_exception_record_t* rec)
                 rec->context->rbp = (uint64_t)_tls_stack + (STACK_SIZE / 2);
             }
 #endif
-            rec->context->rip = (uint64_t)_greenzone_signal_handler;
+            rec->context->rip = (uint64_t)_user_zone_signal_handler;
         }
 
         return OE_EXCEPTION_CONTINUE_EXECUTION;
