@@ -748,8 +748,11 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
         posix_sig_queue_node_t* node;
 
 #if 1
-        _trace("**HOST.SIGNAL: signum=%d tid=%d zone=%d", sig, tid,
-            posix_shared_block()->zone);
+        _trace("**HOST.SIGNAL: signum=%d tid=%d zone=%d ocall_lock=%d",
+            sig,
+            tid,
+            posix_shared_block()->zone,
+            posix_shared_block()->ocall_lock);
 #endif
 
         if (!(node = _sig_queue_node_new(sig, 0, si, uc)))

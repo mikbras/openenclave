@@ -11,6 +11,7 @@
 #include <pthread.h>
 #include <openenclave/corelibc/stdlib.h>
 #include <openenclave/corelibc/assert.h>
+#include <openenclave/internal/print.h>
 #include "posix_common.h"
 #include "pthread_impl.h"
 #include "posix_syscall.h"
@@ -24,6 +25,7 @@
 #include "posix_trace.h"
 #include "posix_signal.h"
 #include "posix_panic.h"
+#include "posix_assert.h"
 #include "futex.h"
 
 #include "posix_warnings.h"
@@ -704,8 +706,12 @@ long posix_syscall(long n, ...)
     long x6 = va_arg(ap, long);
     va_end(ap);
 
+    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_USER);
     posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
+
     ret = _dispatch_syscall(n, x1, x2, x3, x4, x5, x6);
+
+    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
     posix_shared_block()->zone = POSIX_ZONE_USER;
 
     posix_dispatch_redzone_signals();

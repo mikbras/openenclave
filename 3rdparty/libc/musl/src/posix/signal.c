@@ -21,6 +21,7 @@
 #include "posix_trace.h"
 #include "posix_panic.h"
 #include "posix_structs.h"
+#include "posix_assert.h"
 
 #include "pthread_impl.h"
 
@@ -133,8 +134,7 @@ static void _user_zone_signal_handler(void)
 {
     posix_sig_queue_node_t node;
 
-    if (posix_shared_block()->zone != POSIX_ZONE_USER)
-        POSIX_PANIC("unexpected");
+    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_USER);
 
     if (_sig_queue_pop_front(&node) != 0)
         POSIX_PANIC("unexpected");

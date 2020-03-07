@@ -44,7 +44,7 @@ struct posix_sig_queue
 
 typedef enum _posix_zone
 {
-    POSIX_ZONE_USER,
+    POSIX_ZONE_USER = 0,
     POSIX_ZONE_SYSCALL = 1,
     POSIX_ZONE_OCALL = 2,
     POSIX_ZONE_HOST = 3,
