@@ -13,6 +13,10 @@
 
 #define POSIX_SIG_QUEUE_NODE_MAGIC 0x90962d674a93402d
 
+#if 0
+#define POSIX_USE_SIG_QUEUE_LOCKING
+#endif
+
 typedef struct posix_sig_queue_node posix_sig_queue_node_t;
 struct posix_sig_queue_node
 {
@@ -60,7 +64,9 @@ struct posix_shared_block
     size_t num_uaddrs;
     posix_sig_queue_t sig_queue;
     posix_sig_queue_t sig_queue_free_list;
+#ifdef POSIX_USE_SIG_QUEUE_LOCKING
     posix_spinlock_t sig_queue_lock;
+#endif
     posix_spinlock_t ocall_lock;
 
     /* Which zone this thread is currently running in. */

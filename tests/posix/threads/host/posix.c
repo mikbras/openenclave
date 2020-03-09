@@ -694,13 +694,17 @@ static int _sig_queue_push_back(posix_sig_queue_node_t* node)
 {
     int ret = -1;
     posix_shared_block_t* shared_block;
+#ifdef POSIX_USE_SIG_QUEUE_LOCKING
     bool locked = false;
+#endif
 
     if (!node || !(shared_block = posix_shared_block()))
         goto done;
 
+#ifdef POSIX_USE_SIG_QUEUE_LOCKING
     posix_spin_lock(&shared_block->sig_queue_lock);
     locked = true;
+#endif
 
 #if 1
     /* Free nodes on the free list */
@@ -716,8 +720,10 @@ static int _sig_queue_push_back(posix_sig_queue_node_t* node)
 
 done:
 
+#ifdef POSIX_USE_SIG_QUEUE_LOCKING
     if (locked)
         posix_spin_unlock(&shared_block->sig_queue_lock);
+#endif
 
     return ret;
 }

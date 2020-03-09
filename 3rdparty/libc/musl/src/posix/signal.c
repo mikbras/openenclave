@@ -47,13 +47,17 @@ static int _sig_queue_pop_front(posix_sig_queue_node_t* node_out)
     int ret = -1;
     posix_shared_block_t* shared_block;
     posix_sig_queue_node_t* node;
+#ifdef POSIX_USE_SIG_QUEUE_LOCKING
     bool locked = false;
+#endif
 
     if (!node_out || !(shared_block = posix_shared_block()))
         goto done;
 
+#ifdef POSIX_USE_SIG_QUEUE_LOCKING
     posix_spin_lock(&shared_block->sig_queue_lock);
     locked = true;
+#endif
 
     /* Remove the next node from the queue */
     if (!(node = (posix_sig_queue_node_t*)posix_list_pop_front(
@@ -73,14 +77,17 @@ static int _sig_queue_pop_front(posix_sig_queue_node_t* node_out)
 
 done:
 
+#ifdef POSIX_USE_SIG_QUEUE_LOCKING
     if (locked)
         posix_spin_unlock(&shared_block->sig_queue_lock);
+#endif
 
     return ret;
 }
 
 static bool _sig_queue_empty(void)
 {
+#ifdef POSIX_USE_SIG_QUEUE_LOCKING
     bool ret;
     posix_shared_block_t* shared_block = posix_shared_block();
 
@@ -89,6 +96,9 @@ static bool _sig_queue_empty(void)
     posix_spin_unlock(&shared_block->sig_queue_lock);
 
     return ret;
+#else
+    return posix_shared_block()->sig_queue.head == NULL;
+#endif
 }
 
 #if 0
