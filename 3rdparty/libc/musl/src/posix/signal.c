@@ -194,7 +194,7 @@ static void _user_zone_signal_handler(void)
 
 extern uint64_t __oe_exception_arg;
 
-//#define USE_CUSTOM_STACK
+#define USE_CUSTOM_STACK
 #ifdef USE_CUSTOM_STACK
 #define STACK_SIZE (64*1024)
 static __thread void* _tls_stack;

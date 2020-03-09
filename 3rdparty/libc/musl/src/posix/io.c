@@ -108,6 +108,8 @@ ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
         return (ssize_t)count;
     }
 
+    posix_printf(
+        "%s: %d:%d:%d\n", __FUNCTION__, fd, STDOUT_FILENO, STDERR_FILENO);
     POSIX_PANIC("unexpected");
     return -EBADFD;
 }

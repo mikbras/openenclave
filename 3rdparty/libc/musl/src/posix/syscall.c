@@ -508,6 +508,9 @@ static long _dispatch_syscall(
                 return (long)posix_writev(fd, iov, iovcnt);
             }
 
+            posix_printf(
+                "SYS_writev: %d:%d:%d\n", fd, STDOUT_FILENO, STDERR_FILENO);
+            POSIX_PANIC("fd != stdout and fd != stderr");
             break;
         }
         case SYS_ioctl:
@@ -688,7 +691,7 @@ static long _dispatch_syscall(
     }
 
     posix_printf("unhandled syscall: %s\n", _syscall_name(n));
-    assert(false);
+    POSIX_ASSERT(false);
     return -1;
 }
 

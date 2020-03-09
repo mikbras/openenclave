@@ -335,8 +335,6 @@ void posix_test_ecall(void* shared_block, int tid)
 #if 1 //RUN_ALL
     for (size_t i = 0; i < 10000; i++)
     {
-        printf("=========================================================\n");
-        fflush(stdout);
         extern int test_pthread_cancel3(void);
         OE_TEST(test_pthread_cancel3() == 0);
         //sleep_msec(100);

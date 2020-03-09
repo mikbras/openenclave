@@ -34,7 +34,9 @@
 #include "../../../../3rdparty/libc/musl/src/posix/posix_spinlock.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_panic.h"
 
-#define TRACE_THREADS
+//#define TRACE
+//#define TRACE_THREADS
+//#define TRACE_SIGNALS
 
 /* ATTN: single enclave instance */
 static oe_enclave_t* _enclave = NULL;
@@ -277,7 +279,6 @@ static posix_shared_block_t* _thread_table_find(int tid)
 **==============================================================================
 */
 
-#define TRACE
 #define BEGIN_OCALL _begin_ocall(__FUNCTION__)
 #define END_OCALL _end_ocall(__FUNCTION__)
 
@@ -610,7 +611,7 @@ int posix_tkill_ocall(int tid, int sig)
     int ret = -1;
     int retval;
 
-#if 1
+#ifdef TRACE
     _trace("%s(TID=%d, tid=%d, sig=%d)",
         __FUNCTION__, posix_gettid(), tid, sig);
 #endif
@@ -628,9 +629,7 @@ int posix_tkill_ocall(int tid, int sig)
     (void)_thread_table_find;
 #endif
 
-_trace("<<< BEFORE.TKILL\n");
     retval = (int)syscall(SYS_tkill, tid, sig);
-_trace(">>> AFTER.TKILL\n");
 
     ret = (retval == 0) ? 0 : -errno;
 
@@ -750,7 +749,9 @@ static posix_sig_queue_node_t* _sig_queue_node_new(
 
 static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 {
+#ifdef TRACE_SIGNALS
     int tid = posix_gettid();
+#endif
 
     posix_spin_unlock(&posix_shared_block()->ocall_lock);
 
@@ -763,7 +764,7 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     /* If the signal originated within the enclave */
     if (hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS)
     {
-#if 1
+#ifdef TRACE_SIGNALS
         _trace("*** ENCLAVE.SIGNAL: tid=%d sig=%d zone=%d", tid, sig,
             posix_shared_block()->zone);
 #endif
@@ -774,7 +775,7 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
         {
             posix_sig_queue_node_t* node;
 
-#if 1
+#ifdef TRACE_SIGNALS
             _trace("*** ENCLAVE.SIGNAL.CONTINUE: tid=%d sig=%d",
                 posix_gettid(), sig);
 #endif
@@ -794,7 +795,7 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     {
         posix_sig_queue_node_t* node;
 
-#if 1
+#ifdef TRACE_SIGNALS
         _trace("**HOST.SIGNAL: signum=%d tid=%d zone=%d",
             sig, tid, posix_shared_block()->zone);
 #endif
