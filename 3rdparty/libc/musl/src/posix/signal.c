@@ -49,8 +49,6 @@ static int _sig_queue_pop_front(posix_sig_queue_node_t* node_out)
     posix_sig_queue_node_t* node;
     bool locked = false;
 
-    //posix_lock_signal();
-
     if (!node_out || !(shared_block = posix_shared_block()))
         goto done;
 
@@ -77,8 +75,6 @@ done:
 
     if (locked)
         posix_spin_unlock(&shared_block->sig_queue_lock);
-
-    //posix_unlock_signal();
 
     return ret;
 }
@@ -341,6 +337,8 @@ int posix_dispatch_redzone_signals(void)
     sigaction_handler_t handler = NULL;
     oe_jmpbuf_t env;
     posix_sig_queue_node_t node;
+
+    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_USER);
 
     /* Dispatch all entries in the signal queue until empty */
     while (!_sig_queue_empty())

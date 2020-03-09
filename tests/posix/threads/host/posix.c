@@ -110,18 +110,61 @@ void posix_panic(
     abort();
 }
 
+int posix_block_all_signals(sigset_t* old_set)
+{
+    int r;
+    sigset_t mask;
+
+    if ((r = sigfillset(&mask)) != 0)
+        return r;
+
+    if ((r = sigprocmask(SIG_BLOCK, &mask, old_set)) != 0)
+        return r;
+
+    return 0;
+}
+
+int posix_restore_signals(sigset_t* set)
+{
+    return sigprocmask(SIG_SETMASK, set, 0);
+}
+
 __attribute__((format(printf, 1, 2)))
 __attribute__((used))
 static void _trace(const char* fmt, ...)
 {
     char buf[1024];
+    char prefix[] = "TRACE: ";
+    const size_t prefix_len = sizeof(prefix) - 1;
     va_list ap;
 
+#if 0
+    sigset_t set;
+    posix_block_all_signals(&set);
+#endif
+
+    memcpy(buf, prefix, sizeof(prefix));
+
     va_start(ap, fmt);
-    vsnprintf(buf, sizeof(buf), fmt, ap);
-    fprintf(stdout, "TRACE: %s\n", buf);
-    fflush(stdout);
+    int n = vsnprintf(buf + prefix_len, sizeof(buf) - prefix_len, fmt, ap);
     va_end(ap);
+
+    if (n < 0 || (size_t)n >= sizeof(buf))
+    {
+        const char msg[] = "TRACE overflowed\n";
+        write(STDOUT_FILENO, msg, sizeof(msg));
+        abort();
+    }
+
+    n += (int)prefix_len;
+    strcat(buf, "\n");
+    n++;
+
+    write(STDOUT_FILENO, buf, (size_t)n);
+
+#if 0
+    posix_restore_signals(&set);
+#endif
 }
 
 /*
@@ -579,17 +622,15 @@ int posix_tkill_ocall(int tid, int sig)
         if (!(shared_block = _thread_table_find(tid)))
             assert("_thread_table_find() failed" == NULL);
 
-printf("BEFORE.LOCK\n");
         posix_spin_lock(&shared_block->ocall_lock);
-printf("AFTER.LOCK\n");
     }
 #else
     (void)_thread_table_find;
 #endif
 
-printf("BEFORE.KILL: zone=%u\n", shared_block->zone); fflush(stdout);
+_trace("<<< BEFORE.TKILL\n");
     retval = (int)syscall(SYS_tkill, tid, sig);
-printf("AFTER.KILL.............................\n"); fflush(stdout);
+_trace(">>> AFTER.TKILL\n");
 
     ret = (retval == 0) ? 0 : -errno;
 
@@ -748,11 +789,8 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
         posix_sig_queue_node_t* node;
 
 #if 1
-        _trace("**HOST.SIGNAL: signum=%d tid=%d zone=%d ocall_lock=%d",
-            sig,
-            tid,
-            posix_shared_block()->zone,
-            posix_shared_block()->ocall_lock);
+        _trace("**HOST.SIGNAL: signum=%d tid=%d zone=%d",
+            sig, tid, posix_shared_block()->zone);
 #endif
 
         if (!(node = _sig_queue_node_new(sig, 0, si, uc)))

@@ -20,6 +20,7 @@
 #include "posix_panic.h"
 #include "posix_ocall_structs.h"
 #include "posix_structs.h"
+#include "posix_assert.h"
 
 typedef struct _futex futex_t;
 
@@ -64,9 +65,17 @@ volatile int* posix_futex_map(volatile int* lock)
     volatile int* ret = NULL;
     uint64_t index = ((uint64_t)lock >> 4) % NUM_CHAINS;
     futex_t* futex;
+    uint32_t zone;
 
     if (!oe_is_within_enclave((void*)lock, sizeof(*lock)))
         POSIX_PANIC("lock not within enclave");
+
+    zone = posix_shared_block()->zone;
+
+    POSIX_ASSERT(zone == POSIX_ZONE_USER || zone == POSIX_ZONE_SYSCALL);
+
+    if (zone == POSIX_ZONE_USER)
+        posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
 
     posix_spin_lock(&_lock);
 
@@ -95,6 +104,8 @@ volatile int* posix_futex_map(volatile int* lock)
 done:
 
     posix_spin_unlock(&_lock);
+
+    posix_shared_block()->zone = zone;
 
     return ret;
 }
