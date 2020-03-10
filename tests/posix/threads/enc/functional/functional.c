@@ -6,7 +6,7 @@ void test_functional(void)
     const char* argv[] = { "main", NULL, NULL };
     const char** envp = argv + argc + 1;
 
-#if 0
+#if 1
     for (size_t i = 0; i < 10; i++)
     {
         extern int pthread_cancel_main(

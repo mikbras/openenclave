@@ -323,7 +323,7 @@ void posix_print_trace(void)
 {
     if (_tls_shared_block)
     {
-        _trace("posix_print_trace=%08x (%d)", _tls_shared_block->trace,
+        _trace("posix_print_trace=%08x (%x)", _tls_shared_block->trace,
             posix_gettid());
     }
     else

@@ -314,7 +314,7 @@ void posix_test_ecall(void* shared_block, int tid)
 
     posix_init(shared_block, tid);
 
-#define RUN_ALL 0
+#define RUN_ALL 1
 
 #if RUN_ALL
     for (size_t i = 0; i < 1; i++)
@@ -332,8 +332,8 @@ void posix_test_ecall(void* shared_block, int tid)
     }
 #endif
 
-#if 1 //RUN_ALL
-    for (size_t i = 0; i < 10000; i++)
+#if RUN_ALL
+    for (size_t i = 0; i < 1000; i++)
     {
         printf("loop.....................................%zu\n", i);
         extern int test_pthread_cancel3(void);

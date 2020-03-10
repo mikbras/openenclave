@@ -26,7 +26,7 @@ int test_pthread_cancel4(void)
     pthread_t td;
     void *res;
 
-    posix_printf("=== %s()\n", __FUNCTION__);
+    printf("=== %s()\n", __FUNCTION__);
     fflush(stdout);
 
     OE_TEST(pthread_create(&td, 0, _thread_func, NULL) == 0);
