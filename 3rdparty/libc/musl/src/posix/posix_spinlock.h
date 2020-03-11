@@ -2,12 +2,13 @@
 #define _POSIX_SPINLOCK_H
 
 #include <stdint.h>
+#include "posix_common.h"
 
 #define POSIX_SPINLOCK_INITIALIZER 0
 
 typedef volatile uint32_t posix_spinlock_t;
 
-static __inline unsigned int __posix_spin_set_locked(posix_spinlock_t* s)
+POSIX_INLINE unsigned int __posix_spin_set_locked(posix_spinlock_t* s)
 {
     unsigned int value = 1;
 
@@ -20,7 +21,7 @@ static __inline unsigned int __posix_spin_set_locked(posix_spinlock_t* s)
     return value;
 }
 
-static __inline void posix_spin_lock(posix_spinlock_t* s)
+POSIX_INLINE void posix_spin_lock(posix_spinlock_t* s)
 {
     if (s)
     {
@@ -32,7 +33,7 @@ static __inline void posix_spin_lock(posix_spinlock_t* s)
     }
 }
 
-static __inline void posix_spin_unlock(posix_spinlock_t* s)
+POSIX_INLINE void posix_spin_unlock(posix_spinlock_t* s)
 {
     if (s)
     {

@@ -12,9 +12,9 @@
 #include <openenclave/corelibc/stdlib.h>
 #include <openenclave/corelibc/assert.h>
 #include <openenclave/internal/print.h>
+#include "posix_syscall.h"
 #include "posix_common.h"
 #include "pthread_impl.h"
-#include "posix_syscall.h"
 #include "posix_mman.h"
 #include "posix_io.h"
 #include "posix_thread.h"

@@ -13,7 +13,6 @@
 #include "posix_common.h"
 #include "posix_thread.h"
 #include "posix_io.h"
-#include "posix_syscall.h"
 #include "posix_spinlock.h"
 #include "posix_mman.h"
 #include "posix_trace.h"

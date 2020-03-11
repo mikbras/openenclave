@@ -293,7 +293,7 @@ static posix_shared_block_t* _thread_table_find(int tid)
 #define BEGIN_OCALL _begin_ocall(__FUNCTION__)
 #define END_OCALL _end_ocall(__FUNCTION__)
 
-static inline void _begin_ocall(const char* func)
+POSIX_INLINE void _begin_ocall(const char* func)
 {
 #if defined(TRACE)
     _trace("_begin_ocall:%s:%d", func, posix_gettid());
@@ -311,7 +311,7 @@ static inline void _begin_ocall(const char* func)
     (void)func;
 }
 
-static inline void _end_ocall(const char* func)
+POSIX_INLINE void _end_ocall(const char* func)
 {
     (void)func;
 

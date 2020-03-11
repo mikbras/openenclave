@@ -8,6 +8,7 @@
 #include "posix_ocall_structs.h"
 #include "posix_structs.h"
 #include "posix_spinlock.h"
+#include "posix_common.h"
 
 typedef struct _posix_thread posix_thread_t;
 typedef struct _posix_mutex posix_mutex_t;
@@ -71,7 +72,7 @@ typedef struct _posix_thread_queue
     posix_thread_t* back;
 } posix_thread_queue_t;
 
-static __inline__ size_t posix_thread_queue_size(posix_thread_queue_t* queue)
+POSIX_INLINE size_t posix_thread_queue_size(posix_thread_queue_t* queue)
 {
     size_t n = 0;
 
@@ -81,7 +82,7 @@ static __inline__ size_t posix_thread_queue_size(posix_thread_queue_t* queue)
     return n;
 }
 
-static __inline__ void posix_thread_queue_push_back(
+POSIX_INLINE void posix_thread_queue_push_back(
     posix_thread_queue_t* queue,
     posix_thread_t* thread)
 {
@@ -95,7 +96,7 @@ static __inline__ void posix_thread_queue_push_back(
     queue->back = thread;
 }
 
-static __inline__ posix_thread_t* posix_thread_queue_pop_front(
+POSIX_INLINE posix_thread_t* posix_thread_queue_pop_front(
     posix_thread_queue_t* queue)
 {
     posix_thread_t* thread = queue->front;
@@ -111,7 +112,7 @@ static __inline__ posix_thread_t* posix_thread_queue_pop_front(
     return thread;
 }
 
-static __inline__ bool posix_thread_queue_contains(
+POSIX_INLINE bool posix_thread_queue_contains(
     posix_thread_queue_t* queue,
     posix_thread_t* thread)
 {
@@ -126,8 +127,7 @@ static __inline__ bool posix_thread_queue_contains(
     return false;
 }
 
-static __inline__ bool posix_thread_queue_empty(
-    posix_thread_queue_t* queue)
+POSIX_INLINE bool posix_thread_queue_empty(posix_thread_queue_t* queue)
 {
     return queue->front ? false : true;
 }
