@@ -60,7 +60,7 @@ struct _posix_thread
     size_t robust_list_len;
 
     /* Spin here until thread is actually created */
-    posix_spinlock_t lock;
+    posix_spinlock_t create_lock;
 
     /* POSIX_THREAD_STATE_STARTED or zero */
     uint32_t state;

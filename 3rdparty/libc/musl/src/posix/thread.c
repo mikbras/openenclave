@@ -151,7 +151,7 @@ void posix_unblock_creator_thread(void)
         POSIX_PANIC;
 
     self->state = POSIX_THREAD_STATE_STARTED;
-    posix_spin_unlock(&self->lock);
+    posix_spin_unlock(&self->create_lock);
 }
 
 /*
@@ -162,10 +162,7 @@ void posix_unblock_creator_thread(void)
 **==============================================================================
 */
 
-int posix_run_thread_ecall(
-    uint64_t cookie,
-    int tid,
-    void* shared_block)
+int posix_run_thread_ecall(uint64_t cookie, int tid, void* shared_block)
 {
     posix_thread_t* thread = (posix_thread_t*)cookie;
 
@@ -190,6 +187,9 @@ int posix_run_thread_ecall(
 
     if (setjmp(thread->jmpbuf) == 0)
     {
+        /* Unblock the creator thread */
+        posix_unblock_creator_thread();
+
         (*thread->fn)(thread->arg);
 
         /* Never returns. */
@@ -248,8 +248,8 @@ int posix_clone(
         thread->state = 0;
     }
 
-    /* The thread will unlock this when it starts */
-    posix_spin_lock(&thread->lock);
+    /* The thread will unlock this when the thread routine starts */
+    posix_spin_lock(&thread->create_lock);
 
     /* Ask the host to call posix_run_thread_ecall() on a new thread */
     {
@@ -259,19 +259,21 @@ int posix_clone(
         if (POSIX_OCALL(posix_start_thread_ocall(
             &retval, cookie), 0x30549117) != OE_OK)
         {
+            posix_spin_lock(&thread->create_lock);
             ret = -ENOMEM;
             goto done;
         }
 
         if (retval != 0)
         {
+            posix_spin_lock(&thread->create_lock);
             ret = -ENOMEM;
             goto done;
         }
     }
 
     /* Wait here for thread to start and unlock this */
-    posix_spin_lock(&thread->lock);
+    posix_spin_lock(&thread->create_lock);
 
     if (thread->state != POSIX_THREAD_STATE_STARTED)
         POSIX_PANIC;

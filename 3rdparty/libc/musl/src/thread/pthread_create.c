@@ -196,8 +196,10 @@ static int start(void *p)
 	}
 
 	__syscall(SYS_rt_sigprocmask, SIG_SETMASK, &args->sig_mask, 0, _NSIG/8);
+#if 0
         extern void posix_unblock_creator_thread(void);
         posix_unblock_creator_thread();
+#endif
 	__pthread_exit(args->start_func(args->start_arg));
 	return 0;
 }
