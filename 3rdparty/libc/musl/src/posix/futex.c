@@ -22,6 +22,8 @@
 #include "posix_structs.h"
 #include "posix_assume.h"
 
+#define NUM_CHAINS 1024
+
 typedef struct _futex futex_t;
 
 struct _futex
@@ -30,8 +32,6 @@ struct _futex
     volatile int* lock;
     volatile int* uaddr;
 };
-
-#define NUM_CHAINS 1024
 
 static futex_t* _chains[NUM_CHAINS];
 static posix_spinlock_t _lock = POSIX_SPINLOCK_INITIALIZER;
@@ -110,7 +110,7 @@ done:
     return ret;
 }
 
-int posix_futex_wait(
+static int _posix_futex_wait(
     volatile int* uaddr,
     int op,
     int val,
@@ -183,7 +183,7 @@ done:
     return ret;
 }
 
-int posix_futex_requeue(
+static int _posix_futex_requeue(
     int* uaddr,
     int op,
     int val,
@@ -247,7 +247,7 @@ long posix_futex_syscall(
     if (op == FUTEX_WAIT || op == (FUTEX_WAIT|FUTEX_PRIVATE))
     {
         const struct timespec* timeout = (const struct timespec*)arg;
-        return posix_futex_wait(uaddr, op, val, timeout);
+        return _posix_futex_wait(uaddr, op, val, timeout);
     }
     else if (op == FUTEX_WAKE || op == (FUTEX_WAKE|FUTEX_PRIVATE))
     {
@@ -256,7 +256,7 @@ long posix_futex_syscall(
     else if (op == FUTEX_REQUEUE || op == (FUTEX_REQUEUE|FUTEX_PRIVATE))
     {
         int val2 = (int)arg;
-        return posix_futex_requeue(uaddr, op, val, val2, uaddr2);
+        return _posix_futex_requeue(uaddr, op, val, val2, uaddr2);
     }
     else
     {
