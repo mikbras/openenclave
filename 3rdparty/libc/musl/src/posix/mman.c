@@ -15,49 +15,39 @@
 
 #include "posix_warnings.h"
 
-#define USE_DLMALLOC
+extern void* dlmemalign(size_t alignment, size_t size);
 
-static void* _memalign(size_t alignment, size_t size)
-{
-#if defined(USE_DLMALLOC)
-    extern void* dlmemalign(size_t alignment, size_t size);
-    return dlmemalign(alignment, size);
+extern void dlfree(void* ptr);
+
+#if 0
+#define MEMALIGN dlmemalign
+#define FREE dlfree
 #else
-    return oe_memalign(alignment, size);
+#define MEMALIGN oe_memalign
+#define FREE oe_free
 #endif
-}
 
-static void _free(void* ptr)
-{
-#if defined(USE_DLMALLOC)
-    extern void dlfree(void* ptr);
-    dlfree(ptr);
-#else
-    oe_free(ptr);
-#endif
-}
-
-void* posix_brk(void* new_brk)
+long posix_brk_syscall(void* new_brk)
 {
     uint8_t* current;
 
     /* If argument is null, return current break value. */
     if (new_brk == NULL)
-        return oe_sbrk(0);
+        return (long)oe_sbrk(0);
 
     /* Get the current break value. */
     if ((current = oe_sbrk(0)) == (void*)-1)
-        return (void*)-1;
+        return -1;
 
     intptr_t increment = (uint8_t*)new_brk - current;
 
     if (((uint8_t*)oe_sbrk(increment)) == (void*)-1)
-        return (void*)-1;
+        return -1;
 
-    return new_brk;
+    return (long)new_brk;
 }
 
-int posix_mprotect(void* addr, size_t len, int prot)
+long posix_mprotect_syscall(void* addr, size_t len, int prot)
 {
     if (addr && len && (prot & (PROT_READ|PROT_WRITE)))
         return 0;
@@ -68,7 +58,7 @@ int posix_mprotect(void* addr, size_t len, int prot)
 
 }
 
-void* posix_mmap(
+long posix_mmap_syscall(
     void *addr,
     size_t length,
     int prot,
@@ -84,31 +74,30 @@ void* posix_mmap(
     {
         uint8_t* ptr;
 
-        if (!(ptr = _memalign(4096, length)))
+        if (!(ptr = MEMALIGN(4096, length)))
         {
-            oe_assert("oe_memalign() failed" == NULL);
-            return (void*)-1;
+            POSIX_PANIC_MSG("memalign() failed");
+            return -1;
         }
 
         memset(ptr, 0, length);
-        return ptr;
+        return (long)ptr;
     }
     else
     {
         POSIX_PANIC_MSG("unsupported mmap options");
     }
 
-    return (void*)-1;
+    return -1;
 }
 
-int posix_munmap(void *addr, size_t length)
+long posix_munmap_syscall(void *addr, size_t length)
 {
     POSIX_ASSUME(addr != NULL);
 
     if (addr && length)
     {
-        memset(addr, 0, length);
-        _free(addr);
+        FREE(addr);
         return 0;
     }
 

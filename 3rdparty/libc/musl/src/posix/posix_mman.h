@@ -4,11 +4,11 @@
 #include <stddef.h>
 #include <sys/mman.h>
 
-void* posix_brk(void* new_brk);
+long posix_brk_syscall(void* new_brk);
 
-int posix_mprotect(void* addr, size_t len, int prot);
+long posix_mprotect_syscall(void* addr, size_t len, int prot);
 
-void* posix_mmap(
+long posix_mmap_syscall(
     void *addr,
     size_t length,
     int prot,
@@ -16,6 +16,6 @@ void* posix_mmap(
     int fd,
     off_t offset);
 
-int posix_munmap(void *addr, size_t length);
+long posix_munmap_syscall(void *addr, size_t length);
 
 #endif /* _POSIX_MMAN_H */

@@ -509,7 +509,7 @@ static long _dispatch_syscall(
         case SYS_brk:
         {
             void* new_brk = (void*)x1;
-            return (long)posix_brk(new_brk);
+            return posix_brk_syscall(new_brk);
         }
         case SYS_tkill:
         {
@@ -540,8 +540,7 @@ static long _dispatch_syscall(
             void* addr = (void*)x1;
             size_t len = (size_t)x2;
             int prot = (int)x3;
-
-            return posix_mprotect(addr, len, prot);
+            return posix_mprotect_syscall(addr, len, prot);
         }
         case SYS_mmap:
         {
@@ -551,13 +550,13 @@ static long _dispatch_syscall(
             int flags = (int)x4;
             int fd = (int)x5;
             off_t offset = (int)x6;
-            return (long)posix_mmap(addr, length, prot, flags, fd, offset);
+            return posix_mmap_syscall(addr, length, prot, flags, fd, offset);
         }
         case SYS_munmap:
         {
             void* addr = (void*)x1;
             size_t length = (size_t)x2;
-            return (long)posix_munmap(addr, length);
+            return posix_munmap_syscall(addr, length);
         }
         case SYS_futex:
         {
