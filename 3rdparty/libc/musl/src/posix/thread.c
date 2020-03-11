@@ -405,3 +405,16 @@ posix_shared_block_t* posix_shared_block(void)
 
     return self->shared_block;
 }
+
+long posix_tkill_syscall(int tid, int sig)
+{
+    long retval;
+
+    if (POSIX_OCALL(posix_tkill_syscall_ocall(
+        &retval, tid, sig), 0x8aaf2494) != OE_OK)
+    {
+        return -ENOSYS;
+    }
+
+    return retval;
+}

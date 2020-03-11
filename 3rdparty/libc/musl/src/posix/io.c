@@ -112,7 +112,7 @@ long posix_writev_syscall(int fd, const struct iovec *iov, int iovcnt)
     }
     else
     {
-        POSIX_PANIC_MSG("posix_writev_syscall(): unsupported fd");
+        POSIX_PANIC_MSG("unsupported fd: %d", fd);
     }
 
     return -EBADFD;
@@ -163,7 +163,7 @@ long posix_ioctl_syscall(
     }
     else
     {
-        POSIX_PANIC_MSG("posix_ioctl(): unsupported operation");
+        POSIX_PANIC_MSG("unsupported operation");
     }
 
     return -EBADFD;

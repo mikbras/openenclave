@@ -34,7 +34,7 @@ struct _futex
 };
 
 static futex_t* _chains[NUM_CHAINS];
-static posix_spinlock_t _lock = POSIX_SPINLOCK_INITIALIZER;
+static posix_spinlock_t _lock;
 
 static size_t _uaddrs_index;
 

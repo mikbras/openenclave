@@ -73,16 +73,14 @@ enclave
             int clk_id,
             [out, count=1] struct posix_timespec* tp);
 
-        int posix_tkill_ocall(int tid, int sig)
-            //transition_using_threads
-            ;
+        long posix_tkill_syscall_ocall(int tid, int sig);
 
-        int posix_rt_sigaction_ocall(
+        long posix_rt_sigaction_syscall_ocall(
             int signum,
             [in, count=1] const struct posix_sigaction* act,
             size_t sigsetsize);
 
-        int posix_rt_sigprocmask_ocall(
+        long posix_rt_sigprocmask_syscall_ocall(
             int how,
             [in, count=1] const struct posix_sigset* set,
             [out, count=1] struct posix_sigset* oldset,

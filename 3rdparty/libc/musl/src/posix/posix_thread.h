@@ -158,12 +158,13 @@ long posix_get_robust_list(
 
 long posix_set_robust_list(struct posix_robust_list_head* head, size_t len);
 
-int posix_tkill(int tid, int sig);
+long posix_tkill_syscall(int tid, int sig);
 
 void posix_noop(void);
 
 void posix_exit(int status);
 
+/* ATTN: use a more elegant locking solution */
 void posix_unblock_creator_thread(void);
 
 int posix_init_main_thread(posix_shared_block_t* shared_block, int tid);

@@ -194,12 +194,6 @@ static void _user_zone_signal_handler(void)
 
 extern uint64_t __oe_exception_arg;
 
-#define USE_CUSTOM_STACK
-#ifdef USE_CUSTOM_STACK
-#define STACK_SIZE (64*1024)
-static __thread void* _tls_stack;
-#endif
-
 static uint64_t _exception_handler(oe_exception_record_t* rec)
 {
     posix_set_trace(0xf7c4b81e);
@@ -234,23 +228,6 @@ static uint64_t _exception_handler(oe_exception_record_t* rec)
             uc.uc_mcontext.gregs[REG_RIP] = (int64_t)rec->context->rip;
 
             _tls_ucontext = uc;
-
-#ifdef USE_CUSTOM_STACK
-            {
-                if (!_tls_stack)
-                {
-                    if (!(_tls_stack = oe_memalign(4096, STACK_SIZE)))
-                    {
-                        POSIX_PANIC_MSG("out of memory");
-                    }
-                }
-
-                memset(_tls_stack, 0, STACK_SIZE);
-
-                rec->context->rsp = (uint64_t)_tls_stack + (STACK_SIZE / 2);
-                rec->context->rbp = (uint64_t)_tls_stack + (STACK_SIZE / 2);
-            }
-#endif
             rec->context->rip = (uint64_t)_user_zone_signal_handler;
         }
 
@@ -271,13 +248,13 @@ void __posix_install_exception_handler(void)
     }
 }
 
-int posix_rt_sigaction(
+long posix_rt_sigaction_syscall(
     int signum,
-    const struct posix_sigaction* act,
-    struct posix_sigaction* oldact,
+    const posix_sigaction_t* act,
+    posix_sigaction_t* oldact,
     size_t sigsetsize)
 {
-    int r;
+    long retval;
 
     if (act)
     {
@@ -304,42 +281,34 @@ int posix_rt_sigaction(
     if (!act)
         return 0;
 
-    if (POSIX_OCALL(posix_rt_sigaction_ocall(
-        &r, signum, act, sigsetsize), 0xa9b209b4) != OE_OK)
+    if (POSIX_OCALL(posix_rt_sigaction_syscall_ocall(
+        &retval, signum, act, sigsetsize), 0xa9b209b4) != OE_OK)
     {
         return -EINVAL;
     }
 
-    return r;
+    return retval;
 }
 
-int posix_rt_sigprocmask(
+long posix_rt_sigprocmask_syscall(
     int how,
-    const sigset_t* set,
-    sigset_t* oldset,
+    const posix_sigset_t* set,
+    posix_sigset_t* oldset,
     size_t sigsetsize)
 {
-#if 0
-    int retval;
+    long retval;
 
-    if (POSIX_OCALL(posix_rt_sigprocmask_ocall(
+    if (POSIX_OCALL(posix_rt_sigprocmask_syscall_ocall(
         &retval,
         how,
-        (const struct posix_sigset*)set,
-        (struct posix_sigset*)oldset,
+        set,
+        oldset,
         sigsetsize), 0x92c59019) != OE_OK)
     {
         return -EINVAL;
     }
 
     return retval;
-#else
-    (void)how;
-    (void)set;
-    (void)oldset;
-    (void)sigsetsize;
-    return 0;
-#endif
 }
 
 int posix_dispatch_redzone_signals(void)
@@ -408,16 +377,4 @@ int posix_dispatch_redzone_signals(void)
     }
 
     return 0;
-}
-
-extern struct posix_shared_block* __posix_init_shared_block;
-
-int posix_tkill(int tid, int sig)
-{
-    int retval;
-
-    if (POSIX_OCALL(posix_tkill_ocall(&retval, tid, sig), 0x8aaf2494) != OE_OK)
-        return -ENOSYS;
-
-    return retval;
 }

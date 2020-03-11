@@ -618,33 +618,28 @@ int posix_clock_gettime_ocall(int clk_id, struct posix_timespec* tp)
     return ret;
 }
 
-int posix_tkill_ocall(int tid, int sig)
+long posix_tkill_syscall_ocall(int tid, int sig)
 {
     BEGIN_OCALL;
-    int ret = -1;
-    int retval;
+    long ret;
 
 #ifdef TRACE
     _trace("%s(TID=%d, tid=%d, sig=%d)",
         __FUNCTION__, posix_gettid(), tid, sig);
 #endif
 
-#if 1
-    posix_shared_block_t* shared_block = NULL;
+    /* Lock the ocall_lock */
     {
+        posix_shared_block_t* shared_block = NULL;
 
         if (!(shared_block = _thread_table_find(tid)))
             assert("_thread_table_find() failed" == NULL);
 
         posix_spin_lock(&shared_block->ocall_lock);
     }
-#else
-    (void)_thread_table_find;
-#endif
 
-    retval = (int)syscall(SYS_tkill, tid, sig);
-
-    ret = (retval == 0) ? 0 : -errno;
+    if ((ret = (int)syscall(SYS_tkill, tid, sig)) != 0)
+        ret = -errno;
 
     END_OCALL;
     return ret;
@@ -823,7 +818,7 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     }
 }
 
-int posix_rt_sigaction_ocall(
+long posix_rt_sigaction_syscall_ocall(
     int signum,
     const struct posix_sigaction* pact,
     size_t sigsetsize)
@@ -863,7 +858,7 @@ void posix_dump_sigset(const char* msg, const posix_sigset* set)
     fflush(stdout);
 }
 
-int posix_rt_sigprocmask_ocall(
+long posix_rt_sigprocmask_syscall_ocall(
     int how,
     const struct posix_sigset* set,
     struct posix_sigset* oldset,

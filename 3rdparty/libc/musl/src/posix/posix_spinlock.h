@@ -4,8 +4,6 @@
 #include <stdint.h>
 #include "posix_common.h"
 
-#define POSIX_SPINLOCK_INITIALIZER 0
-
 typedef volatile uint32_t posix_spinlock_t;
 
 POSIX_INLINE unsigned int __posix_spin_set_locked(posix_spinlock_t* s)

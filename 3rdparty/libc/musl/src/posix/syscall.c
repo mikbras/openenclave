@@ -465,8 +465,7 @@ static long _dispatch_syscall(
         {
             int tid = (int)x1;
             int sig = (int)x2;
-            int r = posix_tkill(tid, sig);
-            return (long)r;
+            return posix_tkill_syscall(tid, sig);
         }
         case SYS_rt_sigaction:
         {
@@ -474,16 +473,16 @@ static long _dispatch_syscall(
             const struct posix_sigaction* act = (void*)x2;
             struct posix_sigaction* oldact = (void*)x3;
             size_t sigsetsize = (size_t)x4;
-            return posix_rt_sigaction(signum, act, oldact, sigsetsize);
+            return posix_rt_sigaction_syscall(signum, act, oldact, sigsetsize);
         }
         case SYS_rt_sigprocmask:
         {
             errno = 0;
             int how = (int)x1;
-            const sigset_t* set = (void*)x2;
-            sigset_t* oldset = (void*)x3;
+            const posix_sigset_t* set = (void*)x2;
+            posix_sigset_t* oldset = (void*)x3;
             size_t sigsetsize = (size_t)x4;
-            return posix_rt_sigprocmask(how, set, oldset, sigsetsize);
+            return posix_rt_sigprocmask_syscall(how, set, oldset, sigsetsize);
         }
         case SYS_mprotect:
         {

@@ -21,4 +21,4 @@ posix_jump_context_t;
 
 void posix_jump(posix_jump_context_t* context);
 
-#endif //_POSIX_JUMP_H
+#endif /* _POSIX_JUMP_H */
