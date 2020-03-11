@@ -23,7 +23,7 @@
 #include "posix_signal.h"
 #include "posix_trace.h"
 #include "posix_panic.h"
-#include "posix_assert.h"
+#include "posix_assume.h"
 
 #include "posix_warnings.h"
 
@@ -300,7 +300,7 @@ int posix_clone(
 
     (void)child_stack;
 
-    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_USER);
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_USER);
     posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
 
     va_start(ap, arg);
@@ -367,7 +367,7 @@ int posix_clone(
 
 done:
 
-    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
     posix_shared_block()->zone = POSIX_ZONE_USER;
 
     return ret;
@@ -500,7 +500,7 @@ int posix_join(pthread_t pthread)
     int retval = -1;
     uint64_t host_pthread;
 
-    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_USER);
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_USER);
     posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
 
     if ((host_pthread = _pthread_table_find(pthread)) == (uint64_t)-1)
@@ -515,7 +515,7 @@ int posix_join(pthread_t pthread)
         POSIX_PANIC("posix_join_ocall()");
     }
 
-    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
     posix_shared_block()->zone = POSIX_ZONE_USER;
 
     return retval;

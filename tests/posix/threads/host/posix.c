@@ -942,3 +942,13 @@ int posix_join_ocall(uint64_t host_pthread)
 {
     return pthread_join((pthread_t)host_pthread, NULL);
 }
+
+void posix_assume_ocall(
+    const char* file,
+    uint32_t line,
+    const char* func,
+    const char* cond)
+{
+    fprintf(stderr, "assumption failed: %s(%u): %s(): %s\n",
+        file, line, func, cond);
+}

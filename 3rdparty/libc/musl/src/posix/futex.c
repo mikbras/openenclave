@@ -20,7 +20,7 @@
 #include "posix_panic.h"
 #include "posix_ocall_structs.h"
 #include "posix_structs.h"
-#include "posix_assert.h"
+#include "posix_assume.h"
 
 typedef struct _futex futex_t;
 
@@ -72,7 +72,7 @@ volatile int* posix_futex_map(volatile int* lock)
 
     zone = posix_shared_block()->zone;
 
-    POSIX_ASSERT(zone == POSIX_ZONE_USER || zone == POSIX_ZONE_SYSCALL);
+    POSIX_ASSUME(zone == POSIX_ZONE_USER || zone == POSIX_ZONE_SYSCALL);
 
     if (zone == POSIX_ZONE_USER)
         posix_shared_block()->zone = POSIX_ZONE_SYSCALL;

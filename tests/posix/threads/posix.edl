@@ -99,5 +99,11 @@ enclave
         int posix_join_ocall(uint64_t host_pthread);
 
         void posix_raw_puts_ocall([in, string] const char* str);
+
+        void posix_assume_ocall(
+            [in, string] const char* file,
+            uint32_t line,
+            [in, string] const char* func,
+            [in, string] const char* cond);
     };
 };

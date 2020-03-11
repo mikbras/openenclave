@@ -38,9 +38,11 @@ static void _host_signal_handler(
     host_context.rbx = (uint64_t)context->uc_mcontext.gregs[REG_RBX];
     host_context.rip = (uint64_t)context->uc_mcontext.gregs[REG_RIP];
 
+#if 0
 printf("_host_signal_handler: sig=%d\n", sig_num); fflush(stdout);
 extern void posix_print_trace(void);
 posix_print_trace();
+#endif
 
     // Call platform neutral handler.
     uint64_t action = oe_host_handle_exception(&host_context, 0);

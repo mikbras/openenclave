@@ -25,7 +25,7 @@
 #include "posix_trace.h"
 #include "posix_signal.h"
 #include "posix_panic.h"
-#include "posix_assert.h"
+#include "posix_assume.h"
 #include "futex.h"
 
 #include "posix_warnings.h"
@@ -691,7 +691,7 @@ static long _dispatch_syscall(
     }
 
     posix_printf("unhandled syscall: %s\n", _syscall_name(n));
-    POSIX_ASSERT(false);
+    POSIX_ASSUME(false);
     return -1;
 }
 
@@ -709,12 +709,12 @@ long posix_syscall(long n, ...)
     long x6 = va_arg(ap, long);
     va_end(ap);
 
-    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_USER);
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_USER);
     posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
 
     ret = _dispatch_syscall(n, x1, x2, x3, x4, x5, x6);
 
-    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
     posix_shared_block()->zone = POSIX_ZONE_USER;
 
     posix_dispatch_redzone_signals();

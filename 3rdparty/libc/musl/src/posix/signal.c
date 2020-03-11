@@ -21,7 +21,7 @@
 #include "posix_trace.h"
 #include "posix_panic.h"
 #include "posix_structs.h"
-#include "posix_assert.h"
+#include "posix_assume.h"
 
 #include "pthread_impl.h"
 
@@ -140,7 +140,7 @@ static void _user_zone_signal_handler(void)
 {
     posix_sig_queue_node_t node;
 
-    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_USER);
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_USER);
 
     if (_sig_queue_pop_front(&node) != 0)
         POSIX_PANIC("unexpected");
@@ -348,7 +348,7 @@ int posix_dispatch_redzone_signals(void)
     oe_jmpbuf_t env;
     posix_sig_queue_node_t node;
 
-    POSIX_ASSERT(posix_shared_block()->zone == POSIX_ZONE_USER);
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_USER);
 
     /* Dispatch all entries in the signal queue until empty */
     while (!_sig_queue_empty())
