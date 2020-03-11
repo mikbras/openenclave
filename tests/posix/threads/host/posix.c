@@ -425,7 +425,7 @@ static void* _thread_func(void* arg)
     int tid = posix_gettid();
 
     if ((r = posix_run_thread_ecall(
-        _enclave, &retval, cookie, pthread_self(), tid, shared_block)) != OE_OK)
+        _enclave, &retval, cookie, tid, shared_block)) != OE_OK)
     {
         assert("posix_run_thread_ecall() failed" == NULL);
     }
@@ -454,28 +454,22 @@ static void* _thread_func(void* arg)
 
 int posix_start_thread_ocall(uint64_t cookie)
 {
-//#define DETACHED
     BEGIN_OCALL;
     int ret = -1;
     pthread_t t;
-    pthread_attr_t* attr = NULL;
+    pthread_attr_t attr;
 
-#ifdef DETACHED
-    pthread_attr_t buf;
-    attr = &buf;
-    pthread_attr_init(attr);
-    pthread_attr_setdetachstate(attr, PTHREAD_CREATE_DETACHED);
-#endif
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
-    if (pthread_create(&t, attr, _thread_func, (void*)cookie) != 0)
+    if (pthread_create(&t, &attr, _thread_func, (void*)cookie) != 0)
         goto done;
 
     ret = 0;
 
 done:
 
-    if (attr)
-        pthread_attr_destroy(attr);
+    pthread_attr_destroy(&attr);
 
     END_OCALL;
     return ret;
@@ -941,11 +935,6 @@ done:
 
     END_OCALL;
     return ret;
-}
-
-int posix_join_ocall(uint64_t host_pthread)
-{
-    return pthread_join((pthread_t)host_pthread, NULL);
 }
 
 static void _print_backtrace(const uint64_t* buffer, size_t size)
