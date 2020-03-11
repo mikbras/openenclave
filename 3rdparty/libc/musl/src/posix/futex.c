@@ -44,10 +44,10 @@ static volatile int* _assign_uaddr(volatile int* lock)
     posix_thread_t* self;
 
     if (!(self = posix_self()))
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
 
     if (!self->shared_block)
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
 
     if (_uaddrs_index >= self->shared_block->num_uaddrs)
         goto done;
@@ -68,7 +68,7 @@ volatile int* posix_futex_map(volatile int* lock)
     uint32_t zone;
 
     if (!oe_is_within_enclave((void*)lock, sizeof(*lock)))
-        POSIX_PANIC("lock not within enclave");
+        POSIX_PANIC_MSG("lock not within enclave");
 
     zone = posix_shared_block()->zone;
 
@@ -94,7 +94,7 @@ volatile int* posix_futex_map(volatile int* lock)
     futex->lock = lock;
 
     if (!(futex->uaddr = _assign_uaddr(lock)))
-        POSIX_PANIC("out of uaddrs");
+        POSIX_PANIC_MSG("out of uaddrs");
 
     futex->next = _chains[index];
     _chains[index] = futex;
@@ -121,9 +121,8 @@ int posix_futex_wait(
 
     if (!oe_is_outside_enclave((void*)uaddr, sizeof(*uaddr)))
     {
-        posix_printf("wait: illeagl uaddr\n");
         posix_print_backtrace();
-        POSIX_PANIC("wait: uaddr not outside enclave");
+        POSIX_PANIC_MSG("wait: uaddr not outside enclave");
     }
 
     if (!uaddr || (op != FUTEX_WAIT && op != (FUTEX_WAIT|FUTEX_PRIVATE)))
@@ -157,9 +156,8 @@ int posix_futex_wake(volatile int* uaddr, int op, int val)
 
     if (!oe_is_outside_enclave((void*)uaddr, sizeof(*uaddr)))
     {
-        posix_printf("wait: illeagl uaddr\n");
         posix_print_backtrace();
-        POSIX_PANIC("wake: uaddr not outside enclave");
+        POSIX_PANIC_MSG("wake: uaddr not outside enclave");
     }
 
     if (!uaddr || (op != FUTEX_WAKE && op != (FUTEX_WAKE|FUTEX_PRIVATE)))
@@ -202,10 +200,10 @@ int posix_futex_requeue(
     }
 
     if (!oe_is_outside_enclave((void*)uaddr, sizeof(*uaddr)))
-        POSIX_PANIC("wake: uaddr not outside enclave");
+        POSIX_PANIC_MSG("wake: uaddr not outside enclave");
 
     if (!oe_is_outside_enclave((void*)uaddr2, sizeof(*uaddr2)))
-        POSIX_PANIC("wake: uaddr2 not outside enclave");
+        POSIX_PANIC_MSG("wake: uaddr2 not outside enclave");
 
     if (op != FUTEX_REQUEUE && op != (FUTEX_REQUEUE|FUTEX_PRIVATE))
     {

@@ -36,7 +36,7 @@ int posix_mprotect(void* addr, size_t len, int prot)
     if (addr && len && (prot & (PROT_READ|PROT_WRITE)))
         return 0;
 
-    POSIX_PANIC("unsupported");
+    POSIX_PANIC_MSG("unsupported");
 
     return -EACCES;
 

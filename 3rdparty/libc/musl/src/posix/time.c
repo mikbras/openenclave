@@ -25,7 +25,7 @@ int posix_nanosleep(const struct timespec* req, struct timespec* rem)
     if (POSIX_OCALL(posix_nanosleep_ocall(
         &retval, preq, prem), 0x6b939a70) != OE_OK)
     {
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
         return -EINVAL;
     }
 

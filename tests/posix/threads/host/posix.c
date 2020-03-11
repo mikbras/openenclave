@@ -532,7 +532,7 @@ int posix_wait_ocall(
 
     if (!_valid_uaddr(host_uaddr))
     {
-        POSIX_PANIC("invalid uaddr");
+        POSIX_PANIC_MSG("invalid uaddr");
     }
 
     for (;;)
@@ -568,7 +568,7 @@ int posix_wake_ocall(int* host_uaddr, int val)
     int retval;
 
     if (!_valid_uaddr(host_uaddr))
-        POSIX_PANIC("invalid uaddr");
+        POSIX_PANIC_MSG("invalid uaddr");
 
     retval = (int)syscall(
         SYS_futex, host_uaddr, FUTEX_WAKE_PRIVATE, val, NULL, NULL, 0);
@@ -791,15 +791,15 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 #endif
 
             if (!(node = _sig_queue_node_new(sig, 1, si, uc)))
-                POSIX_PANIC("_sig_queue_node_new()");
+                POSIX_PANIC;
 
             if (_sig_queue_push_back(node) != 0)
-                POSIX_PANIC("_sig_queue_node_new()");
+                POSIX_PANIC;
 
             return;
         }
 
-        POSIX_PANIC("unhanlded signal");
+        POSIX_PANIC_MSG("unhanlded signal");
     }
     else
     {
@@ -811,10 +811,10 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 #endif
 
         if (!(node = _sig_queue_node_new(sig, 0, si, uc)))
-            POSIX_PANIC("_sig_queue_node_new()");
+            POSIX_PANIC;
 
         if (_sig_queue_push_back(node) != 0)
-            POSIX_PANIC("_sig_queue_node_new()");
+            POSIX_PANIC;
 
         return;
     }

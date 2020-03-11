@@ -143,21 +143,21 @@ static void _user_zone_signal_handler(void)
     POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_USER);
 
     if (_sig_queue_pop_front(&node) != 0)
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
 
 #if 0
     posix_printf("_user_zone_signal_handler(): sig=%d\n", node.signum);
 #endif
 
     if (node.signum == 0)
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
 
     posix_spin_lock(&_lock);
     uint64_t handler = _table[node.signum].handler;
     posix_spin_unlock(&_lock);
 
     if (!handler)
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
 
     sigaction_handler_t sigaction = (sigaction_handler_t)handler;
     siginfo_t* si = (siginfo_t*)&node.siginfo;
@@ -180,13 +180,13 @@ static void _user_zone_signal_handler(void)
         ctx.r15 = (uint64_t)uc->uc_mcontext.gregs[REG_R15];
 
         if (!oe_is_within_enclave((void*)ctx.rip, sizeof(void*)))
-            POSIX_PANIC("RIP is outside enclave");
+            POSIX_PANIC_MSG("RIP is outside enclave");
 
         if (!oe_is_within_enclave((void*)ctx.rsp, sizeof(void*)))
-            POSIX_PANIC("RSP is outside enclave");
+            POSIX_PANIC_MSG("RSP is outside enclave");
 
         if (!oe_is_within_enclave((void*)ctx.rbp, sizeof(void*)))
-            POSIX_PANIC("RBP is outside enclave");
+            POSIX_PANIC_MSG("RBP is outside enclave");
 
         posix_jump(&ctx);
     }
@@ -241,7 +241,7 @@ static uint64_t _exception_handler(oe_exception_record_t* rec)
                 {
                     if (!(_tls_stack = oe_memalign(4096, STACK_SIZE)))
                     {
-                        POSIX_PANIC("oops");
+                        POSIX_PANIC_MSG("out of memory");
                     }
                 }
 
@@ -282,10 +282,10 @@ int posix_rt_sigaction(
     if (act)
     {
         if (act->handler == (uint64_t)0)
-            POSIX_PANIC("unimplemented");
+            POSIX_PANIC;
 
         if (act->handler == (uint64_t)1)
-            POSIX_PANIC("unimplemented");
+            POSIX_PANIC;
     }
 
     if (signum >= NSIG || !act)
@@ -356,7 +356,7 @@ int posix_dispatch_redzone_signals(void)
         /* Get the front node from the signal queue */
         if (_sig_queue_pop_front(&node) != 0)
         {
-            POSIX_PANIC("signal queue empty");
+            POSIX_PANIC_MSG("signal queue empty");
             return -1;
         }
 
@@ -367,7 +367,7 @@ int posix_dispatch_redzone_signals(void)
             posix_spin_unlock(&_lock);
 
             if (!handler)
-                POSIX_PANIC("handler not found");
+                POSIX_PANIC_MSG("handler not found");
         }
 
         /* Build a ucontext and invoke the signal handler */
@@ -401,7 +401,7 @@ int posix_dispatch_redzone_signals(void)
             env.r15 = (uint64_t)uc.uc_mcontext.gregs[REG_R15];
 
             oe_longjmp(&env, 1);
-            POSIX_PANIC("unreachable");
+            POSIX_PANIC_MSG("unreachable");
         }
 
         /* control continues here if hanlder didn't change RIP */

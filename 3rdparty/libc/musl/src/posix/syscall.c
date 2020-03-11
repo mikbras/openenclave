@@ -510,7 +510,7 @@ static long _dispatch_syscall(
 
             posix_printf(
                 "SYS_writev: %d:%d:%d\n", fd, STDOUT_FILENO, STDERR_FILENO);
-            POSIX_PANIC("fd != stdout and fd != stderr");
+            POSIX_PANIC_MSG("fd != stdout and fd != stderr");
             break;
         }
         case SYS_ioctl:

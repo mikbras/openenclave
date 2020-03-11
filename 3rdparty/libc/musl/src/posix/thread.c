@@ -93,7 +93,7 @@ int posix_set_tid_address(int* tidptr)
 
     if (!oe_is_outside_enclave(tidptr, sizeof(tidptr)))
     {
-        POSIX_PANIC("tidptr is not outside enclave");
+        POSIX_PANIC_MSG("tidptr is not outside enclave");
     }
 
     thread->ctid = tidptr;
@@ -128,7 +128,7 @@ int posix_set_thread_area(void* p)
     posix_thread_t* self = posix_self();
 
     if (!self)
-        POSIX_PANIC("posix_set_thread_area(): null pthread self");
+        POSIX_PANIC_MSG("posix_set_thread_area(): null pthread self");
 
     self->td = (pthread_t)p;
     return 0;
@@ -149,7 +149,7 @@ void posix_unblock_creator_thread(void)
     posix_thread_t* self = posix_self();
 
     if (!self)
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
 
     self->state = POSIX_THREAD_STATE_STARTED;
     posix_spin_unlock(&self->lock);
@@ -256,12 +256,12 @@ int posix_run_thread_ecall(
     if (!thread || !oe_is_within_enclave(thread, sizeof(thread)) ||
         thread->magic != MAGIC)
     {
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
     }
 
     if (thread->td == NULL)
     {
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
     }
 
     thread->tid = tid;
@@ -269,7 +269,7 @@ int posix_run_thread_ecall(
 
     if (_pthread_table_add(thread->td, host_pthread) != 0)
     {
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
     }
 
     _set_thread_info(thread);
@@ -282,7 +282,7 @@ int posix_run_thread_ecall(
         (*thread->fn)(thread->arg);
 
         /* Never returns. */
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
     }
 
     return 0;
@@ -314,7 +314,7 @@ int posix_clone(
 
     if (!oe_is_outside_enclave(ctid, sizeof(void*)))
     {
-        POSIX_PANIC("ctid is not outside enclave");
+        POSIX_PANIC_MSG("ctid is not outside enclave");
     }
 
     /* Create the thread info structure for the new thread */
@@ -363,7 +363,7 @@ int posix_clone(
     posix_spin_lock(&thread->lock);
 
     if (thread->state != POSIX_THREAD_STATE_STARTED)
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
 
 done:
 
@@ -468,7 +468,7 @@ long posix_set_robust_list(struct posix_robust_list_head* head, size_t len)
 void posix_noop(void)
 {
     if (POSIX_OCALL(posix_noop_ocall(), 0x27e3cffa) != OE_OK)
-        POSIX_PANIC("unexpected");
+        POSIX_PANIC;
 }
 
 void posix_abort(void)
@@ -482,13 +482,13 @@ posix_shared_block_t* posix_shared_block(void)
 
     if (!(self = posix_self()))
     {
-        POSIX_PANIC("posix_shared_block(): posix_self() failed");
+        POSIX_PANIC;
         return NULL;
     }
 
     if (!self->shared_block)
     {
-        POSIX_PANIC("posix_shared_block(): null shared block");
+        POSIX_PANIC;
         return NULL;
     }
 
@@ -504,15 +504,15 @@ int posix_join(pthread_t pthread)
     posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
 
     if ((host_pthread = _pthread_table_find(pthread)) == (uint64_t)-1)
-        POSIX_PANIC("_pthread_table_find()");
+        POSIX_PANIC;
 
     if (_pthread_table_remove(pthread) != 0)
-        POSIX_PANIC("_pthread_table_remove()");
+        POSIX_PANIC;
 
     if (POSIX_OCALL(posix_join_ocall(
         &retval, host_pthread), 0x488c5ac0) != OE_OK)
     {
-        POSIX_PANIC("posix_join_ocall()");
+        POSIX_PANIC;
     }
 
     POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
