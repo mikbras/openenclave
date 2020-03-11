@@ -41,6 +41,8 @@ int main(int argc, const char* argv[])
         return 1;
     }
 
+    setenv("OE_LOG_LEVEL", "NONE", 1);
+
     printf("MAIN.PID=%d\n", getpid());
 
 #if 0

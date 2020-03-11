@@ -8,6 +8,7 @@
 #include "posix_ocall_structs.h"
 #include "posix_trace.h"
 #include "posix_thread.h"
+#include "posix_assume.h"
 
 #include "posix_warnings.h"
 

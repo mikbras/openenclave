@@ -14,6 +14,7 @@
 #include <openenclave/internal/tests.h>
 #include <openenclave/internal/calls.h>
 #include <openenclave/internal/defs.h>
+#include <openenclave/internal/backtrace.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -953,20 +954,69 @@ int posix_join_ocall(uint64_t host_pthread)
     return pthread_join((pthread_t)host_pthread, NULL);
 }
 
+static void _print_backtrace(const uint64_t* buffer, size_t size)
+{
+    extern oe_result_t oe_backtrace_symbols_ocall(
+        oe_enclave_t* oe_enclave,
+        const uint64_t* buffer,
+        size_t size,
+        void* symbols_buffer,
+        size_t symbols_buffer_size,
+        size_t* symbols_buffer_size_out);
+    oe_result_t r;
+    void* symbols = NULL;
+    size_t n;
+
+    /* Get the size of the symbols buffer */
+    r = oe_backtrace_symbols_ocall(_enclave, buffer, size, NULL, 0, &n);
+    assert(r == OE_BUFFER_TOO_SMALL);
+
+    /* Allocate memory for the symbols buffuer */
+    if (!(symbols = malloc(n)))
+        POSIX_PANIC;
+
+    /* Get the symbols */
+    r = oe_backtrace_symbols_ocall(_enclave, buffer, size, symbols, n, &n);
+    assert(r == OE_OK);
+
+    /* Print the backtrace */
+    {
+        size_t i;
+        const char* symbol;
+
+        for (i = 0, symbol = (const char*)symbols; i < size; i++)
+        {
+            fprintf(stderr, "%lx %s()\n", buffer[i], symbol);
+            symbol = symbol + strlen(symbol) + 1;
+        }
+    }
+
+    free(symbols);
+}
+
 void posix_assume_ocall(
     const char* file,
     uint32_t line,
     const char* func,
-    const char* cond)
+    const char* cond,
+    const uint64_t* backtrace,
+    size_t backtrace_count)
 {
-    __posix_assume(file, line, func, cond);
+    fprintf(stderr, "*** assume: %s(%u): %s(): %s\n", file, line, func, cond);
+    _print_backtrace(backtrace, backtrace_count);
+    fflush(stderr);
+    abort();
 }
 
 void posix_panic_ocall(
     const char* file,
     uint32_t line,
     const char* func,
-    const char* msg)
+    const char* msg,
+    const uint64_t* backtrace,
+    size_t backtrace_count)
 {
-    __posix_panic(file, line, func, msg);
+    fprintf(stderr, "*** panic: %s(%u): %s(): %s\n", file, line, func, msg);
+    _print_backtrace(backtrace, backtrace_count);
+    fflush(stderr);
 }

@@ -104,12 +104,16 @@ enclave
             [in, string] const char* file,
             uint32_t line,
             [in, string] const char* func,
-            [in, string] const char* cond);
+            [in, string] const char* cond,
+            [in, count=backtrace_count] const uint64_t* backtrace,
+            size_t backtrace_count);
 
         void posix_panic_ocall(
             [in, string] const char* file,
             uint32_t line,
             [in, string] const char* func,
-            [in, string] const char* msg);
+            [in, string] const char* msg,
+            [in, count=backtrace_count] const uint64_t* backtrace,
+            size_t backtrace_count);
     };
 };
