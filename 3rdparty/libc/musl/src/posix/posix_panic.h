@@ -6,7 +6,7 @@
 
 #define POSIX_PANIC(MSG) posix_panic(__FILE__, __LINE__, __FUNCTION__, MSG)
 
-void posix_panic(
+void __posix_panic(
     const char* file,
     unsigned int line,
     const char* func,

@@ -105,5 +105,11 @@ enclave
             uint32_t line,
             [in, string] const char* func,
             [in, string] const char* cond);
+
+        void posix_panic_ocall(
+            [in, string] const char* file,
+            uint32_t line,
+            [in, string] const char* func,
+            [in, string] const char* msg);
     };
 };

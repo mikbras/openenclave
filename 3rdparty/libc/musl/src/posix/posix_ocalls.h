@@ -87,6 +87,12 @@ oe_result_t posix_assume_ocall(
     const char* func,
     const char* cond);
 
+oe_result_t posix_panic_ocall(
+    const char* file,
+    uint32_t line,
+    const char* func,
+    const char* msg);
+
 #define POSIX_OCALL(EXPR, LOCK_ID)  \
     ({                              \
         oe_result_t __r;            \

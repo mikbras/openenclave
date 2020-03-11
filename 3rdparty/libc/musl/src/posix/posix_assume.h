@@ -12,7 +12,7 @@
     }                                                                     \
     while (0)
 
-void __posix_assume_fail(
+void __posix_assume(
     const char* file,
     unsigned int line,
     const char* func,

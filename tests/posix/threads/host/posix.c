@@ -952,3 +952,12 @@ void posix_assume_ocall(
     fprintf(stderr, "assumption failed: %s(%u): %s(): %s\n",
         file, line, func, cond);
 }
+
+void posix_panic_ocall(
+    const char* file,
+    uint32_t line,
+    const char* func,
+    const char* cond)
+{
+    fprintf(stderr, "panic: %s(%u): %s(): %s\n", file, line, func, cond);
+}
