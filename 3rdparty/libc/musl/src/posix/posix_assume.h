@@ -4,12 +4,12 @@
 #ifndef _POSIX_ASSUME_H
 #define _POSIX_ASSUME_H
 
-#define POSIX_ASSUME(COND)                                                \
-    do                                                                    \
-    {                                                                     \
-        if (!(COND))                                                      \
-            __posix_assume_fail(__FILE__, __LINE__, __FUNCTION__, #COND); \
-    }                                                                     \
+#define POSIX_ASSUME(COND)                                           \
+    do                                                               \
+    {                                                                \
+        if (!(COND))                                                 \
+            __posix_assume(__FILE__, __LINE__, __FUNCTION__, #COND); \
+    }                                                                \
     while (0)
 
 void __posix_assume(

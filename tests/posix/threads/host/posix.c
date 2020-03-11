@@ -100,14 +100,24 @@ void sleep_msec(uint64_t milliseconds)
     }
 }
 
-void posix_panic(
+void __posix_panic(
     const char* file,
     unsigned int line,
     const char* func,
     const char* msg)
 {
-    fprintf(stderr, "host: posix_panic: %s(%u): %s(): %s\n",
-        file, line, func, msg);
+    fprintf(stderr, "panic: %s(%u): %s(): %s\n", file, line, func, msg);
+    fflush(stderr);
+    abort();
+}
+
+void __posix_assume(
+    const char* file,
+    unsigned int line,
+    const char* func,
+    const char* cond)
+{
+    fprintf(stderr, "assume: %s(%u): %s(): %s\n", file, line, func, cond);
     fflush(stderr);
     abort();
 }
@@ -949,15 +959,14 @@ void posix_assume_ocall(
     const char* func,
     const char* cond)
 {
-    fprintf(stderr, "assumption failed: %s(%u): %s(): %s\n",
-        file, line, func, cond);
+    __posix_assume(file, line, func, cond);
 }
 
 void posix_panic_ocall(
     const char* file,
     uint32_t line,
     const char* func,
-    const char* cond)
+    const char* msg)
 {
-    fprintf(stderr, "panic: %s(%u): %s(): %s\n", file, line, func, cond);
+    __posix_panic(file, line, func, msg);
 }

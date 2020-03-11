@@ -4,7 +4,7 @@
 #ifndef _POSIX_PANIC_H
 #define _POSIX_PANIC_H
 
-#define POSIX_PANIC(MSG) posix_panic(__FILE__, __LINE__, __FUNCTION__, MSG)
+#define POSIX_PANIC(MSG) __posix_panic(__FILE__, __LINE__, __FUNCTION__, MSG)
 
 void __posix_panic(
     const char* file,
