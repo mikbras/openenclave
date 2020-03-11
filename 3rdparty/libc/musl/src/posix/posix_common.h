@@ -7,4 +7,6 @@
 
 #define POSIX_INLINE static __inline__
 
+#define POSIX_PRINTF_FORMAT(N, M) __attribute__((format(printf, N, M)))
+
 #endif /* _POSIX_COMMON_H */

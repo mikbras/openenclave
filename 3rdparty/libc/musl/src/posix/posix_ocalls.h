@@ -95,13 +95,13 @@ oe_result_t posix_panic_ocall(
     const uint64_t* backtrace,
     size_t backtrace_count);
 
-#define POSIX_OCALL(EXPR, LOCK_ID)  \
-    ({                              \
-        oe_result_t __r;            \
-        posix_begin_ocall(LOCK_ID); \
-        __r = EXPR;                 \
-        posix_end_ocall(LOCK_ID);   \
-        __r;                        \
+#define POSIX_OCALL(EXPR, ID)  \
+    ({                         \
+        oe_result_t __r;       \
+        posix_begin_ocall(ID); \
+        __r = EXPR;            \
+        posix_end_ocall(ID);   \
+        __r;                   \
     })
 
 #endif //_POSIX_OCALLS_H

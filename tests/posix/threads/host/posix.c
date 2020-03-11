@@ -105,8 +105,16 @@ void __posix_panic(
     const char* file,
     unsigned int line,
     const char* func,
-    const char* msg)
+    const char* fmt,
+    ...)
 {
+    char msg[1024];
+
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
+    va_end(ap);
+
     fprintf(stderr, "panic: %s(%u): %s(): %s\n", file, line, func, msg);
     fflush(stderr);
     abort();

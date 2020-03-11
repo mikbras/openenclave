@@ -563,7 +563,7 @@ static long _dispatch_syscall(
         }
     }
 
-    POSIX_PANIC_MSG(_syscall_name(n));
+    POSIX_PANIC_MSG("unhandled syscall: %s", _syscall_name(n));
 
     return -1;
 }

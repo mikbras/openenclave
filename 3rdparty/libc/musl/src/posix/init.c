@@ -9,6 +9,7 @@
 #include "posix_trace.h"
 #include "posix_thread.h"
 #include "posix_assume.h"
+#include "posix_panic.h"
 
 #include "posix_warnings.h"
 

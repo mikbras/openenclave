@@ -2,8 +2,9 @@
 #define _POSIX_IO_H
 
 #include <sys/uio.h>
+#include "posix_common.h"
 
-__attribute__((format(printf, 1, 2)))
+POSIX_PRINTF_FORMAT(1, 2)
 int posix_printf(const char* fmt, ...);
 
 int posix_puts(const char* str);

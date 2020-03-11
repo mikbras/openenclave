@@ -141,7 +141,7 @@ int main(int argc, const char* argv[])
     oe_enclave_setting_t settings[] =
     {
         {
-            .setting_type = OE_ENCLAVE_SETTING_EXECUTABLE_HEAP,
+            .setting_type = OE_ENCLAVE_SETTING_CONTEXT_SWITCHLESS,
             .u.context_switchless_setting = &switchless_setting
         }
     };
