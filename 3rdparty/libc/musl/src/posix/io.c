@@ -12,7 +12,6 @@
 #include "posix_signal.h"
 #include "posix_ocalls.h"
 #include "posix_panic.h"
-
 #include "posix_warnings.h"
 
 int posix_puts(const char* str)

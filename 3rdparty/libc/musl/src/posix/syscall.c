@@ -30,28 +30,6 @@
 
 #include "posix_warnings.h"
 
-#define USE_DLMALLOC
-
-static void _free(void* ptr)
-{
-#if defined(USE_DLMALLOC)
-    extern void dlfree(void* ptr);
-    dlfree(ptr);
-#else
-    oe_free(ptr);
-#endif
-}
-
-static void* _memalign(size_t alignment, size_t size)
-{
-#if defined(USE_DLMALLOC)
-    extern void* dlmemalign(size_t alignment, size_t size);
-    return dlmemalign(alignment, size);
-#else
-    return oe_memalign(alignment, size);
-#endif
-}
-
 static const char* _syscall_name(long n)
 {
     typedef struct _pair
@@ -551,14 +529,11 @@ static long _dispatch_syscall(
         case SYS_rt_sigprocmask:
         {
             errno = 0;
-#if 1
             int how = (int)x1;
             const sigset_t* set = (void*)x2;
             sigset_t* oldset = (void*)x3;
             size_t sigsetsize = (size_t)x4;
             return posix_rt_sigprocmask(how, set, oldset, sigsetsize);
-#endif
-            return 0;
         }
         case SYS_mprotect:
         {
@@ -566,12 +541,7 @@ static long _dispatch_syscall(
             size_t len = (size_t)x2;
             int prot = (int)x3;
 
-            if (addr && len && (prot & (PROT_READ|PROT_WRITE)))
-                return 0;
-
-            return 0;
-
-            break;
+            return posix_mprotect(addr, len, prot);
         }
         case SYS_mmap:
         {
@@ -581,39 +551,13 @@ static long _dispatch_syscall(
             int flags = (int)x4;
             int fd = (int)x5;
             off_t offset = (int)x6;
-            const int FLAGS = MAP_PRIVATE | MAP_ANON;
-
-            (void)prot;
-
-            if (!addr && fd == -1 && !offset && flags == FLAGS)
-            {
-                uint8_t* ptr;
-
-                if (!(ptr = _memalign(4096, length)))
-                {
-                    oe_assert("oe_memalign() failed" == NULL);
-                    return -ENOMEM;
-                }
-
-                memset(ptr, 0, length);
-                return (long)ptr;
-            }
-
-            break;
+            return (long)posix_mmap(addr, length, prot, flags, fd, offset);
         }
         case SYS_munmap:
         {
             void* addr = (void*)x1;
             size_t length = (size_t)x2;
-
-            if (addr && length)
-            {
-                memset(addr, 0, length);
-                _free(addr);
-                return 0;
-            }
-
-            break;
+            return (long)posix_munmap(addr, length);
         }
         case SYS_futex:
         {
