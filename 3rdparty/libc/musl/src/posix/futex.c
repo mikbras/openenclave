@@ -233,3 +233,34 @@ int posix_futex_requeue(
 done:
     return ret;
 }
+
+long posix_futex_syscall(
+    int* uaddr,
+    int op,
+    int val,
+    long arg, /* timeout or val2 */
+    int* uaddr2,
+    int val3)
+{
+    (void)val3;
+
+    if (op == FUTEX_WAIT || op == (FUTEX_WAIT|FUTEX_PRIVATE))
+    {
+        const struct timespec* timeout = (const struct timespec*)arg;
+        return posix_futex_wait(uaddr, op, val, timeout);
+    }
+    else if (op == FUTEX_WAKE || op == (FUTEX_WAKE|FUTEX_PRIVATE))
+    {
+        return posix_futex_wake(uaddr, op, val);
+    }
+    else if (op == FUTEX_REQUEUE || op == (FUTEX_REQUEUE|FUTEX_PRIVATE))
+    {
+        int val2 = (int)arg;
+        return posix_futex_requeue(uaddr, op, val, val2, uaddr2);
+    }
+    else
+    {
+        POSIX_PANIC_MSG("unhandled futex op");
+        return -1;
+    }
+}

@@ -19,4 +19,12 @@ int posix_futex_requeue(
     int val2,
     int* uaddr2);
 
+long posix_futex_syscall(
+    int* uaddr,
+    int futex_op,
+    int val,
+    long arg, /* timeout or val2 */
+    int* uaddr2,
+    int val3);
+
 #endif /* _POSIX_FUTEX_H */

@@ -57,7 +57,7 @@ int posix_printf(const char* fmt, ...)
     return n;
 }
 
-ssize_t posix_write(int fd, const void* buf, size_t count)
+long posix_write_syscall(int fd, const void* buf, size_t count)
 {
     if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
     {
@@ -71,12 +71,16 @@ ssize_t posix_write(int fd, const void* buf, size_t count)
 
         return (ssize_t)retval;
     }
+    else
+    {
+        POSIX_PANIC_MSG("posix_writev_syscall(): unsupported fd");
+    }
 
     POSIX_PANIC;
     return -EBADFD;
 }
 
-ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
+long posix_writev_syscall(int fd, const struct iovec *iov, int iovcnt)
 {
     if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
     {
@@ -106,9 +110,61 @@ ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
 
         return (ssize_t)count;
     }
+    else
+    {
+        POSIX_PANIC_MSG("posix_writev_syscall(): unsupported fd");
+    }
 
-    posix_printf(
-        "%s: %d:%d:%d\n", __FUNCTION__, fd, STDOUT_FILENO, STDERR_FILENO);
-    POSIX_PANIC;
+    return -EBADFD;
+}
+
+#define TIOCGWINSZ 0x5413
+
+static int _ioctl_tiocgwinsz(int fd, unsigned long request, long arg)
+{
+    (void)fd;
+    (void)request;
+
+    struct winsize
+    {
+        unsigned short int ws_row;
+        unsigned short int ws_col;
+        unsigned short int ws_xpixel;
+        unsigned short int ws_ypixel;
+    };
+    struct winsize* p;
+
+    if (!(p = (struct winsize*)arg))
+        return -EINVAL;
+
+    p->ws_row = 24;
+    p->ws_col = 80;
+    p->ws_xpixel = 0;
+    p->ws_ypixel = 0;
+
+    return 0;
+}
+
+long posix_ioctl_syscall(
+    int fd,
+    unsigned long request,
+    long arg1,
+    long arg2,
+    long arg3,
+    long arg4)
+{
+    (void)arg2;
+    (void)arg3;
+    (void)arg4;
+
+    if (fd == STDOUT_FILENO && request == TIOCGWINSZ)
+    {
+        return _ioctl_tiocgwinsz(fd, request, arg1);
+    }
+    else
+    {
+        POSIX_PANIC_MSG("posix_ioctl(): unsupported operation");
+    }
+
     return -EBADFD;
 }

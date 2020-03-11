@@ -399,33 +399,6 @@ static const char* _syscall_name(long n)
     return "unknown";
 }
 
-static int _ioctl_tiocgwinsz(int fd, unsigned long request, long arg)
-{
-    (void)fd;
-    (void)request;
-
-    struct winsize
-    {
-        unsigned short int ws_row;
-        unsigned short int ws_col;
-        unsigned short int ws_xpixel;
-        unsigned short int ws_ypixel;
-    };
-    struct winsize* p;
-
-    if (!(p = (struct winsize*)arg))
-        return -EINVAL;
-
-    p->ws_row = 24;
-    p->ws_col = 80;
-    p->ws_xpixel = 0;
-    p->ws_ypixel = 0;
-
-    return 0;
-}
-
-#define TIOCGWINSZ 0x5413
-
 static long _dispatch_syscall(
     long n,
     long x1,
@@ -437,7 +410,6 @@ static long _dispatch_syscall(
 {
 #if 0
     posix_printf("SYSCALL{%s}\n", _syscall_name(n));
-    //posix_printf("SYSCALL{%s}: tid=%d\n", _syscall_name(n), posix_gettid());
 #endif
 
     switch (n)
@@ -461,45 +433,23 @@ static long _dispatch_syscall(
         case SYS_write:
         {
             int fd = (int)x1;
-
-            if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
-            {
-                const void* buf = (const void*)x2;
-                size_t count = (size_t)x3;
-
-                if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
-                {
-                    return (long)posix_write(fd, buf, count);
-                }
-            }
-
-            break;
+            const void* buf = (const void*)x2;
+            size_t count = (size_t)x3;
+            return posix_write_syscall(fd, buf, count);
         }
         case SYS_writev:
         {
             int fd = (int)x1;
             const struct iovec *iov = (const struct iovec*)x2;
             int iovcnt = (int)x3;
-
-            if (fd == STDOUT_FILENO || fd == STDERR_FILENO)
-            {
-                return (long)posix_writev(fd, iov, iovcnt);
-            }
-
-            posix_printf(
-                "SYS_writev: %d:%d:%d\n", fd, STDOUT_FILENO, STDERR_FILENO);
-            POSIX_PANIC_MSG("fd != stdout and fd != stderr");
+            return posix_writev_syscall(fd, iov, iovcnt);
             break;
         }
         case SYS_ioctl:
         {
             int fd = (int)x1;
             unsigned long request = (unsigned long)x2;
-
-            if (fd == STDOUT_FILENO && request == TIOCGWINSZ)
-                return _ioctl_tiocgwinsz(fd, request, x3);
-
-            break;
+            return posix_ioctl_syscall(fd, request, x3, x4, x5, x6);
         }
         case SYS_set_tid_address:
         {
@@ -563,30 +513,10 @@ static long _dispatch_syscall(
             int* uaddr = (int*)x1;
             int op = (int)x2;
             int val = (int)x3;
-
-            if (op == FUTEX_WAIT || op == (FUTEX_WAIT|FUTEX_PRIVATE))
-            {
-                const struct timespec* timeout = (const struct timespec*)x4;
-                return posix_futex_wait(uaddr, op, val, timeout);
-            }
-            else if (op == FUTEX_WAKE || op == (FUTEX_WAKE|FUTEX_PRIVATE))
-            {
-                return posix_futex_wake(uaddr, op, val);
-            }
-            else if (op == FUTEX_REQUEUE || op == (FUTEX_REQUEUE|FUTEX_PRIVATE))
-            {
-                int val2 = (int)x4;
-                int* uaddr2 = (int*)x5;
-                return posix_futex_requeue(uaddr, op, val, val2, uaddr2);
-            }
-            else
-            {
-                posix_printf("unhandled futex op: %d\n", op);
-                posix_print_backtrace();
-                assert(false);
-            }
-
-            break;
+            long arg = x4; /* timeout or val2 */
+            int* uaddr2 = (int*)x5;
+            int val3 = (int)x6;
+            return posix_futex_syscall(uaddr, op, val, arg, uaddr2, val3);
         }
         case SYS_set_thread_area:
         {
@@ -633,8 +563,8 @@ static long _dispatch_syscall(
         }
     }
 
-    posix_printf("unhandled syscall: %s\n", _syscall_name(n));
-    POSIX_ASSUME(false);
+    POSIX_PANIC_MSG(_syscall_name(n));
+
     return -1;
 }
 
