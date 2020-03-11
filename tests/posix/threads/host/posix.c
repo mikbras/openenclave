@@ -943,12 +943,6 @@ done:
     return ret;
 }
 
-void posix_raw_puts_ocall(const char* str)
-{
-    fprintf(stdout, "%s", str);
-    fflush(stdout);
-}
-
 int posix_join_ocall(uint64_t host_pthread)
 {
     return pthread_join((pthread_t)host_pthread, NULL);

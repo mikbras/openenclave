@@ -113,8 +113,3 @@ ssize_t posix_writev(int fd, const struct iovec *iov, int iovcnt)
     POSIX_PANIC;
     return -EBADFD;
 }
-
-void posix_raw_puts(const char* str)
-{
-    posix_raw_puts_ocall(str);
-}
