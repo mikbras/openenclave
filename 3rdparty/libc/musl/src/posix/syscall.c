@@ -440,10 +440,9 @@ static long _dispatch_syscall(
         case SYS_writev:
         {
             int fd = (int)x1;
-            const struct iovec *iov = (const struct iovec*)x2;
+            const struct iovec* iov = (const struct iovec*)x2;
             int iovcnt = (int)x3;
             return posix_writev_syscall(fd, iov, iovcnt);
-            break;
         }
         case SYS_ioctl:
         {
