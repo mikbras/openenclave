@@ -6,7 +6,7 @@
 #include <unistd.h>
 #include <stdbool.h>
 #include "posix_ocall_structs.h"
-#include "posix_structs.h"
+#include "posix_shared_block.h"
 #include "posix_spinlock.h"
 #include "posix_common.h"
 #include "posix_thread_queue.h"

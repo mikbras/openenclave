@@ -16,7 +16,7 @@
 
 #define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
-#include "../../../../3rdparty/libc/musl/src/posix/posix_structs.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_shared_block.h"
 
 #define NUM_THREADS 6
 

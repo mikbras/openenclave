@@ -4,7 +4,7 @@
 #include "posix_trace.h"
 #include "posix_spinlock.h"
 #include "posix_thread.h"
-#include "posix_structs.h"
+#include "posix_shared_block.h"
 
 #include "posix_warnings.h"
 

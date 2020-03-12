@@ -20,8 +20,9 @@
 #include "posix_ocall_structs.h"
 #include "posix_trace.h"
 #include "posix_panic.h"
-#include "posix_structs.h"
+#include "posix_shared_block.h"
 #include "posix_assume.h"
+#include "posix_list.h"
 
 #include "pthread_impl.h"
 
