@@ -97,8 +97,8 @@ int posix_mutex_lock(posix_mutex_t* mutex)
         posix_spin_unlock(&m->lock);
 
         /* Ask host to wait for an event on this thread */
-        if (posix_thread_wait_ocall(
-            &retval, &self->shared_block->futex, NULL) != OE_OK)
+        if (POSIX_OCALL(posix_thread_wait_ocall(
+            &retval, &self->shared_block->futex, NULL), 0x07162f88) != OE_OK)
         {
             POSIX_PANIC;
         }
@@ -176,8 +176,8 @@ int posix_mutex_unlock(posix_mutex_t* m)
         int retval;
 
         /* Ask host to wake up this thread */
-        if (posix_thread_wake_ocall(
-            &retval, &waiter->shared_block->futex) != OE_OK)
+        if (POSIX_OCALL(posix_thread_wake_ocall(
+            &retval, &waiter->shared_block->futex), 0x78f2b50f) != OE_OK)
         {
             POSIX_PANIC;
         }

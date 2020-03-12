@@ -75,11 +75,11 @@ int posix_cond_timedwait(
                 {
                     int retval;
 
-                    if (posix_thread_wake_wait_ocall(
+                    if (POSIX_OCALL(posix_thread_wake_wait_ocall(
                         &retval,
                         &waiter->shared_block->futex,
                         &self->shared_block->futex,
-                        (struct posix_timespec*)timeout) != OE_OK)
+                        (struct posix_timespec*)timeout), 0x89ab8e9a) != OE_OK)
                     {
                         POSIX_PANIC;
                     }
@@ -93,10 +93,10 @@ int posix_cond_timedwait(
                 {
                     int retval;
 
-                    if (posix_thread_wait_ocall(
+                    if (POSIX_OCALL(posix_thread_wait_ocall(
                         &retval,
                         &self->shared_block->futex,
-                        (struct posix_timespec*)timeout) != OE_OK)
+                        (struct posix_timespec*)timeout), 0xf19a9a78) != OE_OK)
                     {
                         POSIX_PANIC;
                     }
@@ -141,8 +141,11 @@ int posix_cond_signal(posix_cond_t* c)
     if (!waiter)
         return 0;
 
-    if (posix_thread_wake_ocall(&retval, &waiter->shared_block->futex) != OE_OK)
+    if (POSIX_OCALL(posix_thread_wake_ocall(
+        &retval, &waiter->shared_block->futex), 0x6f030c81) != OE_OK)
+    {
         POSIX_PANIC;
+    }
 
     if (retval != 0)
         POSIX_PANIC_MSG("wake failed: retval=%d", retval);
@@ -179,8 +182,11 @@ int posix_cond_broadcast(posix_cond_t* c, size_t n)
 
         next = p->next;
 
-        if (posix_thread_wake_ocall(&retval, &p->shared_block->futex) != OE_OK)
+        if (POSIX_OCALL(posix_thread_wake_ocall(
+            &retval, &p->shared_block->futex), 0xc05170b3) != OE_OK)
+        {
             POSIX_PANIC;
+        }
 
         if (retval != 0)
             POSIX_PANIC_MSG("wake failed: retval=%d", retval);
@@ -238,8 +244,8 @@ int posix_cond_requeue(
 
             next = p->next;
 
-            if (posix_thread_wake_ocall(
-                &retval, &p->shared_block->futex) != OE_OK)
+            if (POSIX_OCALL(posix_thread_wake_ocall(
+                &retval, &p->shared_block->futex), 0x21f6b143) != OE_OK)
             {
                 POSIX_PANIC;
             }
