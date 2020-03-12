@@ -3,8 +3,8 @@
 
 #include <openenclave/enclave.h>
 #include <openenclave/internal/tests.h>
-#include <stdio.h>
 #include <stdarg.h>
+#include <stdio.h>
 
 extern volatile int t_status;
 
@@ -44,7 +44,7 @@ void t_randseed(uint64_t s);
 
 uint64_t t_randn(uint64_t n);
 
-void t_shuffle(uint64_t *p, size_t n);
+void t_shuffle(uint64_t* p, size_t n);
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #pragma GCC diagnostic ignored "-Wunused-parameter"

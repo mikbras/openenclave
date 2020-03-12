@@ -1,22 +1,22 @@
 // Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
-#include <limits.h>
 #include <errno.h>
+#include <limits.h>
+#include <linux/futex.h>
 #include <openenclave/host.h>
 #include <openenclave/internal/error.h>
 #include <openenclave/internal/tests.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
-#include <linux/futex.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "posix_u.h"
 
-#define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
+#define POSIX_STRUCT(PREFIX, NAME) OE_CONCAT(t_, NAME)
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_shared_block.h"
 

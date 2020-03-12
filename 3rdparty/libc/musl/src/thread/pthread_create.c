@@ -8,8 +8,6 @@
 #include <stddef.h>
 #include <assert.h>
 
-int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...);
-
 static void dummy_0()
 {
 }
@@ -349,7 +347,7 @@ int __pthread_create(pthread_t *restrict res, const pthread_attr_t *restrict att
 	__tl_lock();
 	libc.threads_minus_1++;
 
-	ret = posix_clone((c11 ? start_c11 : start), stack, flags, args, &new->tid, TP_ADJ(new), &FUTEX_MAP(zzz__thread_list_lock));
+	ret = __clone((c11 ? start_c11 : start), stack, flags, args, &new->tid, TP_ADJ(new), &FUTEX_MAP(zzz__thread_list_lock));
 
 	/* All clone failures translate to EAGAIN. If explicit scheduling
 	 * was requested, attempt it before unlocking the thread list so

@@ -48,8 +48,8 @@ uint64_t oe_host_handle_exception(
 
         // Call into enclave first pass exception handler.
         uint64_t arg_out = 0;
-        oe_result_t result =
-            oe_ecall(enclave, OE_ECALL_VIRTUAL_EXCEPTION_HANDLER, arg, &arg_out);
+        oe_result_t result = oe_ecall(
+            enclave, OE_ECALL_VIRTUAL_EXCEPTION_HANDLER, arg, &arg_out);
 
         // Reset the flag
         thread_data->flags &= (~_OE_THREAD_HANDLING_EXCEPTION);

@@ -1,14 +1,14 @@
-#include <pthread.h>
-#include <semaphore.h>
-#include <string.h>
-#include <unistd.h>
-#include <stdio.h>
 #include <openenclave/enclave.h>
 #include <openenclave/internal/tests.h>
+#include <pthread.h>
+#include <semaphore.h>
+#include <stdio.h>
+#include <string.h>
+#include <unistd.h>
 
 #define VAL 0x12345678
 
-static void* _thread_func(void *arg)
+static void* _thread_func(void* arg)
 {
     uint32_t* val = (uint32_t*)arg;
 
@@ -21,7 +21,7 @@ static void* _thread_func(void *arg)
 int test_pthread_cancel1(void)
 {
     pthread_t td;
-    void *res;
+    void* res;
     uint32_t val = 0;
 
     printf("=== test_pthread_cancel1()\n");

@@ -5,8 +5,6 @@
 #include "pthread_impl.h"
 #include "syscall.h"
 
-int posix_clone(int (*func)(void *), void *stack, int flags, void *arg, ...);
-
 int clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
 {
 	va_list ap;
@@ -19,5 +17,5 @@ int clone(int (*func)(void *), void *stack, int flags, void *arg, ...)
 	ctid = va_arg(ap, pid_t *);
 	va_end(ap);
 
-	return __syscall_ret(posix_clone(func, stack, flags, arg, ptid, tls, ctid));
+	return __syscall_ret(__clone(func, stack, flags, arg, ptid, tls, ctid));
 }

@@ -3,38 +3,37 @@
 
 #define _GNU_SOURCE
 
-#include <limits.h>
-#include <errno.h>
 #include <assert.h>
-#include <stdio.h>
+#include <errno.h>
 #include <execinfo.h>
-#include <stdarg.h>
+#include <limits.h>
+#include <linux/futex.h>
 #include <openenclave/host.h>
-#include <openenclave/internal/error.h>
-#include <openenclave/internal/tests.h>
+#include <openenclave/internal/backtrace.h>
 #include <openenclave/internal/calls.h>
 #include <openenclave/internal/defs.h>
-#include <openenclave/internal/backtrace.h>
+#include <openenclave/internal/error.h>
+#include <openenclave/internal/tests.h>
+#include <pthread.h>
+#include <signal.h>
+#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <pthread.h>
-#include <linux/futex.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
-#include <unistd.h>
-#include <signal.h>
 #include <ucontext.h>
-#include "posix_u.h"
+#include <unistd.h>
 #include "../../../../3rdparty/libc/musl/src/posix/posix_signal.h"
+#include "posix_u.h"
 
-#define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
+#define POSIX_STRUCT(PREFIX, NAME) OE_CONCAT(t_, NAME)
 #include "../../../../3rdparty/libc/musl/src/posix/posix_common.h"
-#include "../../../../3rdparty/libc/musl/src/posix/posix_shared_block.h"
-#include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
-#include "../../../../3rdparty/libc/musl/src/posix/posix_spinlock.h"
-#include "../../../../3rdparty/libc/musl/src/posix/posix_panic.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_list.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_panic.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_shared_block.h"
+#include "../../../../3rdparty/libc/musl/src/posix/posix_spinlock.h"
 
 //#define TRACE
 //#define TRACE_THREADS
@@ -58,7 +57,7 @@ OE_STATIC_ASSERT(sizeof(struct posix_timespec) == sizeof(struct t_timespec));
 
 OE_STATIC_ASSERT(sizeof(struct posix_sigaction) == sizeof(struct t_sigaction));
 
-OE_STATIC_ASSERT( sizeof(struct posix_siginfo) == sizeof(struct t_siginfo));
+OE_STATIC_ASSERT(sizeof(struct posix_siginfo) == sizeof(struct t_siginfo));
 
 OE_STATIC_ASSERT(sizeof(struct posix_ucontext) == sizeof(struct t_ucontext));
 
@@ -151,9 +150,9 @@ int posix_restore_signals(sigset_t* set)
     return sigprocmask(SIG_SETMASK, set, 0);
 }
 
-__attribute__((format(printf, 1, 2)))
-__attribute__((used))
-static void _trace(const char* fmt, ...)
+__attribute__((format(printf, 1, 2))) __attribute__((used)) static void _trace(
+    const char* fmt,
+    ...)
 {
     char buf[1024];
     char prefix[] = "TRACE: ";
@@ -201,8 +200,7 @@ typedef struct _thread_table_entry
 {
     int tid;
     struct posix_shared_block* shared_block;
-}
-thread_table_entry_t;
+} thread_table_entry_t;
 
 static thread_table_entry_t _thread_table[128];
 static const size_t THREAD_TABLE_SIZE = OE_COUNTOF(_thread_table);
@@ -337,7 +335,9 @@ void posix_print_trace(void)
 {
     if (_tls_shared_block)
     {
-        _trace("posix_print_trace=%08x (%x)", _tls_shared_block->trace,
+        _trace(
+            "posix_print_trace=%08x (%x)",
+            _tls_shared_block->trace,
             posix_gettid());
     }
     else
@@ -415,7 +415,6 @@ static void* _thread_func(void* arg)
 
         shared_block->uaddrs = _uaddrs;
         shared_block->num_uaddrs = _num_uaddrs;
-
     }
 
     _tls_shared_block = shared_block;
@@ -428,7 +427,7 @@ static void* _thread_func(void* arg)
     int tid = posix_gettid();
 
     if ((r = posix_run_thread_ecall(
-        _enclave, &retval, cookie, tid, shared_block)) != OE_OK)
+             _enclave, &retval, cookie, tid, shared_block)) != OE_OK)
     {
         assert("posix_run_thread_ecall() failed" == NULL);
     }
@@ -536,18 +535,12 @@ int posix_futex_wait_ocall(
     for (;;)
     {
         retval = (int)syscall(
-            SYS_futex,
-            host_uaddr,
-            FUTEX_WAIT_PRIVATE,
-            val,
-            timeout,
-            NULL,
-            0);
+            SYS_futex, host_uaddr, FUTEX_WAIT_PRIVATE, val, timeout, NULL, 0);
 
         if (retval == 0)
             break;
 
-break;
+        break;
 
         if (errno != EAGAIN)
             break;
@@ -619,8 +612,8 @@ long posix_tkill_syscall_ocall(int tid, int sig)
     long ret;
 
 #ifdef TRACE
-    _trace("%s(TID=%d, tid=%d, sig=%d)",
-        __FUNCTION__, posix_gettid(), tid, sig);
+    _trace(
+        "%s(TID=%d, tid=%d, sig=%d)", __FUNCTION__, posix_gettid(), tid, sig);
 #endif
 
     /* Lock the ocall_lock */
@@ -715,8 +708,7 @@ static int _sig_queue_push_back(posix_sig_queue_node_t* node)
 
     /* Append node to list */
     posix_list_push_back(
-        (posix_list_t*)&shared_block->sig_queue,
-        (posix_list_node_t*)node);
+        (posix_list_t*)&shared_block->sig_queue, (posix_list_node_t*)node);
 
     ret = 0;
 
@@ -768,7 +760,10 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     if (hec.rax == ENCLU_ERESUME && hec.rip == OE_AEP_ADDRESS)
     {
 #ifdef TRACE_SIGNALS
-        _trace("*** ENCLAVE.SIGNAL: tid=%d sig=%d zone=%d", tid, sig,
+        _trace(
+            "*** ENCLAVE.SIGNAL: tid=%d sig=%d zone=%d",
+            tid,
+            sig,
             posix_shared_block()->__zone);
 #endif
 
@@ -779,8 +774,10 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
             posix_sig_queue_node_t* node;
 
 #ifdef TRACE_SIGNALS
-            _trace("*** ENCLAVE.SIGNAL.CONTINUE: tid=%d sig=%d",
-                posix_gettid(), sig);
+            _trace(
+                "*** ENCLAVE.SIGNAL.CONTINUE: tid=%d sig=%d",
+                posix_gettid(),
+                sig);
 #endif
 
             if (!(node = _sig_queue_node_new(sig, 1, si, uc)))
@@ -799,8 +796,11 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
         posix_sig_queue_node_t* node;
 
 #ifdef TRACE_SIGNALS
-        _trace("**HOST.SIGNAL: signum=%d tid=%d zone=%d",
-            sig, tid, posix_shared_block()->__zone);
+        _trace(
+            "**HOST.SIGNAL: signum=%d tid=%d zone=%d",
+            sig,
+            tid,
+            posix_shared_block()->__zone);
 #endif
 
         if (!(node = _sig_queue_node_new(sig, 0, si, uc)))
@@ -938,7 +938,7 @@ done:
 static void _print_backtrace(const uint64_t* buffer, size_t size)
 {
     extern oe_result_t oe_backtrace_symbols_ocall(
-        oe_enclave_t* oe_enclave,
+        oe_enclave_t * oe_enclave,
         const uint64_t* buffer,
         size_t size,
         void* symbols_buffer,

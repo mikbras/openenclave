@@ -3,7 +3,7 @@
 void test_regression(void)
 {
     int argc = 1;
-    const char* argv[] = { "main", NULL, NULL };
+    const char* argv[] = {"main", NULL, NULL};
     const char** envp = argv + argc + 1;
 
 #if 0
@@ -13,12 +13,14 @@ void test_regression(void)
     OE_TEST(daemon_failure_main(argc, argv, envp) == 0);
 #endif
 
-    extern int dn_expand_empty_main(int argc, const char* argv[], const char* envp[]);
+    extern int dn_expand_empty_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running dn_expand_empty_main\n");
     OE_TEST(dn_expand_empty_main(argc, argv, envp) == 0);
 
-    extern int dn_expand_ptr_0_main(int argc, const char* argv[], const char* envp[]);
+    extern int dn_expand_ptr_0_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running dn_expand_ptr_0_main\n");
     OE_TEST(dn_expand_ptr_0_main(argc, argv, envp) == 0);
@@ -56,7 +58,8 @@ void test_regression(void)
     OE_TEST(flockfile_list_main(argc, argv, envp) == 0);
 #endif
 
-    extern int fpclassify_invalid_ld80_main(int argc, const char* argv[], const char* envp[]);
+    extern int fpclassify_invalid_ld80_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running fpclassify_invalid_ld80_main\n");
     OE_TEST(fpclassify_invalid_ld80_main(argc, argv, envp) == 0);
@@ -82,27 +85,32 @@ void test_regression(void)
     OE_TEST(getpwnam_r_errno_main(argc, argv, envp) == 0);
 #endif
 
-    extern int iconv_roundtrips_main(int argc, const char* argv[], const char* envp[]);
+    extern int iconv_roundtrips_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running iconv_roundtrips_main\n");
     OE_TEST(iconv_roundtrips_main(argc, argv, envp) == 0);
 
-    extern int inet_ntop_v4mapped_main(int argc, const char* argv[], const char* envp[]);
+    extern int inet_ntop_v4mapped_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running inet_ntop_v4mapped_main\n");
     OE_TEST(inet_ntop_v4mapped_main(argc, argv, envp) == 0);
 
-    extern int inet_pton_empty_last_field_main(int argc, const char* argv[], const char* envp[]);
+    extern int inet_pton_empty_last_field_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running inet_pton_empty_last_field_main\n");
     OE_TEST(inet_pton_empty_last_field_main(argc, argv, envp) == 0);
 
-    extern int iswspace_null_main(int argc, const char* argv[], const char* envp[]);
+    extern int iswspace_null_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running iswspace_null_main\n");
     OE_TEST(iswspace_null_main(argc, argv, envp) == 0);
 
-    extern int lrand48_signextend_main(int argc, const char* argv[], const char* envp[]);
+    extern int lrand48_signextend_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running lrand48_signextend_main\n");
     OE_TEST(lrand48_signextend_main(argc, argv, envp) == 0);
@@ -133,47 +141,56 @@ void test_regression(void)
     OE_TEST(malloc_oom_main(argc, argv, envp) == 0);
 #endif
 
-    extern int mbsrtowcs_overflow_main(int argc, const char* argv[], const char* envp[]);
+    extern int mbsrtowcs_overflow_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running mbsrtowcs_overflow_main\n");
     OE_TEST(mbsrtowcs_overflow_main(argc, argv, envp) == 0);
 
-    extern int memmem_oob_main(int argc, const char* argv[], const char* envp[]);
+    extern int memmem_oob_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running memmem_oob_main\n");
     OE_TEST(memmem_oob_main(argc, argv, envp) == 0);
 
-    extern int memmem_oob_read_main(int argc, const char* argv[], const char* envp[]);
+    extern int memmem_oob_read_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running memmem_oob_read_main\n");
     OE_TEST(memmem_oob_read_main(argc, argv, envp) == 0);
 
-    extern int mkdtemp_failure_main(int argc, const char* argv[], const char* envp[]);
+    extern int mkdtemp_failure_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running mkdtemp_failure_main\n");
     OE_TEST(mkdtemp_failure_main(argc, argv, envp) == 0);
 
-    extern int mkstemp_failure_main(int argc, const char* argv[], const char* envp[]);
+    extern int mkstemp_failure_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running mkstemp_failure_main\n");
     OE_TEST(mkstemp_failure_main(argc, argv, envp) == 0);
 
-    extern int printf_1e9_oob_main(int argc, const char* argv[], const char* envp[]);
+    extern int printf_1e9_oob_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running printf_1e9_oob_main\n");
     OE_TEST(printf_1e9_oob_main(argc, argv, envp) == 0);
 
-    extern int printf_fmt_g_round_main(int argc, const char* argv[], const char* envp[]);
+    extern int printf_fmt_g_round_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running printf_fmt_g_round_main\n");
     OE_TEST(printf_fmt_g_round_main(argc, argv, envp) == 0);
 
-    extern int printf_fmt_g_zeros_main(int argc, const char* argv[], const char* envp[]);
+    extern int printf_fmt_g_zeros_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running printf_fmt_g_zeros_main\n");
     OE_TEST(printf_fmt_g_zeros_main(argc, argv, envp) == 0);
 
-    extern int printf_fmt_n_main(int argc, const char* argv[], const char* envp[]);
+    extern int printf_fmt_n_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running printf_fmt_n_main\n");
     OE_TEST(printf_fmt_n_main(argc, argv, envp) == 0);
@@ -193,7 +210,8 @@ void test_regression(void)
     OE_TEST(pthread_cancel_sem_wait_main(argc, argv, envp) == 0);
 #endif
 
-    extern int pthread_condattr_setclock_main(int argc, const char* argv[], const char* envp[]);
+    extern int pthread_condattr_setclock_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running pthread_condattr_setclock_main\n");
     OE_TEST(pthread_condattr_setclock_main(argc, argv, envp) == 0);
@@ -219,7 +237,8 @@ void test_regression(void)
     OE_TEST(pthread_create_oom_main(argc, argv, envp) == 0);
 #endif
 
-    extern int pthread_exit_cancel_main(int argc, const char* argv[], const char* envp[]);
+    extern int pthread_exit_cancel_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running pthread_exit_cancel_main\n");
     OE_TEST(pthread_exit_cancel_main(argc, argv, envp) == 0);
@@ -231,7 +250,8 @@ void test_regression(void)
     OE_TEST(pthread_exit_dtor_main(argc, argv, envp) == 0);
 #endif
 
-    extern int pthread_once_deadlock_main(int argc, const char* argv[], const char* envp[]);
+    extern int pthread_once_deadlock_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running pthread_once_deadlock_main\n");
     OE_TEST(pthread_once_deadlock_main(argc, argv, envp) == 0);
@@ -243,12 +263,14 @@ void test_regression(void)
     OE_TEST(pthread_robust_detach_main(argc, argv, envp) == 0);
 #endif
 
-    extern int pthread_rwlock_ebusy_main(int argc, const char* argv[], const char* envp[]);
+    extern int pthread_rwlock_ebusy_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running pthread_rwlock_ebusy_main\n");
     OE_TEST(pthread_rwlock_ebusy_main(argc, argv, envp) == 0);
 
-    extern int putenv_doublefree_main(int argc, const char* argv[], const char* envp[]);
+    extern int putenv_doublefree_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running putenv_doublefree_main\n");
     OE_TEST(putenv_doublefree_main(argc, argv, envp) == 0);
@@ -260,32 +282,38 @@ void test_regression(void)
     OE_TEST(raise_race_main(argc, argv, envp) == 0);
 #endif
 
-    extern int regex_backref_0_main(int argc, const char* argv[], const char* envp[]);
+    extern int regex_backref_0_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running regex_backref_0_main\n");
     OE_TEST(regex_backref_0_main(argc, argv, envp) == 0);
 
-    extern int regex_bracket_icase_main(int argc, const char* argv[], const char* envp[]);
+    extern int regex_bracket_icase_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running regex_bracket_icase_main\n");
     OE_TEST(regex_bracket_icase_main(argc, argv, envp) == 0);
 
-    extern int regexec_nosub_main(int argc, const char* argv[], const char* envp[]);
+    extern int regexec_nosub_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running regexec_nosub_main\n");
     OE_TEST(regexec_nosub_main(argc, argv, envp) == 0);
 
-    extern int regex_ere_backref_main(int argc, const char* argv[], const char* envp[]);
+    extern int regex_ere_backref_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running regex_ere_backref_main\n");
     OE_TEST(regex_ere_backref_main(argc, argv, envp) == 0);
 
-    extern int regex_escaped_high_byte_main(int argc, const char* argv[], const char* envp[]);
+    extern int regex_escaped_high_byte_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running regex_escaped_high_byte_main\n");
     OE_TEST(regex_escaped_high_byte_main(argc, argv, envp) == 0);
 
-    extern int regex_negated_range_main(int argc, const char* argv[], const char* envp[]);
+    extern int regex_negated_range_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running regex_negated_range_main\n");
     OE_TEST(regex_negated_range_main(argc, argv, envp) == 0);
@@ -311,12 +339,14 @@ void test_regression(void)
     OE_TEST(scanf_bytes_consumed_main(argc, argv, envp) == 0);
 #endif
 
-    extern int scanf_match_literal_eof_main(int argc, const char* argv[], const char* envp[]);
+    extern int scanf_match_literal_eof_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running scanf_match_literal_eof_main\n");
     OE_TEST(scanf_match_literal_eof_main(argc, argv, envp) == 0);
 
-    extern int scanf_nullbyte_char_main(int argc, const char* argv[], const char* envp[]);
+    extern int scanf_nullbyte_char_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running scanf_nullbyte_char_main\n");
     OE_TEST(scanf_nullbyte_char_main(argc, argv, envp) == 0);
@@ -342,7 +372,8 @@ void test_regression(void)
     OE_TEST(sigaltstack_main(argc, argv, envp) == 0);
 #endif
 
-    extern int sigprocmask_internal_main(int argc, const char* argv[], const char* envp[]);
+    extern int sigprocmask_internal_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running sigprocmask_internal_main\n");
     OE_TEST(sigprocmask_internal_main(argc, argv, envp) == 0);
@@ -368,7 +399,8 @@ void test_regression(void)
     OE_TEST(statvfs_main(argc, argv, envp) == 0);
 #endif
 
-    extern int strverscmp_main(int argc, const char* argv[], const char* envp[]);
+    extern int strverscmp_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running strverscmp_main\n");
     OE_TEST(strverscmp_main(argc, argv, envp) == 0);
@@ -394,19 +426,21 @@ void test_regression(void)
     OE_TEST(tls_get_new_dtv_dso_main(argc, argv, envp) == 0);
 #endif
 
-    extern int uselocale_0_main(int argc, const char* argv[], const char* envp[]);
+    extern int uselocale_0_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running uselocale_0_main\n");
     OE_TEST(uselocale_0_main(argc, argv, envp) == 0);
 
-    extern int wcsncpy_read_overflow_main(int argc, const char* argv[], const char* envp[]);
+    extern int wcsncpy_read_overflow_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running wcsncpy_read_overflow_main\n");
     OE_TEST(wcsncpy_read_overflow_main(argc, argv, envp) == 0);
 
-    extern int wcsstr_false_negative_main(int argc, const char* argv[], const char* envp[]);
+    extern int wcsstr_false_negative_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running wcsstr_false_negative_main\n");
     OE_TEST(wcsstr_false_negative_main(argc, argv, envp) == 0);
-
 }

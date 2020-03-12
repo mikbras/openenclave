@@ -138,13 +138,9 @@ int main(int argc, const char* argv[])
     // Enable switchless and configure host worker number
     oe_enclave_setting_context_switchless_t switchless_setting = {
         num_host_threads, 0};
-    oe_enclave_setting_t settings[] =
-    {
-        {
-            .setting_type = OE_ENCLAVE_SETTING_CONTEXT_SWITCHLESS,
-            .u.context_switchless_setting = &switchless_setting
-        }
-    };
+    oe_enclave_setting_t settings[] = {
+        {.setting_type = OE_ENCLAVE_SETTING_CONTEXT_SWITCHLESS,
+         .u.context_switchless_setting = &switchless_setting}};
 
     if ((result = oe_create_switchless_enclave(
              argv[1],

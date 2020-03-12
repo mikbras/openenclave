@@ -1,20 +1,20 @@
 // Copyright (c) Open Enclave SDK contributors.
 // Licensed under the MIT License.
 
+#include <errno.h>
 #include <openenclave/corelibc/string.h>
 #include <openenclave/enclave.h>
-#include <stdio.h>
-#include <errno.h>
-#include <string.h>
+#include <openenclave/internal/backtrace.h>
 #include <openenclave/internal/print.h>
 #include <openenclave/internal/tests.h>
 #include <pthread.h>
+#include <stdio.h>
+#include <string.h>
 #include <unistd.h>
-#include <openenclave/internal/backtrace.h>
-#include "posix_t.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocalls.h"
+#include "posix_t.h"
 
-#define POSIX_STRUCT(PREFIX,NAME) OE_CONCAT(t_,NAME)
+#define POSIX_STRUCT(PREFIX, NAME) OE_CONCAT(t_, NAME)
 #include "../../../../3rdparty/libc/musl/src/posix/posix_ocall_structs.h"
 #include "../../../../3rdparty/libc/musl/src/posix/posix_shared_block.h"
 
@@ -97,7 +97,7 @@ static void* _test_mutex_thread(void* arg)
 {
     size_t n = (uint64_t)arg;
 
-    for (size_t i = 0; i < n*N; i++)
+    for (size_t i = 0; i < n * N; i++)
     {
         pthread_mutex_lock(&_mutex);
         _shared_integer++;
@@ -338,7 +338,7 @@ void posix_test_ecall(void* shared_block, int tid)
         printf("loop.....................................%zu\n", i);
         extern int test_pthread_cancel3(void);
         OE_TEST(test_pthread_cancel3() == 0);
-        //sleep_msec(100);
+        // sleep_msec(100);
     }
 #endif
 
@@ -365,7 +365,7 @@ void posix_test_ecall(void* shared_block, int tid)
 
 #if RUN_ALL
     extern void test_regression(void);
-    //for (size_t i = 0; i < 1000; i++)
+    // for (size_t i = 0; i < 1000; i++)
     test_regression();
 #endif
 
@@ -384,4 +384,4 @@ OE_SET_ENCLAVE_SGX(
     true, /* AllowDebug */
     4096, /* HeapPageCount */
     1024, /* StackPageCount */
-    10);   /* TCSCount */
+    10);  /* TCSCount */

@@ -3,7 +3,7 @@
 void test_functional(void)
 {
     int argc = 1;
-    const char* argv[] = { "main", NULL, NULL };
+    const char* argv[] = {"main", NULL, NULL};
     const char** envp = argv + argc + 1;
 
 #if 1
@@ -27,12 +27,14 @@ void test_functional(void)
     printf("=== running basename_main\n");
     OE_TEST(basename_main(argc, argv, envp) == 0);
 
-    extern int clocale_mbfuncs_main(int argc, const char* argv[], const char* envp[]);
+    extern int clocale_mbfuncs_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running clocale_mbfuncs_main\n");
     OE_TEST(clocale_mbfuncs_main(argc, argv, envp) == 0);
 
-    extern int clock_gettime_main(int argc, const char* argv[], const char* envp[]);
+    extern int clock_gettime_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running clock_gettime_main\n");
     OE_TEST(clock_gettime_main(argc, argv, envp) == 0);
@@ -99,7 +101,8 @@ void test_functional(void)
     OE_TEST(fwscanf_main(argc, argv, envp) == 0);
 #endif
 
-    extern int iconv_open_main(int argc, const char* argv[], const char* envp[]);
+    extern int iconv_open_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running iconv_open_main\n");
     OE_TEST(iconv_open_main(argc, argv, envp) == 0);
@@ -154,12 +157,14 @@ void test_functional(void)
     OE_TEST(pthread_cancel_points_main(argc, argv, envp) == 0);
 #endif
 
-    extern int pthread_cond_main(int argc, const char* argv[], const char* envp[]);
+    extern int pthread_cond_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running pthread_cond_main\n");
     OE_TEST(pthread_cond_main(argc, argv, envp) == 0);
 
-    extern int pthread_mutex_main(int argc, const char* argv[], const char* envp[]);
+    extern int pthread_mutex_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running pthread_mutex_main\n");
     OE_TEST(pthread_mutex_main(argc, argv, envp) == 0);
@@ -178,7 +183,8 @@ void test_functional(void)
     OE_TEST(pthread_robust_main(argc, argv, envp) == 0);
 #endif
 
-    extern int pthread_tsd_main(int argc, const char* argv[], const char* envp[]);
+    extern int pthread_tsd_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running pthread_tsd_main\n");
     OE_TEST(pthread_tsd_main(argc, argv, envp) == 0);
@@ -193,22 +199,26 @@ void test_functional(void)
     printf("=== running random_main\n");
     OE_TEST(random_main(argc, argv, envp) == 0);
 
-    extern int search_hsearch_main(int argc, const char* argv[], const char* envp[]);
+    extern int search_hsearch_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running search_hsearch_main\n");
     OE_TEST(search_hsearch_main(argc, argv, envp) == 0);
 
-    extern int search_insque_main(int argc, const char* argv[], const char* envp[]);
+    extern int search_insque_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running search_insque_main\n");
     OE_TEST(search_insque_main(argc, argv, envp) == 0);
 
-    extern int search_lsearch_main(int argc, const char* argv[], const char* envp[]);
+    extern int search_lsearch_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running search_lsearch_main\n");
     OE_TEST(search_lsearch_main(argc, argv, envp) == 0);
 
-    extern int search_tsearch_main(int argc, const char* argv[], const char* envp[]);
+    extern int search_tsearch_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running search_tsearch_main\n");
     OE_TEST(search_tsearch_main(argc, argv, envp) == 0);
@@ -256,7 +266,8 @@ void test_functional(void)
     printf("=== running sscanf_main\n");
     OE_TEST(sscanf_main(argc, argv, envp) == 0);
 
-    extern int sscanf_long_main(int argc, const char* argv[], const char* envp[]);
+    extern int sscanf_long_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running sscanf_long_main\n");
     OE_TEST(sscanf_long_main(argc, argv, envp) == 0);
@@ -278,32 +289,38 @@ void test_functional(void)
     printf("=== running string_main\n");
     OE_TEST(string_main(argc, argv, envp) == 0);
 
-    extern int string_memcpy_main(int argc, const char* argv[], const char* envp[]);
+    extern int string_memcpy_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running string_memcpy_main\n");
     OE_TEST(string_memcpy_main(argc, argv, envp) == 0);
 
-    extern int string_memmem_main(int argc, const char* argv[], const char* envp[]);
+    extern int string_memmem_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running string_memmem_main\n");
     OE_TEST(string_memmem_main(argc, argv, envp) == 0);
 
-    extern int string_memset_main(int argc, const char* argv[], const char* envp[]);
+    extern int string_memset_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running string_memset_main\n");
     OE_TEST(string_memset_main(argc, argv, envp) == 0);
 
-    extern int string_strchr_main(int argc, const char* argv[], const char* envp[]);
+    extern int string_strchr_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running string_strchr_main\n");
     OE_TEST(string_strchr_main(argc, argv, envp) == 0);
 
-    extern int string_strcspn_main(int argc, const char* argv[], const char* envp[]);
+    extern int string_strcspn_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running string_strcspn_main\n");
     OE_TEST(string_strcspn_main(argc, argv, envp) == 0);
 
-    extern int string_strstr_main(int argc, const char* argv[], const char* envp[]);
+    extern int string_strstr_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running string_strstr_main\n");
     OE_TEST(string_strstr_main(argc, argv, envp) == 0);
@@ -320,12 +337,14 @@ void test_functional(void)
     printf("=== running strtod_main\n");
     OE_TEST(strtod_main(argc, argv, envp) == 0);
 
-    extern int strtod_long_main(int argc, const char* argv[], const char* envp[]);
+    extern int strtod_long_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running strtod_long_main\n");
     OE_TEST(strtod_long_main(argc, argv, envp) == 0);
 
-    extern int strtod_simple_main(int argc, const char* argv[], const char* envp[]);
+    extern int strtod_simple_main(
+        int argc, const char* argv[], const char* envp[]);
     t_status = 0;
     printf("=== running strtod_simple_main\n");
     OE_TEST(strtod_simple_main(argc, argv, envp) == 0);
