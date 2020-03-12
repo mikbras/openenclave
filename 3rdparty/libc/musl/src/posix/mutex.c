@@ -97,11 +97,14 @@ int posix_mutex_lock(posix_mutex_t* mutex)
         posix_spin_unlock(&m->lock);
 
         /* Ask host to wait for an event on this thread */
-        if (posix_wait_ocall(&retval, &self->shared_block->futex, NULL) != OE_OK)
+        if (posix_thread_wait_ocall(
+            &retval, &self->shared_block->futex, NULL) != OE_OK)
         {
-            POSIX_PANIC("posix_wait_ocall()");
+            POSIX_PANIC;
         }
-        posix_dispatch_signal();
+
+        if (retval != 0)
+            POSIX_PANIC_MSG("wait failed: retval=%d", retval);
     }
 
     /* Unreachable! */
@@ -170,8 +173,17 @@ int posix_mutex_unlock(posix_mutex_t* m)
 
     if (waiter)
     {
+        int retval;
+
         /* Ask host to wake up this thread */
-        posix_wake_ocall(&waiter->shared_block->futex);
+        if (posix_thread_wake_ocall(
+            &retval, &waiter->shared_block->futex) != OE_OK)
+        {
+            POSIX_PANIC;
+        }
+
+        if (retval != 0)
+            POSIX_PANIC_MSG("wake failed: retval=%d", retval);
     }
 
     return 0;

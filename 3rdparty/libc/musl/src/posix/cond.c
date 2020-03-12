@@ -8,6 +8,7 @@
 #include "posix_io.h"
 #include "posix_signal.h"
 #include "posix_panic.h"
+#include "posix_assume.h"
 /* */
 #include "posix_warnings.h"
 
@@ -74,19 +75,17 @@ int posix_cond_timedwait(
                 {
                     int retval;
 
-                    if (posix_wake_wait_ocall(
+                    if (posix_thread_wake_wait_ocall(
                         &retval,
                         &waiter->shared_block->futex,
                         &self->shared_block->futex,
-                        timeout) != OE_OK)
+                        (struct posix_timespec*)timeout) != OE_OK)
                     {
-                        ret = ENOSYS;
+                        POSIX_PANIC;
                     }
-                    else
-                    {
-                        assert(retval == 0 || retval < 0);
-                        ret = -retval;
-                    }
+
+                    POSIX_ASSUME(retval <= 0);
+                    ret = -retval;
 
                     waiter = NULL;
                 }
@@ -94,20 +93,16 @@ int posix_cond_timedwait(
                 {
                     int retval;
 
-                    if (posix_wait_ocall(
+                    if (posix_thread_wait_ocall(
                         &retval,
                         &self->shared_block->futex,
-                        timeout) != OE_OK)
+                        (struct posix_timespec*)timeout) != OE_OK)
                     {
-                        POSIX_PANIC("posix_wait_ocall");
-                        ret = ENOSYS;
+                        POSIX_PANIC;
                     }
-                    else
-                    {
-                        posix_dispatch_signal();
-                        assert(retval == 0 || retval < 0);
-                        ret = -retval;
-                    }
+
+                    POSIX_ASSUME(retval <= 0);
+                    ret = -retval;
                 }
             }
             posix_spin_lock(&c->lock);
@@ -134,6 +129,7 @@ int posix_cond_wait(posix_cond_t* c, posix_mutex_t* mutex)
 int posix_cond_signal(posix_cond_t* c)
 {
     posix_thread_t* waiter;
+    int retval;
 
     if (!c)
         return EINVAL;
@@ -145,7 +141,12 @@ int posix_cond_signal(posix_cond_t* c)
     if (!waiter)
         return 0;
 
-    posix_wake_ocall(&waiter->shared_block->futex);
+    if (posix_thread_wake_ocall(&retval, &waiter->shared_block->futex) != OE_OK)
+        POSIX_PANIC;
+
+    if (retval != 0)
+        POSIX_PANIC_MSG("wake failed: retval=%d", retval);
+
     return 0;
 }
 
@@ -174,8 +175,15 @@ int posix_cond_broadcast(posix_cond_t* c, size_t n)
 
     for (posix_thread_t* p = waiters.front; p; p = next)
     {
+        int retval;
+
         next = p->next;
-        posix_wake_ocall(&p->shared_block->futex);
+
+        if (posix_thread_wake_ocall(&retval, &p->shared_block->futex) != OE_OK)
+            POSIX_PANIC;
+
+        if (retval != 0)
+            POSIX_PANIC_MSG("wake failed: retval=%d", retval);
     }
 
     return 0;
@@ -226,8 +234,18 @@ int posix_cond_requeue(
 
         for (posix_thread_t* p = wakers.front; p; p = next)
         {
+            int retval;
+
             next = p->next;
-            posix_wake_ocall(&p->shared_block->futex);
+
+            if (posix_thread_wake_ocall(
+                &retval, &p->shared_block->futex) != OE_OK)
+            {
+                POSIX_PANIC;
+            }
+
+            if (retval != 0)
+                POSIX_PANIC_MSG("wake failed: retval=%d", retval);
         }
     }
 

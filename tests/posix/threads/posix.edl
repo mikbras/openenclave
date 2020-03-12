@@ -56,12 +56,12 @@ enclave
 
         int posix_getpid_ocall();
 
-        int posix_wait_ocall(
+        int posix_futex_wait_ocall(
             [user_check] int* host_uaddr,
             int val,
             [in, count=1] const struct posix_timespec* timeout);
 
-        int posix_wake_ocall([user_check] int* host_uaddr, int val);
+        int posix_futex_wake_ocall([user_check] int* host_uaddr, int val);
 
         int posix_futex_requeue_ocall(
             [user_check] int* uaddr,
@@ -108,5 +108,17 @@ enclave
             [in, string] const char* msg,
             [in, count=backtrace_count] const uint64_t* backtrace,
             size_t backtrace_count);
+
+        int posix_thread_wait_ocall(
+            [user_check] int* uaddr,
+            [in, count=1] struct posix_timespec* timeout);
+
+        int posix_thread_wake_ocall(
+            [user_check] int* uaddr);
+
+        int posix_thread_wake_wait_ocall(
+            [user_check] int* waiter_uaddr,
+            [user_check] int* self_uaddr,
+            [in, count=1] struct posix_timespec* timeout);
     };
 };

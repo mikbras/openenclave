@@ -525,7 +525,7 @@ static bool _valid_uaddr(const int* uaddr)
     return uaddr >= start && uaddr < end;
 }
 
-int posix_wait_ocall(
+int posix_futex_wait_ocall(
     int* host_uaddr,
     int val,
     const struct posix_timespec* timeout)
@@ -565,7 +565,7 @@ break;
     return retval;
 }
 
-int posix_wake_ocall(int* host_uaddr, int val)
+int posix_futex_wake_ocall(int* host_uaddr, int val)
 {
     BEGIN_OCALL;
     int retval;
@@ -1005,4 +1005,56 @@ void posix_panic_ocall(
     fprintf(stderr, "*** panic: %s(%u): %s(): %s\n", file, line, func, msg);
     _print_backtrace(backtrace, backtrace_count);
     fflush(stderr);
+}
+
+int posix_thread_wait_ocall(int* uaddr, struct posix_timespec* timeout)
+{
+    if (!uaddr)
+        return -EINVAL;
+
+    if (__sync_fetch_and_add(uaddr, -1) == 0)
+    {
+        /* Loop on EINTR */
+        for (;;)
+        {
+            long r;
+            const int op = FUTEX_WAIT_PRIVATE;
+
+            if ((r = syscall(SYS_futex, uaddr, op, -1, timeout, NULL, 0)) == 0)
+                return 0;
+
+            if (r != EINTR)
+                return -errno;
+        }
+    }
+
+    return 0;
+}
+
+int posix_thread_wake_ocall(int* uaddr)
+{
+    if (!uaddr)
+        return -EINVAL;
+
+    if (__sync_fetch_and_add(uaddr, 1) != 0)
+    {
+        const int op = FUTEX_WAKE_PRIVATE;
+        syscall(SYS_futex, uaddr, op, 1, NULL, NULL, 0);
+    }
+
+    return 0;
+}
+
+int posix_thread_wake_wait_ocall(
+    int* waiter_uaddr,
+    int* self_uaddr,
+    struct posix_timespec* timeout)
+{
+    if (!waiter_uaddr || !self_uaddr)
+        return -EINVAL;
+
+    posix_thread_wake_ocall(waiter_uaddr);
+    posix_thread_wait_ocall(self_uaddr, timeout);
+
+    return 0;
 }

@@ -10,6 +10,8 @@
 #include "posix_ocall_structs.h"
 #include "posix_list.h"
 #include "posix_spinlock.h"
+#include "posix_assume.h"
+#include "posix_panic.h"
 
 #define POSIX_SIG_QUEUE_NODE_MAGIC 0x90962d674a93402d
 
@@ -56,6 +58,8 @@ typedef enum _posix_zone
 posix_zone_t;
 
 typedef struct posix_shared_block posix_shared_block_t;
+
+typedef struct posix_shared_block posix_shared_block_t;
 struct posix_shared_block
 {
     int32_t futex;
@@ -72,5 +76,71 @@ struct posix_shared_block
     /* Which zone this thread is currently running in. */
     posix_zone_t zone;
 };
+
+POSIX_INLINE void posix_inc_zone(
+    struct posix_shared_block* sb,
+    posix_zone_t zone)
+{
+    POSIX_ASSUME(sb != NULL);
+
+    switch (zone)
+    {
+        case POSIX_ZONE_USER:
+        {
+            POSIX_PANIC;
+        }
+        case POSIX_ZONE_SYSCALL:
+        {
+            POSIX_ASSUME(sb->zone == POSIX_ZONE_USER);
+        }
+        case POSIX_ZONE_OCALL:
+        {
+            POSIX_ASSUME(sb->zone == POSIX_ZONE_SYSCALL);
+        }
+        case POSIX_ZONE_HOST:
+        {
+            POSIX_ASSUME(sb->zone == POSIX_ZONE_OCALL);
+        }
+        default:
+        {
+            POSIX_PANIC;
+        }
+    }
+
+    sb->zone = zone;
+}
+
+POSIX_INLINE void posix_dec_zone(
+    struct posix_shared_block* sb,
+    posix_zone_t zone)
+{
+    POSIX_ASSUME(sb != NULL);
+
+    switch (zone)
+    {
+        case POSIX_ZONE_USER:
+        {
+            POSIX_ASSUME(sb->zone == POSIX_ZONE_SYSCALL);
+        }
+        case POSIX_ZONE_SYSCALL:
+        {
+            POSIX_ASSUME(sb->zone == POSIX_ZONE_OCALL);
+        }
+        case POSIX_ZONE_OCALL:
+        {
+            POSIX_ASSUME(sb->zone == POSIX_ZONE_HOST);
+        }
+        case POSIX_ZONE_HOST:
+        {
+            POSIX_PANIC;
+        }
+        default:
+        {
+            POSIX_PANIC;
+        }
+    }
+
+    sb->zone = zone;
+}
 
 #endif /* _POSIX_STRUCTS_H */

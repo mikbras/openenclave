@@ -9,6 +9,7 @@
 #include "posix_structs.h"
 #include "posix_spinlock.h"
 #include "posix_common.h"
+#include "posix_thread_queue.h"
 
 typedef struct _posix_thread posix_thread_t;
 typedef struct _posix_mutex posix_mutex_t;
@@ -65,72 +66,6 @@ struct _posix_thread
     /* POSIX_THREAD_STATE_STARTED or zero */
     uint32_t state;
 };
-
-typedef struct _posix_thread_queue
-{
-    posix_thread_t* front;
-    posix_thread_t* back;
-} posix_thread_queue_t;
-
-POSIX_INLINE size_t posix_thread_queue_size(posix_thread_queue_t* queue)
-{
-    size_t n = 0;
-
-    for (posix_thread_t* p = queue->front; p; p = p->next)
-        n++;
-
-    return n;
-}
-
-POSIX_INLINE void posix_thread_queue_push_back(
-    posix_thread_queue_t* queue,
-    posix_thread_t* thread)
-{
-    thread->next = NULL;
-
-    if (queue->back)
-        queue->back->next = thread;
-    else
-        queue->front = thread;
-
-    queue->back = thread;
-}
-
-POSIX_INLINE posix_thread_t* posix_thread_queue_pop_front(
-    posix_thread_queue_t* queue)
-{
-    posix_thread_t* thread = queue->front;
-
-    if (thread)
-    {
-        queue->front = queue->front->next;
-
-        if (!queue->front)
-            queue->back = NULL;
-    }
-
-    return thread;
-}
-
-POSIX_INLINE bool posix_thread_queue_contains(
-    posix_thread_queue_t* queue,
-    posix_thread_t* thread)
-{
-    posix_thread_t* p;
-
-    for (p = queue->front; p; p = p->next)
-    {
-        if (p == thread)
-            return true;
-    }
-
-    return false;
-}
-
-POSIX_INLINE bool posix_thread_queue_empty(posix_thread_queue_t* queue)
-{
-    return queue->front ? false : true;
-}
 
 posix_thread_t* posix_self(void);
 

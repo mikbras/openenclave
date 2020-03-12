@@ -38,13 +38,13 @@ oe_result_t posix_clock_gettime_ocall(
     int clk_id,
     struct posix_timespec* tp);
 
-oe_result_t posix_wait_ocall(
+oe_result_t posix_futex_wait_ocall(
     int* retval,
     int* host_uaddr,
     int val,
     const struct posix_timespec* timeout);
 
-oe_result_t posix_wake_ocall(int* retval, int* host_uaddr, int val);
+oe_result_t posix_futex_wake_ocall(int* retval, int* host_uaddr, int val);
 
 oe_result_t posix_futex_requeue_ocall(
     int* retval,
@@ -97,5 +97,18 @@ oe_result_t posix_panic_ocall(
     const char* msg,
     const uint64_t* backtrace,
     size_t backtrace_count);
+
+oe_result_t posix_thread_wait_ocall(
+    int* retval,
+    int* uaddr,
+    struct posix_timespec* timeout);
+
+oe_result_t posix_thread_wake_ocall(int* retval, int* uaddr);
+
+oe_result_t posix_thread_wake_wait_ocall(
+    int* retval,
+    int* waiter_uaddr,
+    int* self_uaddr,
+    struct posix_timespec* timeout);
 
 #endif /* _POSIX_OCALLS_H */
