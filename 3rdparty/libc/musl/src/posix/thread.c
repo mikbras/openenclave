@@ -199,6 +199,7 @@ int posix_run_thread_ecall(uint64_t cookie, int tid, void* shared_block)
     return 0;
 }
 
+/* ATTN: make this a system call */
 int posix_clone(
     int (*fn)(void *),
     void* child_stack,
@@ -211,8 +212,8 @@ int posix_clone(
 
     (void)child_stack;
 
-    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_USER);
-    posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
+    POSIX_ASSUME(posix_shared_block()->zone == 0);
+    posix_shared_block()->zone = POSIX_REDZONE;
 
     va_start(ap, arg);
     pid_t* ptid = va_arg(ap, pid_t*);
@@ -280,8 +281,8 @@ int posix_clone(
 
 done:
 
-    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
-    posix_shared_block()->zone = POSIX_ZONE_USER;
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_REDZONE);
+    posix_shared_block()->zone = 0;
 
     return ret;
 }

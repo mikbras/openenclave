@@ -310,10 +310,7 @@ POSIX_INLINE void _begin_ocall(const char* func)
     if (posix_shared_block()->ocall_lock != 1)
         assert("panic" == NULL);
 
-    if (posix_shared_block()->zone != POSIX_ZONE_OCALL)
-        assert("panic" == NULL);
-
-    posix_shared_block()->zone = POSIX_ZONE_HOST;
+    assert(posix_shared_block()->zone == POSIX_REDZONE);
 
     posix_spin_unlock(&posix_shared_block()->ocall_lock);
     (void)func;
@@ -325,10 +322,7 @@ POSIX_INLINE void _end_ocall(const char* func)
 
     posix_spin_lock(&posix_shared_block()->ocall_lock);
 
-    if (posix_shared_block()->zone != POSIX_ZONE_HOST)
-        assert("panic" == NULL);
-
-    posix_shared_block()->zone = POSIX_ZONE_OCALL;
+    assert(posix_shared_block()->zone == POSIX_REDZONE);
 
     if (posix_shared_block()->ocall_lock != 1)
         assert("panic" == NULL);
@@ -774,7 +768,7 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
     {
 #ifdef TRACE_SIGNALS
         _trace("*** ENCLAVE.SIGNAL: tid=%d sig=%d zone=%d", tid, sig,
-            posix_shared_block()->zone);
+            posix_shared_block()->__zone);
 #endif
 
         uint64_t action = oe_host_handle_exception(&hec, POSIX_SIGACTION);
@@ -805,7 +799,7 @@ static void _posix_host_signal_handler(int sig, siginfo_t* si, ucontext_t* uc)
 
 #ifdef TRACE_SIGNALS
         _trace("**HOST.SIGNAL: signum=%d tid=%d zone=%d",
-            sig, tid, posix_shared_block()->zone);
+            sig, tid, posix_shared_block()->__zone);
 #endif
 
         if (!(node = _sig_queue_node_new(sig, 0, si, uc)))

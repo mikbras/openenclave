@@ -580,13 +580,13 @@ long posix_syscall(long n, ...)
     long x6 = va_arg(ap, long);
     va_end(ap);
 
-    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_USER);
-    posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
+    POSIX_ASSUME(posix_shared_block()->zone == 0);
+    posix_shared_block()->zone = POSIX_REDZONE;
 
     ret = _dispatch_syscall(n, x1, x2, x3, x4, x5, x6);
 
-    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
-    posix_shared_block()->zone = POSIX_ZONE_USER;
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_REDZONE);
+    posix_shared_block()->zone = 0;
 
     posix_dispatch_redzone_signals();
 

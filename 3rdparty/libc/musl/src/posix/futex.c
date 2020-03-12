@@ -60,22 +60,19 @@ done:
     return ret;
 }
 
+/* ATTN: make this into an extended system call */
 volatile int* posix_futex_map(volatile int* lock)
 {
     volatile int* ret = NULL;
     uint64_t index = ((uint64_t)lock >> 4) % NUM_CHAINS;
     futex_t* futex;
-    uint32_t zone;
+    uint32_t old_zone;
 
     if (!oe_is_within_enclave((void*)lock, sizeof(*lock)))
         POSIX_PANIC_MSG("lock not within enclave");
 
-    zone = posix_shared_block()->zone;
-
-    POSIX_ASSUME(zone == POSIX_ZONE_USER || zone == POSIX_ZONE_SYSCALL);
-
-    if (zone == POSIX_ZONE_USER)
-        posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
+    old_zone = posix_shared_block()->zone;
+    posix_shared_block()->zone = POSIX_REDZONE;
 
     posix_spin_lock(&_lock);
 
@@ -105,7 +102,7 @@ done:
 
     posix_spin_unlock(&_lock);
 
-    posix_shared_block()->zone = zone;
+    posix_shared_block()->zone = old_zone;
 
     return ret;
 }

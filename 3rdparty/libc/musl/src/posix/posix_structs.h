@@ -48,19 +48,10 @@ struct posix_sig_queue
     posix_sig_queue_node_t* tail;
 };
 
-typedef enum _posix_zone
-{
-    POSIX_ZONE_USER = 0,
-    POSIX_ZONE_SYSCALL = 1,
-    POSIX_ZONE_OCALL = 2,
-    POSIX_ZONE_HOST = 3,
-}
-posix_zone_t;
+#define POSIX_GREENZONE 0x00000000
+#define POSIX_REDZONE 0xd661779d
 
-typedef struct posix_shared_block posix_shared_block_t;
-
-typedef struct posix_shared_block posix_shared_block_t;
-struct posix_shared_block
+typedef struct posix_shared_block
 {
     int32_t futex;
     uint32_t trace;
@@ -74,73 +65,8 @@ struct posix_shared_block
     posix_spinlock_t ocall_lock;
 
     /* Which zone this thread is currently running in. */
-    posix_zone_t zone;
-};
-
-POSIX_INLINE void posix_inc_zone(
-    struct posix_shared_block* sb,
-    posix_zone_t zone)
-{
-    POSIX_ASSUME(sb != NULL);
-
-    switch (zone)
-    {
-        case POSIX_ZONE_USER:
-        {
-            POSIX_PANIC;
-        }
-        case POSIX_ZONE_SYSCALL:
-        {
-            POSIX_ASSUME(sb->zone == POSIX_ZONE_USER);
-        }
-        case POSIX_ZONE_OCALL:
-        {
-            POSIX_ASSUME(sb->zone == POSIX_ZONE_SYSCALL);
-        }
-        case POSIX_ZONE_HOST:
-        {
-            POSIX_ASSUME(sb->zone == POSIX_ZONE_OCALL);
-        }
-        default:
-        {
-            POSIX_PANIC;
-        }
-    }
-
-    sb->zone = zone;
+    uint32_t zone;
 }
-
-POSIX_INLINE void posix_dec_zone(
-    struct posix_shared_block* sb,
-    posix_zone_t zone)
-{
-    POSIX_ASSUME(sb != NULL);
-
-    switch (zone)
-    {
-        case POSIX_ZONE_USER:
-        {
-            POSIX_ASSUME(sb->zone == POSIX_ZONE_SYSCALL);
-        }
-        case POSIX_ZONE_SYSCALL:
-        {
-            POSIX_ASSUME(sb->zone == POSIX_ZONE_OCALL);
-        }
-        case POSIX_ZONE_OCALL:
-        {
-            POSIX_ASSUME(sb->zone == POSIX_ZONE_HOST);
-        }
-        case POSIX_ZONE_HOST:
-        {
-            POSIX_PANIC;
-        }
-        default:
-        {
-            POSIX_PANIC;
-        }
-    }
-
-    sb->zone = zone;
-}
+posix_shared_block_t;
 
 #endif /* _POSIX_STRUCTS_H */

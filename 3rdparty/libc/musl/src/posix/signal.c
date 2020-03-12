@@ -140,7 +140,7 @@ static void _user_zone_signal_handler(void)
 {
     posix_sig_queue_node_t node;
 
-    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_USER);
+    POSIX_ASSUME(posix_shared_block()->zone == 0);
 
     if (_sig_queue_pop_front(&node) != 0)
         POSIX_PANIC;
@@ -207,7 +207,7 @@ static uint64_t _exception_handler(oe_exception_record_t* rec)
         // _user_zone_signal_handler(). Else posix_dispatch_redzone_signals()
         // will directly invoke the user's signal handler upon exiting the
         // redzone.
-        if (shared_block->zone == POSIX_ZONE_USER)
+        if (shared_block->zone == 0)
         {
             uc.uc_mcontext.gregs[REG_R8] = (int64_t)rec->context->r8;
             uc.uc_mcontext.gregs[REG_R9] = (int64_t)rec->context->r9;
@@ -317,7 +317,7 @@ int posix_dispatch_redzone_signals(void)
     oe_jmpbuf_t env;
     posix_sig_queue_node_t node;
 
-    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_USER);
+    POSIX_ASSUME(posix_shared_block()->zone == 0);
 
     /* Dispatch all entries in the signal queue until empty */
     while (!_sig_queue_empty())

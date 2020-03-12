@@ -6,13 +6,11 @@
 void posix_begin_ocall(uint32_t id)
 {
     posix_spin_lock(&posix_shared_block()->ocall_lock);
-    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_SYSCALL);
-    posix_shared_block()->zone = POSIX_ZONE_OCALL;
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_REDZONE);
 }
 
 void posix_end_ocall(uint32_t id)
 {
-    POSIX_ASSUME(posix_shared_block()->zone == POSIX_ZONE_OCALL);
-    posix_shared_block()->zone = POSIX_ZONE_SYSCALL;
+    POSIX_ASSUME(posix_shared_block()->zone == POSIX_REDZONE);
     posix_spin_unlock(&posix_shared_block()->ocall_lock);
 }
