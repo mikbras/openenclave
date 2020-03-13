@@ -9,4 +9,4 @@ all:
 	gcc -o main main.o buf.o ext2.o blkdev.o bitmap.o
 
 clean:
-	rm -f *.o
+	rm -f *.o main
