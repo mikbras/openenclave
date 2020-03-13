@@ -5,34 +5,15 @@
 
 #define BLKDEV_BLKSIZE 512
 
-typedef struct _Blkdev Blkdev;
+typedef struct _blkdev blkdev_t;
 
-struct _Blkdev
+struct _blkdev
 {
-    int (*Close)(
-        Blkdev* dev);
+    int (*close)(blkdev_t* dev);
 
-    int (*Get)(
-        Blkdev* dev,
-        UINTN blkno,
-        void* data);
+    int (*get)(blkdev_t* dev, uint64_t blkno, void* data);
 
-    int (*Put)(
-        Blkdev* dev,
-        UINTN blkno,
-        const void* data);
-
-    int (*SetFlags)(
-        Blkdev* dev,
-        UINT32 flags);
+    int (*put)(blkdev_t* dev, uint64_t blkno, const void* data);
 };
-
-typedef enum _BlkdevAccess
-{
-    BLKDEV_ACCESS_RDWR,
-    BLKDEV_ACCESS_RDONLY,
-    BLKDEV_ACCESS_WRONLY
-}
-BlkdevAccess;
 
 #endif /* _BLKDEV_H */

@@ -1,22 +1,22 @@
 /*
 **==============================================================================
 **
-** LSVMTools 
-** 
+** LSVMTools
+**
 ** MIT License
-** 
+**
 ** Copyright (c) Microsoft Corporation. All rights reserved.
-** 
+**
 ** Permission is hereby granted, free of charge, to any person obtaining a copy
 ** of this software and associated documentation files (the "Software"), to deal
 ** in the Software without restriction, including without limitation the rights
 ** to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 ** copies of the Software, and to permit persons to whom the Software is
 ** furnished to do so, subject to the following conditions:
-** 
-** The above copyright notice and this permission notice shall be included in 
+**
+** The above copyright notice and this permission notice shall be included in
 ** all copies or substantial portions of the Software.
-** 
+**
 ** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 ** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 ** FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,47 +27,37 @@
 **
 **==============================================================================
 */
-#include "buf.h"
-#include "strings.h"
-#include "alloc.h"
 
-#if !defined(BUILD_EFI)
-# include <string.h>
-# include <stdlib.h>
-# include <stdio.h>
-#endif /* !defined(BUILD_EFI) */
+#include "buf.h"
 
 /*
 **==============================================================================
 **
-** Buf:
+** buf_t:
 **
 **==============================================================================
 */
 
 #define EXT2_BUF_CHUNK_SIZE 1024
 
-void BufInit(
-    Buf* buf)
+void buf_init(buf_t* buf)
 {
     if (buf)
-        Memset(buf, 0, sizeof(Buf));
+        memset(buf, 0, sizeof(buf_t));
 }
 
-void BufRelease(
-    Buf* buf)
+void buf_release(buf_t* buf)
 {
     if (buf && buf->data)
     {
-        Memset(buf->data, 0xDD, buf->size);
-        Free(buf->data);
+        memset(buf->data, 0xDD, buf->size);
+        free(buf->data);
     }
 
-    Memset(buf, 0x00, sizeof(Buf));
+    memset(buf, 0x00, sizeof(buf_t));
 }
 
-int BufClear(
-    Buf* buf)
+int buf_clear(buf_t* buf)
 {
     if (!buf)
         return -1;
@@ -77,9 +67,7 @@ int BufClear(
     return 0;
 }
 
-int BufReserve(
-    Buf* buf,
-    UINTN cap)
+int buf_reserve(buf_t* buf, size_t cap)
 {
     if (!buf)
         return -1;
@@ -88,7 +76,7 @@ int BufReserve(
     if (cap > buf->cap)
     {
         void* new_data;
-        UINTN new_cap;
+        size_t new_cap;
 
         /* Double current capacity (will be zero the first time) */
         new_cap = buf->cap * 2;
@@ -96,12 +84,12 @@ int BufReserve(
         /* If capacity still insufficent, round to multiple of chunk size */
         if (cap > new_cap)
         {
-            const UINTN N = EXT2_BUF_CHUNK_SIZE;
+            const size_t N = EXT2_BUF_CHUNK_SIZE;
             new_cap = (cap + N - 1) / N * N;
         }
 
         /* Expand allocation */
-        if (!(new_data = Realloc(buf->data, buf->cap, new_cap)))
+        if (!(new_data = realloc(buf->data, new_cap)))
             return -1;
 
         buf->data = new_data;
@@ -111,12 +99,9 @@ int BufReserve(
     return 0;
 }
 
-int BufAppend(
-    Buf* buf,
-    const void* data,
-    UINTN size)
+int buf_append(buf_t* buf, const void* data, size_t size)
 {
-    UINTN new_size;
+    size_t new_size;
 
     /* Check arguments */
     if (!buf || !data)
@@ -134,12 +119,12 @@ int BufAppend(
     {
         int err;
 
-        if ((err = BufReserve(buf, new_size)) != 0)
+        if ((err = buf_reserve(buf, new_size)) != 0)
             return err;
     }
 
     /* Copy the data */
-    Memcpy((unsigned char*)buf->data + buf->size, data, size);
+    memcpy((uint8_t*)buf->data + buf->size, data, size);
     buf->size = new_size;
 
     return 0;
@@ -148,89 +133,35 @@ int BufAppend(
 /*
 **==============================================================================
 **
-** BufU32:
+** buf_u32_t:
 **
 **==============================================================================
 */
 
-void BufU32Release(
-    BufU32* buf)
+void buf_u32_release(buf_u32_t* buf)
 {
-    Buf tmp;
+    buf_t tmp;
 
     tmp.data = buf->data;
-    tmp.size = buf->size * sizeof(UINT32);
-    tmp.cap = buf->cap * sizeof(UINT32);
-    BufRelease(&tmp);
+    tmp.size = buf->size * sizeof(uint32_t);
+    tmp.cap = buf->cap * sizeof(uint32_t);
+    buf_release(&tmp);
 }
 
-int BufU32Append(
-    BufU32* buf,
-    const UINT32* data,
-    UINTN size)
+int buf_u32_append(buf_u32_t* buf, const uint32_t* data, size_t size)
 {
-    Buf tmp;
+    buf_t tmp;
 
     tmp.data = buf->data;
-    tmp.size = buf->size * sizeof(UINT32);
-    tmp.cap = buf->cap * sizeof(UINT32);
+    tmp.size = buf->size * sizeof(uint32_t);
+    tmp.cap = buf->cap * sizeof(uint32_t);
 
-    if (BufAppend(
-        &tmp, 
-        data, 
-        size * sizeof(UINT32)) != 0)
-    {
+    if (buf_append(&tmp, data, size * sizeof(uint32_t)) != 0)
         return -1;
-    }
 
     buf->data = tmp.data;
-    buf->size = tmp.size / sizeof(UINT32);
-    buf->cap = tmp.cap / sizeof(UINT32);
-
-    return 0;
-}
-
-/*
-**==============================================================================
-**
-** BufPtr:
-**
-**==============================================================================
-*/
-
-void BufPtrRelease(
-    BufPtr* buf)
-{
-    Buf tmp;
-
-    tmp.data = buf->data;
-    tmp.size = buf->size * sizeof(void*);
-    tmp.cap = buf->cap * sizeof(void*);
-    BufRelease(&tmp);
-}
-
-int BufPtrAppend(
-    BufPtr* buf,
-    const void** data,
-    UINTN size)
-{
-    Buf tmp;
-
-    tmp.data = buf->data;
-    tmp.size = buf->size * sizeof(void*);
-    tmp.cap = buf->cap * sizeof(void*);
-
-    if (BufAppend(
-        &tmp, 
-        data, 
-        size * sizeof(void*)) != 0)
-    {
-        return -1;
-    }
-
-    buf->data = tmp.data;
-    buf->size = tmp.size / sizeof(void*);
-    buf->cap = tmp.cap / sizeof(void*);
+    buf->size = tmp.size / sizeof(uint32_t);
+    buf->cap = tmp.cap / sizeof(uint32_t);
 
     return 0;
 }

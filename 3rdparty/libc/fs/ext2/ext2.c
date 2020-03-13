@@ -1,22 +1,22 @@
 /*
 **==============================================================================
 **
-** LSVMTools 
-** 
+** LSVMTools
+**
 ** MIT License
-** 
+**
 ** Copyright (c) Microsoft Corporation. All rights reserved.
-** 
+**
 ** Permission is hereby granted, free of charge, to any person obtaining a copy
 ** of this software and associated documentation files (the "Software"), to deal
 ** in the Software without restriction, including without limitation the rights
 ** to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 ** copies of the Software, and to permit persons to whom the Software is
 ** furnished to do so, subject to the following conditions:
-** 
-** The above copyright notice and this permission notice shall be included in 
+**
+** The above copyright notice and this permission notice shall be included in
 ** all copies or substantial portions of the Software.
-** 
+**
 ** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 ** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 ** FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -32,7 +32,7 @@
 #include <time.h>
 #include "buf.h"
 
-#define EXT2_DECLARE_ERR(ERR) EXT2Err ERR = EXT2_ERR_FAILED
+#define EXT2_DECLARE_ERR(ERR) ext2_err_t ERR = EXT2_ERR_FAILED
 
 /*
 **==============================================================================
@@ -89,12 +89,12 @@ static size_t _strlcpy(char* dest, const char* src, size_t size)
 
 static char* _strncat(
     char* dest,
-    UINTN destSize,
+    uint64_t destSize,
     const char* src,
-    UINTN len)
+    uint64_t len)
 {
-    UINTN n = strlen(dest);
-    UINTN i;
+    uint64_t n = strlen(dest);
+    uint64_t i;
 
     for (i = 0; (i < len) && (n + i < destSize); i++)
     {
@@ -109,22 +109,19 @@ static char* _strncat(
     return dest;
 }
 
-static __inline UINT32 _NextMult(UINT32 x, UINT32 m)
+EXT2_INLINE uint32_t _next_mult(uint32_t x, uint32_t m)
 {
     return (x + m - 1) / m * m;
 }
 
-static __inline UINT32 _Min(UINT32 x, UINT32 y)
+EXT2_INLINE uint32_t _min(uint32_t x, uint32_t y)
 {
     return x < y ? x : y;
 }
 
-static void _HexDump(
-    const UINT8* data,
-    UINT32 size,
-    BOOLEAN printables)
+static void _hex_dump(const uint8_t* data, uint32_t size, bool printables)
 {
-    UINT32 i;
+    uint32_t i;
 
     printf("%u bytes\n", size);
 
@@ -150,29 +147,29 @@ static void _HexDump(
     printf("\n");
 }
 
-static ssize_t _Read(
-    Blkdev* dev,
+static ssize_t _read(
+    blkdev_t* dev,
     size_t offset,
     void* data,
     size_t size)
 {
-    UINT32 blkno;
-    UINT32 i;
-    UINT32 rem;
-    UINT8* ptr;
+    uint32_t blkno;
+    uint32_t i;
+    uint32_t rem;
+    uint8_t* ptr;
 
     if (!dev || !data)
         return -1;
 
     blkno = offset / BLKDEV_BLKSIZE;
 
-    for (i = blkno, rem = size, ptr = (UINT8*)data; rem; i++)
+    for (i = blkno, rem = size, ptr = (uint8_t*)data; rem; i++)
     {
-        UINT8 blk[BLKDEV_BLKSIZE];
-        UINT32 off; /* offset into this block */
-        UINT32 len; /* bytes to read from this block */
+        uint8_t blk[BLKDEV_BLKSIZE];
+        uint32_t off; /* offset into this block */
+        uint32_t len; /* bytes to read from this block */
 
-        if (dev->Get(dev, i, blk) != 0)
+        if (dev->get(dev, i, blk) != 0)
             return -1;
 
         /* If first block */
@@ -194,30 +191,30 @@ static ssize_t _Read(
     return size;
 }
 
-static ssize_t _Write(
-    Blkdev* dev,
+static ssize_t _write(
+    blkdev_t* dev,
     size_t offset,
     const void* data,
     size_t size)
 {
-    UINT32 blkno;
-    UINT32 i;
-    UINT32 rem;
-    UINT8* ptr;
+    uint32_t blkno;
+    uint32_t i;
+    uint32_t rem;
+    uint8_t* ptr;
 
     if (!dev || !data)
         return -1;
 
     blkno = offset / BLKDEV_BLKSIZE;
 
-    for (i = blkno, rem = size, ptr = (UINT8*)data; rem; i++)
+    for (i = blkno, rem = size, ptr = (uint8_t*)data; rem; i++)
     {
-        UINT8 blk[BLKDEV_BLKSIZE];
-        UINT32 off; /* offset into this block */
-        UINT32 len; /* bytes to write from this block */
+        uint8_t blk[BLKDEV_BLKSIZE];
+        uint32_t off; /* offset into this block */
+        uint32_t len; /* bytes to write from this block */
 
         /* Fetch the block */
-        if (dev->Get(dev, i, blk) != 0)
+        if (dev->get(dev, i, blk) != 0)
             return -1;
 
         /* If first block */
@@ -236,18 +233,16 @@ static ssize_t _Write(
         ptr += len;
 
         /* Rewrite the block */
-        if (dev->Put(dev, i, blk) != 0)
+        if (dev->put(dev, i, blk) != 0)
             return -1;
     }
 
     return size;
 }
 
-static void _DumpBlockNumbers(
-    const UINT32* data,
-    UINT32 size)
+static void _dump_block_numbers(const uint32_t* data, uint32_t size)
 {
-    UINT32 i;
+    uint32_t i;
 
     printf("%u blocks\n", size);
 
@@ -268,11 +263,9 @@ static void _DumpBlockNumbers(
     printf("\n");
 }
 
-static void _ASCII_Dump(
-    const UINT8* data,
-    UINT32 size)
+static void _ascii_dump(const uint8_t* data, uint32_t size)
 {
-    UINT32 i;
+    uint32_t i;
 
     printf("=== ASCII dump:\n");
 
@@ -292,11 +285,9 @@ static void _ASCII_Dump(
     printf("\n");
 }
 
-static BOOLEAN _zero_filled(
-    const UINT8* data,
-    UINT32 size)
+static bool _zero_filled(const uint8_t* data, uint32_t size)
 {
-    UINT32 i;
+    uint32_t i;
 
     for (i = 0; i < size; i++)
     {
@@ -307,11 +298,10 @@ static BOOLEAN _zero_filled(
     return 1;
 }
 
-static UINT32 _CountBits(
-    UINT8 byte)
+static uint32_t _count_bits(uint8_t byte)
 {
-    UINT8 i;
-    UINT8 n = 0;
+    uint8_t i;
+    uint8_t n = 0;
 
     for (i = 0; i < 8; i++)
     {
@@ -322,42 +312,34 @@ static UINT32 _CountBits(
     return n;
 }
 
-static UINT32 _CountBitsN(
-    const UINT8* data,
-    UINT32 size)
+static uint32_t _count_bits_n(const uint8_t* data, uint32_t size)
 {
-    UINT32 i;
-    UINT32 n = 0;
+    uint32_t i;
+    uint32_t n = 0;
 
     for (i = 0; i < size; i++)
     {
-        n += _CountBits(data[i]);
+        n += _count_bits(data[i]);
     }
 
     return n;
 }
 
-static __inline BOOLEAN _TestBit(
-    const UINT8* data,
-    UINT32 size,
-    UINT32 index)
+EXT2_INLINE bool _test_bit(const uint8_t* data, uint32_t size, uint32_t index)
 {
-    UINT32 byte = index / 8;
-    UINT32 bit = index % 8;
+    uint32_t byte = index / 8;
+    uint32_t bit = index % 8;
 
     if (byte >= size)
         return 0;
 
-    return ((UINT32)(data[byte]) & (1 << bit)) ? 1 : 0;
+    return ((uint32_t)(data[byte]) & (1 << bit)) ? 1 : 0;
 }
 
-static __inline void _SetBit(
-    UINT8* data,
-    UINT32 size,
-    UINT32 index)
+EXT2_INLINE void _set_bit(uint8_t* data, uint32_t size, uint32_t index)
 {
-    UINT32 byte = index / 8;
-    UINT32 bit = index % 8;
+    uint32_t byte = index / 8;
+    uint32_t bit = index % 8;
 
     if (byte >= size)
         return;
@@ -365,13 +347,10 @@ static __inline void _SetBit(
     data[byte] |= (1 << bit);
 }
 
-static __inline void _ClearBit(
-    UINT8* data,
-    UINT32 size,
-    UINT32 index)
+EXT2_INLINE void _clear_bit(uint8_t* data, uint32_t size, uint32_t index)
 {
-    UINT32 byte = index / 8;
-    UINT32 bit = index % 8;
+    uint32_t byte = index / 8;
+    uint32_t bit = index % 8;
 
     if (byte >= size)
         return;
@@ -379,8 +358,7 @@ static __inline void _ClearBit(
     data[byte] &= ~(1 << bit);
 }
 
-static void _dump_bitmap(
-    const EXT2Block* block)
+static void _dump_bitmap(const ext2_block_t* block)
 {
     if (_zero_filled(block->data, block->size))
     {
@@ -388,11 +366,11 @@ static void _dump_bitmap(
     }
     else
     {
-        _HexDump(block->data, block->size, 0);
+        _hex_dump(block->data, block->size, 0);
     }
 }
 
-static BOOLEAN _IsBigEndian()
+EXT2_INLINE bool _is_big_endian(void)
 {
     union
     {
@@ -412,7 +390,7 @@ static BOOLEAN _IsBigEndian()
 **==============================================================================
 */
 
-const char* EXT2ErrStr(EXT2Err err)
+const char* ext2_err_str(ext2_err_t err)
 {
     if (err == EXT2_ERR_NONE)
         return "ok";
@@ -501,25 +479,20 @@ const char* EXT2ErrStr(EXT2Err err)
 */
 
 /* Byte offset of this block (block 0 is the null block) */
-static UINTN BlockOffset(UINT32 blkno, UINT32 block_size)
+static uint64_t block_offset(uint32_t blkno, uint32_t block_size)
 {
     return blkno * block_size;
 }
 
-static UINT32 MakeBlkno(
-    const EXT2* ext2,
-    UINT32 grpno,
-    UINT32 lblkno)
+static uint32_t _make_blkno(const ext2_t* ext2, uint32_t grpno, uint32_t lblkno)
 {
-    const UINTN first = ext2->sb.s_first_data_block;
+    const uint64_t first = ext2->sb.s_first_data_block;
     return (grpno * ext2->sb.s_blocks_per_group) + (lblkno + first);
 }
 
-static UINT32 _BloknoToGrpno(
-    const EXT2* ext2,
-    UINT32 blkno)
+static uint32_t _blkno_to_grpno(const ext2_t* ext2, uint32_t blkno)
 {
-    const UINTN first = ext2->sb.s_first_data_block;
+    const uint64_t first = ext2->sb.s_first_data_block;
 
     if (first && blkno == 0)
         return 0;
@@ -527,11 +500,9 @@ static UINT32 _BloknoToGrpno(
     return (blkno - first) / ext2->sb.s_blocks_per_group;
 }
 
-static UINT32 _BlknoToLblkno(
-    const EXT2* ext2,
-    UINT32 blkno)
+static uint32_t _blkno_to_lblkno(const ext2_t* ext2, uint32_t blkno)
 {
-    const UINTN first = ext2->sb.s_first_data_block;
+    const uint64_t first = ext2->sb.s_first_data_block;
 
     if (first && blkno == 0)
         return 0;
@@ -539,17 +510,17 @@ static UINT32 _BlknoToLblkno(
     return (blkno - first) % ext2->sb.s_blocks_per_group;
 }
 
-static EXT2Err _ReadBlocks(
-    const EXT2* ext2,
-    UINT32 blkno,
-    UINT32 nblks,
-    Buf* buf)
+static ext2_err_t _read_blocks(
+    const ext2_t* ext2,
+    uint32_t blkno,
+    uint32_t nblks,
+    buf_t* buf)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 bytes;
+    uint32_t bytes;
 
     /* Check for null parameters */
-    if (!EXT2Valid(ext2) || !buf)
+    if (!ext2_valid(ext2) || !buf)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -559,14 +530,14 @@ static EXT2Err _ReadBlocks(
     {
         bytes = nblks * ext2->block_size;
 
-        if (BufReserve(buf, buf->size + bytes) != 0)
+        if (buf_reserve(buf, buf->size + bytes) != 0)
             GOTO(done);
     }
 
     /* Read the blocks */
-    if (_Read(
+    if (_read(
         ext2->dev,
-        BlockOffset(blkno, ext2->block_size),
+        block_offset(blkno, ext2->block_size),
         (unsigned char*)buf->data + buf->size,
         bytes) != bytes)
     {
@@ -583,21 +554,21 @@ done:
     return err;
 }
 
-EXT2Err EXT2ReadBlock(
-    const EXT2* ext2,
-    UINT32 blkno,
-    EXT2Block* block)
+ext2_err_t ext2_read_block(
+    const ext2_t* ext2,
+    uint32_t blkno,
+    ext2_block_t* block)
 {
     EXT2_DECLARE_ERR(err);
 
     /* Check for null parameters */
-    if (!EXT2Valid(ext2) || !block)
+    if (!ext2_valid(ext2) || !block)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
     }
 
-    memset(block, 0xAA, sizeof(EXT2Block));
+    memset(block, 0xAA, sizeof(ext2_block_t));
 
     /* Is block size too big for buffer? */
     if (ext2->block_size > sizeof(block->data))
@@ -610,10 +581,10 @@ EXT2Err EXT2ReadBlock(
     block->size = ext2->block_size;
 
     /* Read the block */
-    if (_Read(
-        ext2->dev, 
-        BlockOffset(blkno, ext2->block_size),
-        block->data, 
+    if (_read(
+        ext2->dev,
+        block_offset(blkno, ext2->block_size),
+        block->data,
         block->size) != block->size)
     {
         err = EXT2_ERR_READ_FAILED;
@@ -627,15 +598,15 @@ done:
     return err;
 }
 
-EXT2Err EXT2WriteBlock(
-    const EXT2* ext2,
-    UINT32 blkno,
-    const EXT2Block* block)
+ext2_err_t ext2_write_block(
+    const ext2_t* ext2,
+    uint32_t blkno,
+    const ext2_block_t* block)
 {
     EXT2_DECLARE_ERR(err);
 
     /* Check for null parameters */
-    if (!EXT2Valid(ext2) || !block)
+    if (!ext2_valid(ext2) || !block)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -649,10 +620,10 @@ EXT2Err EXT2WriteBlock(
     }
 
     /* Write the block */
-    if (_Write(
-        ext2->dev, 
-        BlockOffset(blkno, ext2->block_size),
-        block->data, 
+    if (_write(
+        ext2->dev,
+        block_offset(blkno, ext2->block_size),
+        block->data,
         block->size) != block->size)
     {
         err = EXT2_ERR_WRITE_FAILED;
@@ -666,14 +637,14 @@ done:
     return err;
 }
 
-static EXT2Err _AppendDirectBlockNumbers(
-    const UINT32* blocks,
-    UINT32 num_blocks,
-    BufU32 *buf)
+static ext2_err_t _append_direct_block_numbers(
+    const uint32_t* blocks,
+    uint32_t num_blocks,
+    buf_u32_t *buf)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 i;
-    UINT32 n = 0;
+    uint32_t i;
+    uint32_t n = 0;
 
     /* Determine size of blocks array */
     for (i = 0; i < num_blocks && blocks[i]; i++)
@@ -686,7 +657,7 @@ static EXT2Err _AppendDirectBlockNumbers(
     }
 
     /* Append the blocks to the 'data' array */
-    if (EXT2_IFERR(err = BufU32Append(buf, blocks, n)))
+    if ((err = buf_u32_append(buf, blocks, n)))
         GOTO(done);
 
     err = EXT2_ERR_NONE;
@@ -695,22 +666,22 @@ done:
     return err;
 }
 
-static EXT2Err _AppendIndirectBlockNumbers(
-    const EXT2* ext2,
-    const UINT32* blocks,
-    UINT32 num_blocks,
-    BOOLEAN include_block_blocks,
-    BufU32 *buf)
+static ext2_err_t _append_indirect_block_numbers(
+    const ext2_t* ext2,
+    const uint32_t* blocks,
+    uint32_t num_blocks,
+    bool include_block_blocks,
+    buf_u32_t *buf)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Block block;
-    UINT32 i;
+    ext2_block_t block;
+    uint32_t i;
 
     if (include_block_blocks)
     {
-        if (EXT2_IFERR(err = _AppendDirectBlockNumbers(
-            blocks, 
-            num_blocks, 
+        if ((err = _append_direct_block_numbers(
+            blocks,
+            num_blocks,
             buf)))
         {
             GOTO(done);
@@ -720,17 +691,17 @@ static EXT2Err _AppendIndirectBlockNumbers(
     /* Handle the direct blocks */
     for (i = 0; i < num_blocks && blocks[i]; i++)
     {
-        UINT32 block_no = blocks[i];
+        uint32_t block_no = blocks[i];
 
         /* Read the next block */
-        if (EXT2_IFERR(err = EXT2ReadBlock(ext2, block_no, &block)))
+        if ((err = ext2_read_block(ext2, block_no, &block)))
         {
             GOTO(done);
         }
 
-        if (EXT2_IFERR(err = _AppendDirectBlockNumbers(
-            (const UINT32*)block.data,
-            block.size / sizeof(UINT32),
+        if ((err = _append_direct_block_numbers(
+            (const uint32_t*)block.data,
+            block.size / sizeof(uint32_t),
             buf)))
         {
             GOTO(done);
@@ -743,22 +714,22 @@ done:
     return err;
 }
 
-static EXT2Err _AppendDoubleIndirectBlockNumbers(
-    const EXT2* ext2,
-    const UINT32* blocks,
-    UINT32 num_blocks,
-    BOOLEAN include_block_blocks,
-    BufU32 *buf)
+static ext2_err_t _append_double_indirect_block_numbers(
+    const ext2_t* ext2,
+    const uint32_t* blocks,
+    uint32_t num_blocks,
+    bool include_block_blocks,
+    buf_u32_t *buf)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Block block;
-    UINT32 i;
+    ext2_block_t block;
+    uint32_t i;
 
     if (include_block_blocks)
     {
-        if (EXT2_IFERR(err = _AppendDirectBlockNumbers(
-            blocks, 
-            num_blocks, 
+        if ((err = _append_direct_block_numbers(
+            blocks,
+            num_blocks,
             buf)))
         {
             GOTO(done);
@@ -768,18 +739,18 @@ static EXT2Err _AppendDoubleIndirectBlockNumbers(
     /* Handle the direct blocks */
     for (i = 0; i < num_blocks && blocks[i]; i++)
     {
-        UINT32 block_no = blocks[i];
+        uint32_t block_no = blocks[i];
 
         /* Read the next block */
-        if (EXT2_IFERR(err = EXT2ReadBlock(ext2, block_no, &block)))
+        if ((err = ext2_read_block(ext2, block_no, &block)))
         {
             GOTO(done);
         }
 
-        if (EXT2_IFERR(err = _AppendIndirectBlockNumbers(
-            ext2, 
-            (const UINT32*)block.data,
-            block.size / sizeof(UINT32),
+        if ((err = _append_indirect_block_numbers(
+            ext2,
+            (const uint32_t*)block.data,
+            block.size / sizeof(uint32_t),
             include_block_blocks,
             buf)))
         {
@@ -793,23 +764,23 @@ done:
     return err;
 }
 
-static EXT2Err _LoadBlockNumbersFromInode(
-    const EXT2* ext2,
-    const EXT2Inode* inode,
-    BOOLEAN include_block_blocks,
-    BufU32 *buf)
+static ext2_err_t _load_block_numbers_from_inode(
+    const ext2_t* ext2,
+    const ext2_inode_t* inode,
+    bool include_block_blocks,
+    buf_u32_t *buf)
 {
     EXT2_DECLARE_ERR(err);
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !inode || !buf)
+    if (!ext2_valid(ext2) || !inode || !buf)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
     }
 
     /* Handle the direct blocks */
-    if (EXT2_IFERR(err = _AppendDirectBlockNumbers(
+    if ((err = _append_direct_block_numbers(
         inode->i_block,
         EXT2_SINGLE_INDIRECT_BLOCK,
         buf)))
@@ -820,27 +791,27 @@ static EXT2Err _LoadBlockNumbersFromInode(
     /* Handle single-indirect blocks */
     if (inode->i_block[EXT2_SINGLE_INDIRECT_BLOCK])
     {
-        EXT2Block block;
-        UINT32 block_no = inode->i_block[EXT2_SINGLE_INDIRECT_BLOCK];
+        ext2_block_t block;
+        uint32_t block_no = inode->i_block[EXT2_SINGLE_INDIRECT_BLOCK];
 
         /* Read the next block */
-        if (EXT2_IFERR(err = EXT2ReadBlock(ext2, block_no, &block)))
+        if ((err = ext2_read_block(ext2, block_no, &block)))
         {
             GOTO(done);
         }
 
         if (include_block_blocks)
         {
-            if (EXT2_IFERR(err = BufU32Append(buf, &block_no, 1)))
+            if ((err = buf_u32_append(buf, &block_no, 1)))
             {
                 GOTO(done);
             }
         }
 
         /* Append the block numbers from this block */
-        if (EXT2_IFERR(err = _AppendDirectBlockNumbers(
-            (const UINT32*)block.data,
-            block.size / sizeof(UINT32),
+        if ((err = _append_direct_block_numbers(
+            (const uint32_t*)block.data,
+            block.size / sizeof(uint32_t),
             buf)))
         {
             GOTO(done);
@@ -850,25 +821,25 @@ static EXT2Err _LoadBlockNumbersFromInode(
     /* Handle double-indirect blocks */
     if (inode->i_block[EXT2_DOUBLE_INDIRECT_BLOCK])
     {
-        EXT2Block block;
-        UINT32 block_no = inode->i_block[EXT2_DOUBLE_INDIRECT_BLOCK];
+        ext2_block_t block;
+        uint32_t block_no = inode->i_block[EXT2_DOUBLE_INDIRECT_BLOCK];
 
         /* Read the next block */
-        if (EXT2_IFERR(err = EXT2ReadBlock(ext2, block_no, &block)))
+        if ((err = ext2_read_block(ext2, block_no, &block)))
         {
             GOTO(done);
         }
 
         if (include_block_blocks)
         {
-            if (EXT2_IFERR(err = BufU32Append(buf, &block_no, 1)))
+            if ((err = buf_u32_append(buf, &block_no, 1)))
                 GOTO(done);
         }
 
-        if (EXT2_IFERR(err = _AppendIndirectBlockNumbers(
-            ext2, 
-            (const UINT32*)block.data,
-            block.size / sizeof(UINT32),
+        if ((err = _append_indirect_block_numbers(
+            ext2,
+            (const uint32_t*)block.data,
+            block.size / sizeof(uint32_t),
             include_block_blocks,
             buf)))
         {
@@ -879,25 +850,25 @@ static EXT2Err _LoadBlockNumbersFromInode(
     /* Handle triple-indirect blocks */
     if (inode->i_block[EXT2_TRIPLE_INDIRECT_BLOCK])
     {
-        EXT2Block block;
-        UINT32 block_no = inode->i_block[EXT2_TRIPLE_INDIRECT_BLOCK];
+        ext2_block_t block;
+        uint32_t block_no = inode->i_block[EXT2_TRIPLE_INDIRECT_BLOCK];
 
         /* Read the next block */
-        if (EXT2_IFERR(err = EXT2ReadBlock(ext2, block_no, &block)))
+        if ((err = ext2_read_block(ext2, block_no, &block)))
         {
             GOTO(done);
         }
 
         if (include_block_blocks)
         {
-            if (EXT2_IFERR(err = BufU32Append(buf, &block_no, 1)))
+            if ((err = buf_u32_append(buf, &block_no, 1)))
                 GOTO(done);
         }
 
-        if (EXT2_IFERR(err = _AppendDoubleIndirectBlockNumbers(
+        if ((err = _append_double_indirect_block_numbers(
             ext2,
-            (const UINT32*)block.data,
-            block.size / sizeof(UINT32),
+            (const uint32_t*)block.data,
+            block.size / sizeof(uint32_t),
             include_block_blocks,
             buf)))
         {
@@ -910,7 +881,7 @@ static EXT2Err _LoadBlockNumbersFromInode(
     /* Check size expectations */
     if (!include_block_blocks)
     {
-        UINT32 expected_size;
+        uint32_t expected_size;
 
         expected_size = inode->i_size / ext2->block_size;
 
@@ -932,18 +903,15 @@ done:
     return err;
 }
 
-static EXT2Err _WriteGroup(
-    const EXT2* ext2,
-    UINT32 grpno);
+static ext2_err_t _write_group(const ext2_t* ext2, uint32_t grpno);
 
-static EXT2Err _WriteSuperBlock(
-    const EXT2* ext2);
+static ext2_err_t _write_super_block(const ext2_t* ext2);
 
-static EXT2Err _CheckBlockNumber(
-    EXT2* ext2,
-    UINT32 blkno,
-    UINT32 grpno,
-    UINT32 lblkno)
+static ext2_err_t _check_block_number(
+    ext2_t* ext2,
+    uint32_t blkno,
+    uint32_t grpno,
+    uint32_t lblkno)
 {
     EXT2_DECLARE_ERR(err);
 
@@ -955,7 +923,7 @@ static EXT2Err _CheckBlockNumber(
     }
 
     /* Sanity check */
-    if (MakeBlkno(ext2, grpno, lblkno) != blkno)
+    if (_make_blkno(ext2, grpno, lblkno) != blkno)
     {
         err = EXT2_ERR_BAD_BLKNO;
         GOTO(done);
@@ -974,10 +942,10 @@ done:
     return err;
 }
 
-static EXT2Err _WriteGroubWithBitmap(
-    EXT2 *ext2,
-    UINT32 grpno,
-    EXT2Block *bitmap)
+static ext2_err_t _write_group_with_bitmap(
+    ext2_t *ext2,
+    uint32_t grpno,
+    ext2_block_t* bitmap)
 {
     EXT2_DECLARE_ERR(err);
 
@@ -989,88 +957,52 @@ static EXT2Err _WriteGroubWithBitmap(
     }
 
     /* Write the group */
-    if (EXT2_IFERR(err = _WriteGroup(ext2, grpno)))
+    if ((err = _write_group(ext2, grpno)))
     {
         GOTO(done);
     }
 
     /* Write the bitmap */
-    if (EXT2_IFERR(err = EXT2WriteBlockBitmap(ext2, grpno, bitmap)))
+    if ((err = ext2_write_block_bitmap(ext2, grpno, bitmap)))
     {
         GOTO(done);
     }
-   
+
     err = EXT2_ERR_NONE;
 
 done:
     return err;
 }
 
-# if !defined(BUILD_EFI)
-static int _CompareUint32(
-    const void* p1,
-    const void* p2)
+static int _compare_uint32(const void* p1, const void* p2)
 {
-    UINT32 v1 = *(UINT32*)p1;
-    UINT32 v2 = *(UINT32*)p2;
+    uint32_t v1 = *(uint32_t*)p1;
+    uint32_t v2 = *(uint32_t*)p2;
+
     if (v1 < v2)
         return -1;
     else if (v1 > v2)
         return 1;
+
     return 0;
 }
-# endif /* !defined(BUILD_EFI) */
 
-# if defined(BUILD_EFI)
-static void _Sort(
-    UINT32 *blks,
-    UINT32 nblks)
-{
-    UINTN i;
-    UINTN j;
-    UINTN n;
-
-    n = nblks - 1;
-
-    for (i = 0; i < nblks - 1; i++)
-    {
-        BOOLEAN swapped = FALSE;
-
-        for (j = 0; j < n; j++)
-        {
-            if (blks[j] > blks[j+1])
-            {
-                UINT32 tmp = blks[j];
-                blks[j] = blks[j+1];
-                blks[j+1] = tmp;
-                swapped = TRUE;
-            }
-        }
-
-        if (!swapped)
-            break;
-
-        n--;
-    }
-}
-# endif /* defined(BUILD_EFI) */
-
-static EXT2Err _PutBlocks(
-    EXT2* ext2,
-    const UINT32* blknos,
-    UINT32 nblknos) 
+static ext2_err_t _put_blocks(
+    ext2_t* ext2,
+    const uint32_t* blknos,
+    uint32_t nblknos)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 i;
-    UINT32 *temp = NULL;
+    uint32_t i;
+    uint32_t *temp = NULL;
 
     /* Sort the block numbers, so we can just iterate through the group list
-       and make changes there. So we do I/O operations = to the group list 
+       and make changes there. So we do I/O operations = to the group list
        rather than the number of blocks.
-       NOTE: Hash table should be faster, but not a big deal for small files 
-       (initrd). 
+       NOTE: Hash table should be faster, but not a big deal for small files
+       (initrd).
     */
-    temp = (UINT32*)malloc(nblknos * sizeof(UINT32));
+    temp = (uint32_t*)malloc(nblknos * sizeof(uint32_t));
     if (temp == NULL)
     {
         err = EXT2_ERR_OUT_OF_MEMORY;
@@ -1081,28 +1013,24 @@ static EXT2Err _PutBlocks(
         temp[i] = blknos[i];
     }
 
-#if defined(BUILD_EFI)
-    _Sort(temp, nblknos);
-#else /* defined(BUILD_EFI) */
-    qsort(temp, nblknos, sizeof(UINT32), _CompareUint32);
-#endif /* !defined(BUILD_EFI) */
+    qsort(temp, nblknos, sizeof(uint32_t), _compare_uint32);
 
     /* Loop through the groups. */
-    EXT2Block bitmap;
-    UINT32 prevgrpno = 0;
+    ext2_block_t bitmap;
+    uint32_t prevgrpno = 0;
     for (i = 0; i < nblknos; i++)
     {
-        UINT32 grpno = _BloknoToGrpno(ext2, temp[i]);
-        UINT32 lblkno = _BlknoToLblkno(ext2, temp[i]);
+        uint32_t grpno = _blkno_to_grpno(ext2, temp[i]);
+        uint32_t lblkno = _blkno_to_lblkno(ext2, temp[i]);
 
-        if (EXT2_IFERR(err = _CheckBlockNumber(ext2, temp[i], grpno, lblkno)))
+        if ((err = _check_block_number(ext2, temp[i], grpno, lblkno)))
         {
             GOTO(done);
         }
 
         if (i == 0)
         {
-            if (EXT2_IFERR(err = EXT2ReadBlockBitmap(ext2, grpno, &bitmap)))
+            if ((err = ext2_read_block_bitmap(ext2, grpno, &bitmap)))
             {
                 GOTO(done);
             }
@@ -1110,33 +1038,33 @@ static EXT2Err _PutBlocks(
         else if (prevgrpno != grpno)
         {
             /* Advanced to next group so write old bitmap and read new one. */
-            if (EXT2_IFERR(err = _WriteGroubWithBitmap(ext2, prevgrpno, &bitmap)))
+            if ((err = _write_group_with_bitmap(ext2, prevgrpno, &bitmap)))
             {
                 GOTO(done);
             }
-            if (EXT2_IFERR(err = EXT2ReadBlockBitmap(ext2, grpno, &bitmap)))
+            if ((err = ext2_read_block_bitmap(ext2, grpno, &bitmap)))
             {
                 GOTO(done);
             }
         }
 
         /* Sanity check */
-        if (!_TestBit(bitmap.data, bitmap.size, lblkno))
+        if (!_test_bit(bitmap.data, bitmap.size, lblkno))
         {
             err = EXT2_ERR_SANITY_CHECK_FAILED;
             GOTO(done);
         }
 
         /* Update in memory structs. */
-        _ClearBit(bitmap.data, bitmap.size, lblkno);
+        _clear_bit(bitmap.data, bitmap.size, lblkno);
         ext2->sb.s_free_blocks_count++;
         ext2->groups[grpno].bg_free_blocks_count++;
         prevgrpno = grpno;
-        
+
         /* Always write final block. */
         if (i + 1 == nblknos)
         {
-            if (EXT2_IFERR(err = _WriteGroubWithBitmap(ext2, grpno, &bitmap)))
+            if ((err = _write_group_with_bitmap(ext2, grpno, &bitmap)))
             {
                 GOTO(done);
             }
@@ -1144,7 +1072,7 @@ static EXT2Err _PutBlocks(
     }
 
     /* Update super block. */
-    if (EXT2_IFERR(err = _WriteSuperBlock(ext2)))
+    if ((err = _write_super_block(ext2)))
     {
         GOTO(done);
     }
@@ -1156,13 +1084,11 @@ done:
     return err;
 }
 
-static EXT2Err _GetBlock(
-    EXT2* ext2,
-    UINT32* blkno)
+static ext2_err_t _get_block(ext2_t* ext2, uint32_t* blkno)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Block bitmap;
-    UINT32 grpno;
+    ext2_block_t bitmap;
+    uint32_t grpno;
 
     /* Check parameters */
     if (!ext2 || !blkno)
@@ -1177,11 +1103,11 @@ static EXT2Err _GetBlock(
     /* Use brute force search for a free block */
     for (grpno = 0; grpno < ext2->group_count; grpno++)
     {
-        UINT32 lblkno;
+        uint32_t lblkno;
 
         /* Read the bitmap */
-        
-        if (EXT2_IFERR(err = EXT2ReadBlockBitmap(ext2, grpno, &bitmap)))
+
+        if ((err = ext2_read_block_bitmap(ext2, grpno, &bitmap)))
         {
             GOTO(done);
         }
@@ -1189,10 +1115,10 @@ static EXT2Err _GetBlock(
         /* Scan the bitmap, looking for free bit */
         for (lblkno = 0; lblkno < bitmap.size * 8; lblkno++)
         {
-            if (!_TestBit(bitmap.data, bitmap.size, lblkno))
+            if (!_test_bit(bitmap.data, bitmap.size, lblkno))
             {
-                _SetBit(bitmap.data, bitmap.size, lblkno);
-                *blkno = MakeBlkno(ext2, grpno, lblkno);
+                _set_bit(bitmap.data, bitmap.size, lblkno);
+                *blkno = _make_blkno(ext2, grpno, lblkno);
                 break;
             }
         }
@@ -1211,7 +1137,7 @@ static EXT2Err _GetBlock(
     {
         ext2->sb.s_free_blocks_count--;
 
-        if (EXT2_IFERR(err = _WriteSuperBlock(ext2)))
+        if ((err = _write_super_block(ext2)))
         {
             GOTO(done);
         }
@@ -1221,14 +1147,14 @@ static EXT2Err _GetBlock(
     {
         ext2->groups[grpno].bg_free_blocks_count--;
 
-        if (EXT2_IFERR(err = _WriteGroup(ext2, grpno)))
+        if ((err = _write_group(ext2, grpno)))
         {
             GOTO(done);
         }
     }
 
     /* Write the bitmap */
-    if (EXT2_IFERR(err = EXT2WriteBlockBitmap(ext2, grpno, &bitmap)))
+    if ((err = ext2_write_block_bitmap(ext2, grpno, &bitmap)))
     {
         GOTO(done);
     }
@@ -1247,10 +1173,9 @@ done:
 **==============================================================================
 */
 
-# if !defined(BUILD_EFI)
-void EXT2DumpSuperBlock(const EXT2SuperBlock* sb)
+void ext2_dump_super_block(const ext2_super_block_t* sb)
 {
-    printf("=== EXT2SuperBlock:\n");
+    printf("=== ext2_super_block_t:\n");
     printf("s_inodes_count=%u\n", sb->s_inodes_count);
     printf("s_blocks_count=%u\n", sb->s_blocks_count);
     printf("s_r_blocks_count=%u\n", sb->s_r_blocks_count);
@@ -1283,9 +1208,9 @@ void EXT2DumpSuperBlock(const EXT2SuperBlock* sb)
     printf("s_feature_incompat=%u\n", sb->s_feature_incompat);
     printf("s_feature_ro_compat=%u\n", sb->s_feature_ro_compat);
     printf("s_uuid="
-        "%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X\n", 
-        sb->s_uuid[0], sb->s_uuid[1], sb->s_uuid[2], sb->s_uuid[3], 
-        sb->s_uuid[4], sb->s_uuid[5], sb->s_uuid[6], sb->s_uuid[7], 
+        "%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X\n",
+        sb->s_uuid[0], sb->s_uuid[1], sb->s_uuid[2], sb->s_uuid[3],
+        sb->s_uuid[4], sb->s_uuid[5], sb->s_uuid[6], sb->s_uuid[7],
         sb->s_uuid[8], sb->s_uuid[9], sb->s_uuid[10], sb->s_uuid[11],
         sb->s_uuid[12], sb->s_uuid[13], sb->s_uuid[14], sb->s_uuid[15]);
     printf("s_volume_name=%s\n", sb->s_volume_name);
@@ -1294,7 +1219,7 @@ void EXT2DumpSuperBlock(const EXT2SuperBlock* sb)
     printf("s_prealloc_blocks=%u\n", sb->s_prealloc_blocks);
     printf("s_prealloc_dir_blocks=%u\n", sb->s_prealloc_dir_blocks);
     printf("s_journal_uuid="
-        "%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X\n", 
+        "%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X%02X\n",
         sb->s_journal_uuid[0], sb->s_journal_uuid[1], sb->s_journal_uuid[2],
         sb->s_journal_uuid[3], sb->s_journal_uuid[4], sb->s_journal_uuid[5],
         sb->s_journal_uuid[6], sb->s_journal_uuid[7], sb->s_journal_uuid[8],
@@ -1304,28 +1229,27 @@ void EXT2DumpSuperBlock(const EXT2SuperBlock* sb)
     printf("s_journal_inum=%u\n", sb->s_journal_inum);
     printf("s_journal_dev=%u\n", sb->s_journal_dev);
     printf("s_last_orphan=%u\n", sb->s_last_orphan);
-    printf("s_hash_seed={%02X,%02X,%02X,%02X}\n", 
-        sb->s_hash_seed[0], sb->s_hash_seed[1], 
+    printf("s_hash_seed={%02X,%02X,%02X,%02X}\n",
+        sb->s_hash_seed[0], sb->s_hash_seed[1],
         sb->s_hash_seed[2], sb->s_hash_seed[3]);
     printf("s_def_hash_version=%u\n", sb->s_def_hash_version);
     printf("s_default_mount_options=%u\n", sb->s_default_mount_options);
     printf("s_first_meta_bg=%u\n", sb->s_first_meta_bg);
     printf("\n");
 }
-# endif /* !defined(BUILD_EFI) */
 
-static EXT2Err _ReadSuperBlock(
-    Blkdev* dev, 
-    EXT2SuperBlock* sb)
+static ext2_err_t _read_super_block(
+    blkdev_t* dev,
+    ext2_super_block_t* sb)
 {
     EXT2_DECLARE_ERR(err);
 
     /* Read the superblock */
-    if (_Read(
+    if (_read(
         dev,
         EXT2_BASE_OFFSET,
         sb,
-        sizeof(EXT2SuperBlock)) != sizeof(EXT2SuperBlock))
+        sizeof(ext2_super_block_t)) != sizeof(ext2_super_block_t))
     {
         GOTO(done);
     }
@@ -1336,16 +1260,16 @@ done:
     return err;
 }
 
-static EXT2Err _WriteSuperBlock(const EXT2* ext2)
+static ext2_err_t _write_super_block(const ext2_t* ext2)
 {
     EXT2_DECLARE_ERR(err);
 
     /* Read the superblock */
-    if (_Write(
-        ext2->dev, 
+    if (_write(
+        ext2->dev,
         EXT2_BASE_OFFSET,
-        &ext2->sb, 
-        sizeof(EXT2SuperBlock)) != sizeof(EXT2SuperBlock))
+        &ext2->sb,
+        sizeof(ext2_super_block_t)) != sizeof(ext2_super_block_t))
     {
         GOTO(done);
     }
@@ -1364,10 +1288,9 @@ done:
 **==============================================================================
 */
 
-# if !defined(BUILD_EFI)
-static void _DumpGroupDesc(const EXT2GroupDesc* gd)
+static void _dump_group_desc(const ext2_group_desc_t* gd)
 {
-    printf("=== EXT2GroupDesc\n");
+    printf("=== ext2_group_desc_t\n");
     printf("bg_block_bitmap=%u\n", gd->bg_block_bitmap);
     printf("bg_inode_bitmap=%u\n", gd->bg_inode_bitmap);
     printf("bg_inode_table=%u\n", gd->bg_inode_table);
@@ -1376,34 +1299,30 @@ static void _DumpGroupDesc(const EXT2GroupDesc* gd)
     printf("bg_used_dirs_count=%u\n", gd->bg_used_dirs_count);
     printf("\n");
 }
-# endif /* !defined(BUILD_EFI) */
 
-# if !defined(BUILD_EFI)
-static void _DumpGroupDescs(
-    const EXT2GroupDesc* groups,
-    UINT32 group_count)
+static void _dump_group_descs(
+    const ext2_group_desc_t* groups,
+    uint32_t group_count)
 {
-    const EXT2GroupDesc* p = groups;
-    const EXT2GroupDesc* end = groups + group_count;
+    const ext2_group_desc_t* p = groups;
+    const ext2_group_desc_t* end = groups + group_count;
 
     while (p != end)
     {
-        _DumpGroupDesc(p);
+        _dump_group_desc(p);
         p++;
     }
 }
-# endif /* !defined(BUILD_EFI) */
 
-static EXT2GroupDesc* _ReadGroups(
-    const EXT2* ext2)
+static ext2_group_desc_t* _read_groups(const ext2_t* ext2)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2GroupDesc* groups = NULL;
-    UINT32 groups_size = 0;
-    UINT32 blkno;
+    ext2_group_desc_t* groups = NULL;
+    uint32_t groups_size = 0;
+    uint32_t blkno;
 
     /* Check the file system argument */
-    if (!EXT2Valid(ext2))
+    if (!ext2_valid(ext2))
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -1411,9 +1330,9 @@ static EXT2GroupDesc* _ReadGroups(
 
     /* Allocate the groups list */
     {
-        groups_size = ext2->group_count * sizeof(EXT2GroupDesc);
+        groups_size = ext2->group_count * sizeof(ext2_group_desc_t);
 
-        if (!(groups = (EXT2GroupDesc*)malloc(groups_size)))
+        if (!(groups = (ext2_group_desc_t*)malloc(groups_size)))
         {
             GOTO(done);
         }
@@ -1428,10 +1347,10 @@ static EXT2GroupDesc* _ReadGroups(
         blkno = 1;
 
     /* Read the block */
-    if (_Read(
-        ext2->dev, 
-        BlockOffset(blkno, ext2->block_size),
-        groups, 
+    if (_read(
+        ext2->dev,
+        block_offset(blkno, ext2->block_size),
+        groups,
         groups_size) != groups_size)
     {
         GOTO(done);
@@ -1441,7 +1360,7 @@ static EXT2GroupDesc* _ReadGroups(
 
 done:
 
-    if (EXT2_IFERR(err))
+    if ((err))
     {
         if (groups)
         {
@@ -1453,15 +1372,13 @@ done:
     return groups;
 }
 
-static EXT2Err _WriteGroup(
-    const EXT2* ext2,
-    UINT32 grpno)
+static ext2_err_t _write_group(const ext2_t* ext2, uint32_t grpno)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 blkno;
+    uint32_t blkno;
 
     /* Check the file system argument */
-    if (!EXT2Valid(ext2))
+    if (!ext2_valid(ext2))
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -1473,12 +1390,12 @@ static EXT2Err _WriteGroup(
         blkno = 1;
 
     /* Read the block */
-    if (_Write(
-        ext2->dev, 
-        BlockOffset(blkno,ext2->block_size) + 
-            (grpno * sizeof(EXT2GroupDesc)),
-        &ext2->groups[grpno], 
-        sizeof(EXT2GroupDesc)) != sizeof(EXT2GroupDesc))
+    if (_write(
+        ext2->dev,
+        block_offset(blkno,ext2->block_size) +
+            (grpno * sizeof(ext2_group_desc_t)),
+        &ext2->groups[grpno],
+        sizeof(ext2_group_desc_t)) != sizeof(ext2_group_desc_t))
     {
         err = EXT2_ERR_WRITE_FAILED;
         GOTO(done);
@@ -1499,17 +1416,12 @@ done:
 **==============================================================================
 */
 
-static UINT32 _MakeIno(
-    const EXT2* ext2,
-    UINT32 grpno,
-    UINT32 lino)
+static uint32_t _make_ino(const ext2_t* ext2, uint32_t grpno, uint32_t lino)
 {
     return (grpno * ext2->sb.s_inodes_per_group) + (lino + 1);
 }
 
-static UINT32 _InoToGrpno(
-    const EXT2* ext2,
-    EXT2Ino ino)
+static uint32_t _ino_to_grpno(const ext2_t* ext2, ext2_ino_t ino)
 {
     if (ino == 0)
         return 0;
@@ -1517,9 +1429,7 @@ static UINT32 _InoToGrpno(
     return (ino-1) / ext2->sb.s_inodes_per_group;
 }
 
-static UINT32 _InoToLino(
-    const EXT2* ext2,
-    EXT2Ino ino)
+static uint32_t _ino_to_lino(const ext2_t* ext2, ext2_ino_t ino)
 {
     if (ino == 0)
         return 0;
@@ -1527,17 +1437,14 @@ static UINT32 _InoToLino(
     return (ino-1) % ext2->sb.s_inodes_per_group;
 }
 
-# if !defined(BUILD_EFI)
-void EXT2DumpInode(
-    const EXT2* ext2,
-    const EXT2Inode* inode)
+void ext2_dump_inode(const ext2_t* ext2, const ext2_inode_t* inode)
 {
-    UINT32 i;
-    UINT32 n;
-    (void)_HexDump;
-    (void)_ASCII_Dump;
+    uint32_t i;
+    uint32_t n;
+    (void)_hex_dump;
+    (void)_ascii_dump;
 
-    printf("=== EXT2Inode\n");
+    printf("=== ext2_inode_t\n");
     printf("i_mode=%u (%X)\n", inode->i_mode, inode->i_mode);
     printf("i_uid=%u\n", inode->i_uid);
     printf("i_size=%u\n", inode->i_size);
@@ -1590,25 +1497,24 @@ void EXT2DumpInode(
 
     if (inode->i_block[0])
     {
-        EXT2Block block;
+        ext2_block_t block;
 
-        if (!EXT2_IFERR(EXT2ReadBlock(ext2, inode->i_block[0], &block)))
+        if (!(ext2_read_block(ext2, inode->i_block[0], &block)))
         {
-            _ASCII_Dump(block.data, block.size);
+            _ascii_dump(block.data, block.size);
         }
     }
 }
-# endif /* !defined(BUILD_EFI) */
 
-static EXT2Err _WriteBlockBitmap(
-    const EXT2* ext2,
-    UINT32 group_index,
-    const EXT2Block* block)
+static ext2_err_t _write_inode_bitmap(
+    const ext2_t* ext2,
+    uint32_t group_index,
+    const ext2_block_t* block)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 bitmap_size_bytes;
+    uint32_t bitmap_size_bytes;
 
-    if (!EXT2Valid(ext2) || !block)
+    if (!ext2_valid(ext2) || !block)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -1628,9 +1534,9 @@ static EXT2Err _WriteBlockBitmap(
         GOTO(done);
     }
 
-    if (EXT2_IFERR(err = EXT2WriteBlock(
-        ext2, 
-        ext2->groups[group_index].bg_inode_bitmap, 
+    if ((err = ext2_write_block(
+        ext2,
+        ext2->groups[group_index].bg_inode_bitmap,
         block)))
     {
         GOTO(done);
@@ -1642,13 +1548,11 @@ done:
     return err;
 }
 
-static EXT2Err _GetIno(
-    EXT2* ext2,
-    EXT2Ino* ino)
+static ext2_err_t _get_ino(ext2_t* ext2, ext2_ino_t* ino)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Block bitmap;
-    UINT32 grpno;
+    ext2_block_t bitmap;
+    uint32_t grpno;
 
     /* Check parameters */
     if (!ext2 || !ino)
@@ -1663,10 +1567,10 @@ static EXT2Err _GetIno(
     /* Use brute force search for a free inode number */
     for (grpno = 0; grpno < ext2->group_count; grpno++)
     {
-        UINT32 lino;
+        uint32_t lino;
 
         /* Read the bitmap */
-        if (EXT2_IFERR(err = EXT2readReadInodeBitmap(ext2, grpno, &bitmap)))
+        if ((err = ext2_read_inode_bitmap(ext2, grpno, &bitmap)))
         {
             GOTO(done);
         }
@@ -1674,10 +1578,10 @@ static EXT2Err _GetIno(
         /* Scan the bitmap, looking for free bit */
         for (lino = 0; lino < bitmap.size * 8; lino++)
         {
-            if (!_TestBit(bitmap.data, bitmap.size, lino))
+            if (!_test_bit(bitmap.data, bitmap.size, lino))
             {
-                _SetBit(bitmap.data, bitmap.size, lino);
-                *ino = _MakeIno(ext2, grpno, lino);
+                _set_bit(bitmap.data, bitmap.size, lino);
+                *ino = _make_ino(ext2, grpno, lino);
                 break;
             }
         }
@@ -1696,7 +1600,7 @@ static EXT2Err _GetIno(
     {
         ext2->sb.s_free_inodes_count--;
 
-        if (EXT2_IFERR(err = _WriteSuperBlock(ext2)))
+        if ((err = _write_super_block(ext2)))
         {
             GOTO(done);
         }
@@ -1706,14 +1610,14 @@ static EXT2Err _GetIno(
     {
         ext2->groups[grpno].bg_free_inodes_count--;
 
-        if (EXT2_IFERR(err = _WriteGroup(ext2, grpno)))
+        if ((err = _write_group(ext2, grpno)))
         {
             GOTO(done);
         }
     }
 
     /* Write the bitmap */
-    if (EXT2_IFERR(err = _WriteBlockBitmap(ext2, grpno, &bitmap)))
+    if ((err = _write_inode_bitmap(ext2, grpno, &bitmap)))
     {
         GOTO(done);
     }
@@ -1724,17 +1628,17 @@ done:
     return err;
 }
 
-EXT2Err EXT2ReadInode(
-    const EXT2* ext2,
-    EXT2Ino ino,
-    EXT2Inode* inode)
+ext2_err_t ext2_read_inode(
+    const ext2_t* ext2,
+    ext2_ino_t ino,
+    ext2_inode_t* inode)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 lino = _InoToLino(ext2, ino);
-    UINT32 grpno = _InoToGrpno(ext2, ino);
-    const EXT2GroupDesc* group = &ext2->groups[grpno];
-    UINT32 inode_size = ext2->sb.s_inode_size;
-    UINTN offset;
+    uint32_t lino = _ino_to_lino(ext2, ino);
+    uint32_t grpno = _ino_to_grpno(ext2, ino);
+    const ext2_group_desc_t* group = &ext2->groups[grpno];
+    uint32_t inode_size = ext2->sb.s_inode_size;
+    uint64_t offset;
 
     if (ino == 0)
     {
@@ -1742,23 +1646,21 @@ EXT2Err EXT2ReadInode(
         GOTO(done);
     }
 
-#if !defined(BUILD_EFI)
     /* Check the reverse mapping */
     {
-        EXT2Ino tmp;
-        tmp = _MakeIno(ext2, grpno, lino);
+        ext2_ino_t tmp;
+        tmp = _make_ino(ext2, grpno, lino);
         assert(tmp == ino);
     }
-#endif /* !defined(BUILD_EFI) */
 
-    offset = BlockOffset(group->bg_inode_table, ext2->block_size) +
+    offset = block_offset(group->bg_inode_table, ext2->block_size) +
         lino * inode_size;
 
     /* Read the inode */
-    if (_Read(
-        ext2->dev, 
+    if (_read(
+        ext2->dev,
         offset,
-        inode, 
+        inode,
         inode_size) != inode_size)
     {
         GOTO(done);
@@ -1770,35 +1672,33 @@ done:
     return err;
 }
 
-static EXT2Err _WriteInode(
-    const EXT2* ext2,
-    EXT2Ino ino,
-    const EXT2Inode* inode)
+static ext2_err_t _write_inode(
+    const ext2_t* ext2,
+    ext2_ino_t ino,
+    const ext2_inode_t* inode)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 lino = _InoToLino(ext2, ino);
-    UINT32 grpno = _InoToGrpno(ext2, ino);
-    const EXT2GroupDesc* group = &ext2->groups[grpno];
-    UINT32 inode_size = ext2->sb.s_inode_size;
-    UINTN offset;
+    uint32_t lino = _ino_to_lino(ext2, ino);
+    uint32_t grpno = _ino_to_grpno(ext2, ino);
+    const ext2_group_desc_t* group = &ext2->groups[grpno];
+    uint32_t inode_size = ext2->sb.s_inode_size;
+    uint64_t offset;
 
-#if !defined(BUILD_EFI)
     /* Check the reverse mapping */
     {
-        EXT2Ino tmp;
-        tmp = _MakeIno(ext2, grpno, lino);
+        ext2_ino_t tmp;
+        tmp = _make_ino(ext2, grpno, lino);
         assert(tmp == ino);
     }
-#endif /* !defined(BUILD_EFI) */
 
-    offset = BlockOffset(group->bg_inode_table, ext2->block_size) + 
+    offset = block_offset(group->bg_inode_table, ext2->block_size) +
         lino * inode_size;
 
     /* Read the inode */
-    if (_Write(
-        ext2->dev, 
+    if (_write(
+        ext2->dev,
         offset,
-        inode, 
+        inode,
         inode_size) != inode_size)
     {
         GOTO(done);
@@ -1810,20 +1710,20 @@ done:
     return err;
 }
 
-EXT2Err EXT2PathToIno(
-    const EXT2* ext2,
+ext2_err_t ext2_path_to_ino(
+    const ext2_t* ext2,
     const char* path,
-    EXT2Ino* ino)
+    ext2_ino_t* ino)
 {
     EXT2_DECLARE_ERR(err);
     char buf[EXT2_PATH_MAX];
     const char* elements[32];
-    const UINT8 NELEMENTS = sizeof(elements) / sizeof(elements[0]);
-    UINT8 nelements = 0;
+    const uint8_t NELEMENTS = sizeof(elements) / sizeof(elements[0]);
+    uint8_t nelements = 0;
     char* p;
     char* save;
-    UINT8 i;
-    EXT2Ino current_ino = 0;
+    uint8_t i;
+    ext2_ino_t current_ino = 0;
 
     /* Check for null parameters */
     if (!ext2 || !path || !ino)
@@ -1875,14 +1775,14 @@ EXT2Err EXT2PathToIno(
         }
         else
         {
-            EXT2DirEnt* entries = NULL;
-            UINT32 nentries = 0;
-            UINT32 j;
+            ext2_dir_ent_t* entries = NULL;
+            uint32_t nentries = 0;
+            uint32_t j;
 
-            if (EXT2_IFERR(err = EXT2ListDirInode(
-                ext2, 
-                current_ino, 
-                &entries, 
+            if ((err = ext2_list_dir_inode(
+                ext2,
+                current_ino,
+                &entries,
                 &nentries)))
             {
                 GOTO(done);
@@ -1892,7 +1792,7 @@ EXT2Err EXT2PathToIno(
 
             for (j = 0; j < nentries; j++)
             {
-                const EXT2DirEnt* ent = &entries[j];
+                const ext2_dir_ent_t* ent = &entries[j];
 
                 if (i + 1 == nelements || ent->d_type == EXT2_DT_DIR)
                 {
@@ -1924,14 +1824,14 @@ done:
     return err;
 }
 
-EXT2Err EXT2PathToInode(
-    const EXT2* ext2,
+ext2_err_t ext2_path_to_inode(
+    const ext2_t* ext2,
     const char* path,
-    EXT2Ino* ino,
-    EXT2Inode* inode)
+    ext2_ino_t* ino,
+    ext2_inode_t* inode)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Ino tmp_ino;
+    ext2_ino_t tmp_ino;
 
     /* Check parameters */
     if (!ext2 || !path || !inode)
@@ -1941,14 +1841,14 @@ EXT2Err EXT2PathToInode(
     }
 
     /* Find the ino for this path */
-    if (EXT2_IFERR(err = EXT2PathToIno(ext2, path, &tmp_ino)))
+    if ((err = ext2_path_to_ino(ext2, path, &tmp_ino)))
     {
         /* Not found case */
         goto done;
     }
 
     /* Read the inode into memory */
-    if (EXT2_IFERR(err = EXT2ReadInode(ext2, tmp_ino, inode)))
+    if ((err = ext2_read_inode(ext2, tmp_ino, inode)))
     {
         GOTO(done);
     }
@@ -1970,21 +1870,21 @@ done:
 **==============================================================================
 */
 
-EXT2Err EXT2ReadBlockBitmap(
-    const EXT2* ext2,
-    UINT32 group_index,
-    EXT2Block* block)
+ext2_err_t ext2_read_block_bitmap(
+    const ext2_t* ext2,
+    uint32_t group_index,
+    ext2_block_t* block)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 bitmap_size_bytes;
+    uint32_t bitmap_size_bytes;
 
-    if (!EXT2Valid(ext2) || !block)
+    if (!ext2_valid(ext2) || !block)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
     }
 
-    memset(block, 0, sizeof(EXT2Block));
+    memset(block, 0, sizeof(ext2_block_t));
 
     bitmap_size_bytes = ext2->sb.s_blocks_per_group / 8;
 
@@ -1994,9 +1894,9 @@ EXT2Err EXT2ReadBlockBitmap(
         GOTO(done);
     }
 
-    if (EXT2_IFERR(err = EXT2ReadBlock(
-        ext2, 
-        ext2->groups[group_index].bg_block_bitmap, 
+    if ((err = ext2_read_block(
+        ext2,
+        ext2->groups[group_index].bg_block_bitmap,
         block)))
     {
         GOTO(done);
@@ -2011,15 +1911,15 @@ done:
     return err;
 }
 
-EXT2Err EXT2WriteBlockBitmap(
-    const EXT2* ext2,
-    UINT32 group_index,
-    const EXT2Block* block)
+ext2_err_t ext2_write_block_bitmap(
+    const ext2_t* ext2,
+    uint32_t group_index,
+    const ext2_block_t* block)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 bitmap_size_bytes;
+    uint32_t bitmap_size_bytes;
 
-    if (!EXT2Valid(ext2) || !block)
+    if (!ext2_valid(ext2) || !block)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -2039,9 +1939,9 @@ EXT2Err EXT2WriteBlockBitmap(
         GOTO(done);
     }
 
-    if (EXT2_IFERR(err = EXT2WriteBlock(
-        ext2, 
-        ext2->groups[group_index].bg_block_bitmap, 
+    if ((err = ext2_write_block(
+        ext2,
+        ext2->groups[group_index].bg_block_bitmap,
         block)))
     {
         GOTO(done);
@@ -2053,21 +1953,21 @@ done:
     return err;
 }
 
-EXT2Err EXT2readReadInodeBitmap(
-    const EXT2* ext2,
-    UINT32 group_index,
-    EXT2Block* block)
+ext2_err_t ext2_read_inode_bitmap(
+    const ext2_t* ext2,
+    uint32_t group_index,
+    ext2_block_t* block)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 bitmap_size_bytes;
+    uint32_t bitmap_size_bytes;
 
-    if (!EXT2Valid(ext2) || !block)
+    if (!ext2_valid(ext2) || !block)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
     }
 
-    memset(block, 0, sizeof(EXT2Block));
+    memset(block, 0, sizeof(ext2_block_t));
 
     bitmap_size_bytes = ext2->sb.s_inodes_per_group / 8;
 
@@ -2077,9 +1977,9 @@ EXT2Err EXT2readReadInodeBitmap(
         GOTO(done);
     }
 
-    if (EXT2_IFERR(err = EXT2ReadBlock(
-        ext2, 
-        ext2->groups[group_index].bg_inode_bitmap, 
+    if ((err = ext2_read_block(
+        ext2,
+        ext2->groups[group_index].bg_inode_bitmap,
         block)))
     {
         GOTO(done);
@@ -2102,31 +2002,28 @@ done:
 **==============================================================================
 */
 
-# if !defined(BUILD_EFI)
-static void _DumpDirectoryEntry(
-    const EXT2DirEntry* dirent)
+static void _dump_dir_entry(const ext2_dir_entry_t* dirent)
 {
-    printf("=== EXT2DirEntry:\n");
+    printf("=== ext2_dir_entry_t:\n");
     printf("inode=%u\n", dirent->inode);
     printf("rec_len=%u\n", dirent->rec_len);
     printf("name_len=%u\n", dirent->name_len);
     printf("file_type=%u\n", dirent->file_type);
     printf("name={%.*s}\n", dirent->name_len, dirent->name);
 }
-# endif /* !defined(BUILD_EFI) */
 
-static EXT2Err _CountDirectoryEntries(
-    const EXT2* ext2,
+static ext2_err_t _count_dir_entries(
+    const ext2_t* ext2,
     const void* data,
-    UINT32 size,
-    UINT32* count)
+    uint32_t size,
+    uint32_t* count)
 {
     EXT2_DECLARE_ERR(err);
-    const UINT8* p = (UINT8*)data;
-    const UINT8* end = (UINT8*)data + size;
+    const uint8_t* p = (uint8_t*)data;
+    const uint8_t* end = (uint8_t*)data + size;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !data || !size || !count)
+    if (!ext2_valid(ext2) || !data || !size || !count)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -2144,13 +2041,13 @@ static EXT2Err _CountDirectoryEntries(
 
     while (p < end)
     {
-        const EXT2DirEntry* ent = (const EXT2DirEntry*)p;
+        const ext2_dir_entry_t* ent = (const ext2_dir_entry_t*)p;
 
         if (ent->name_len)
         {
             (*count)++;
         }
-        
+
         p += ent->rec_len;
     }
 
@@ -2166,20 +2063,18 @@ done:
     return err;
 }
 
-struct _EXT2_DIR
+struct _ext2_dir
 {
     void *data;
-    UINT32 size;
+    uint32_t size;
     const void *next;
-    EXT2DirEnt ent;
+    ext2_dir_ent_t ent;
 };
 
-EXT2_DIR *EXT2OpenDir(
-    const EXT2* ext2,
-    const char *path)
+ext2_dir_t *ext2_open_dir(const ext2_t* ext2, const char *path)
 {
-    EXT2_DIR *dir = NULL;
-    EXT2Ino ino;
+    ext2_dir_t *dir = NULL;
+    ext2_ino_t ino;
 
     /* Check parameters */
     if (!ext2 || !path)
@@ -2188,23 +2083,21 @@ EXT2_DIR *EXT2OpenDir(
     }
 
     /* Find inode number for this directory */
-    if (EXT2_IFERR(EXT2PathToIno(ext2, path, &ino)))
+    if ((ext2_path_to_ino(ext2, path, &ino)))
         GOTO(done);
 
     /* Open directory from this inode */
-    if (!(dir = EXT2OpenDirIno(ext2, ino)))
+    if (!(dir = ext2_open_dir_ino(ext2, ino)))
         GOTO(done);
 
 done:
     return dir;
 }
 
-EXT2_DIR *EXT2OpenDirIno(
-    const EXT2* ext2,
-    EXT2Ino ino)
+ext2_dir_t *ext2_open_dir_ino(const ext2_t* ext2, ext2_ino_t ino)
 {
-    EXT2_DIR *dir = NULL;
-    EXT2Inode inode;
+    ext2_dir_t *dir = NULL;
+    ext2_inode_t inode;
 
     /* Check parameters */
     if (!ext2 || !ino)
@@ -2213,7 +2106,7 @@ EXT2_DIR *EXT2OpenDirIno(
     }
 
     /* Read the inode into memory */
-    if (EXT2_IFERR(EXT2ReadInode(ext2, ino, &inode)))
+    if ((ext2_read_inode(ext2, ino, &inode)))
     {
         GOTO(done);
     }
@@ -2225,16 +2118,16 @@ EXT2_DIR *EXT2OpenDirIno(
     }
 
     /* Allocate directory object */
-    if (!(dir = (EXT2_DIR*)calloc(1, sizeof(EXT2_DIR))))
+    if (!(dir = (ext2_dir_t*)calloc(1, sizeof(ext2_dir_t))))
     {
         GOTO(done);
     }
 
     /* Load the blocks for this inode into memory */
-    if (EXT2_IFERR(EXT2LoadFileFromInode(
-        ext2, 
-        &inode, 
-        &dir->data, 
+    if ((ext2_load_file_from_inode(
+        ext2,
+        &inode,
+        &dir->data,
         &dir->size)))
     {
         free(dir);
@@ -2249,10 +2142,9 @@ done:
     return dir;
 }
 
-EXT2DirEnt *EXT2ReadDir(
-    EXT2_DIR *dir)
+ext2_dir_ent_t *ext2_read_dir(ext2_dir_t *dir)
 {
-    EXT2DirEnt *ent = NULL;
+    ext2_dir_ent_t *ent = NULL;
 
     if (!dir || !dir->data || !dir->next)
         goto done;
@@ -2263,8 +2155,8 @@ EXT2DirEnt *EXT2ReadDir(
 
         while (!ent && dir->next < end)
         {
-            const EXT2DirEntry* de = 
-                (EXT2DirEntry*)dir->next;
+            const ext2_dir_entry_t* de =
+                (ext2_dir_entry_t*)dir->next;
 
             if (de->rec_len == 0)
                 break;
@@ -2273,16 +2165,16 @@ EXT2DirEnt *EXT2ReadDir(
             {
                 /* Found! */
 
-                /* Set EXT2DirEnt.d_ino */
+                /* Set ext2_dir_ent_t.d_ino */
                 dir->ent.d_ino = de->inode;
 
-                /* Set EXT2DirEnt.d_off (not used) */
+                /* Set ext2_dir_ent_t.d_off (not used) */
                 dir->ent.d_off = 0;
 
-                /* Set EXT2DirEnt.d_reclen (not used) */
-                dir->ent.d_reclen = sizeof(EXT2DirEnt);
+                /* Set ext2_dir_ent_t.d_reclen (not used) */
+                dir->ent.d_reclen = sizeof(ext2_dir_ent_t);
 
-                /* Set EXT2DirEnt.type */
+                /* Set ext2_dir_ent_t.type */
                 switch (de->file_type)
                 {
                     case EXT2_FT_UNKNOWN:
@@ -2314,21 +2206,21 @@ EXT2DirEnt *EXT2ReadDir(
                         break;
                 }
 
-                /* Set EXT2DirEnt.d_name */
+                /* Set ext2_dir_ent_t.d_name */
                 dir->ent.d_name[0] = '\0';
 
                 _strncat(
-                    dir->ent.d_name, 
+                    dir->ent.d_name,
                     sizeof(dir->ent.d_name),
-                    de->name, 
-                    _Min(EXT2_PATH_MAX-1, de->name_len));
+                    de->name,
+                    _min(EXT2_PATH_MAX-1, de->name_len));
 
                 /* Success! */
                 ent = &dir->ent;
             }
 
             /* Position to the next entry (for next call to readdir) */
-                dir->next = (void*)((char*)dir->next + de->rec_len); 
+                dir->next = (void*)((char*)dir->next + de->rec_len);
         }
     }
 
@@ -2336,8 +2228,7 @@ done:
     return ent;
 }
 
-EXT2Err EXT2CloseDir(
-    EXT2_DIR* dir)
+ext2_err_t ext2_close_dir(ext2_dir_t* dir)
 {
     EXT2_DECLARE_ERR(err);
 
@@ -2355,16 +2246,16 @@ done:
     return err;
 }
 
-EXT2Err EXT2ListDirInode(
-    const EXT2* ext2,
-    EXT2Ino ino,
-    EXT2DirEnt** entries,
-    UINT32* nentries)
+ext2_err_t ext2_list_dir_inode(
+    const ext2_t* ext2,
+    ext2_ino_t ino,
+    ext2_dir_ent_t** entries,
+    uint32_t* nentries)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2_DIR* dir = NULL;
-    EXT2DirEnt* ent;
-    Buf buf = BUF_INITIALIZER;
+    ext2_dir_t* dir = NULL;
+    ext2_dir_ent_t* ent;
+    buf_t buf = BUF_INITIALIZER;
 
     /* Check parameters */
     if (!ext2 || !ino || !entries || !nentries)
@@ -2377,37 +2268,37 @@ EXT2Err EXT2ListDirInode(
     *nentries = 0;
 
     /* Open the directory */
-    if (!(dir = EXT2OpenDirIno(ext2, ino)))
+    if (!(dir = ext2_open_dir_ino(ext2, ino)))
     {
         GOTO(done);
     }
 
     /* Add entries to array */
-    while ((ent = EXT2ReadDir(dir)))
+    while ((ent = ext2_read_dir(dir)))
     {
         /* Append to buffer */
-        if (EXT2_IFERR(err = BufAppend(
+        if ((err = buf_append(
             &buf,
             ent,
-            sizeof(EXT2DirEnt))))
+            sizeof(ext2_dir_ent_t))))
         {
             GOTO(done);
         }
     }
 
-    (*entries) = (EXT2DirEnt*)buf.data;
-    (*nentries) = buf.size / sizeof(EXT2DirEnt);
+    (*entries) = (ext2_dir_ent_t*)buf.data;
+    (*nentries) = buf.size / sizeof(ext2_dir_ent_t);
 
     err = EXT2_ERR_NONE;
 
 done:
 
-    if (EXT2_IFERR(err))
-        BufRelease(&buf);
+    if ((err))
+        buf_release(&buf);
 
     /* Close the directory */
     if (dir)
-        EXT2CloseDir(dir);
+        ext2_close_dir(dir);
 
     return err;
 }
@@ -2420,7 +2311,7 @@ done:
 **==============================================================================
 */
 
-static EXT2Err _SplitFullPath(
+static ext2_err_t _split_full_path(
     const char* path,
     char dirname[EXT2_PATH_MAX],
     char basename[EXT2_PATH_MAX])
@@ -2455,7 +2346,7 @@ static EXT2Err _SplitFullPath(
         }
         else
         {
-            UINTN index = slash - path;
+            uint64_t index = slash - path;
             _strlcpy(dirname, path, EXT2_PATH_MAX);
 
             if (index < EXT2_PATH_MAX)
@@ -2470,19 +2361,19 @@ static EXT2Err _SplitFullPath(
     return EXT2_ERR_NONE;
 }
 
-EXT2Err EXT2LoadFileFromInode(
-    const EXT2* ext2,
-    const EXT2Inode* inode,
+ext2_err_t ext2_load_file_from_inode(
+    const ext2_t* ext2,
+    const ext2_inode_t* inode,
     void** data,
-    UINT32* size)
+    uint32_t* size)
 {
     EXT2_DECLARE_ERR(err);
-    BufU32 blknos = BUF_U32_INITIALIZER;
-    Buf buf = BUF_INITIALIZER;
-    UINT32 i;
+    buf_u32_t blknos = BUF_U32_INITIALIZER;
+    buf_t buf = BUF_INITIALIZER;
+    uint32_t i;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !inode || !data || !size)
+    if (!ext2_valid(ext2) || !inode || !data || !size)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -2493,8 +2384,8 @@ EXT2Err EXT2LoadFileFromInode(
     *size = 0;
 
     /* Form a list of block-numbers for this file */
-    if (EXT2_IFERR(err = _LoadBlockNumbersFromInode(
-        ext2, 
+    if ((err = _load_block_numbers_from_inode(
+        ext2,
         inode,
         0, /* include_block_blocks */
         &blknos)))
@@ -2505,9 +2396,9 @@ EXT2Err EXT2LoadFileFromInode(
     /* Read and append each block */
     for (i = 0; i < blknos.size; )
     {
-        UINT32 nblks = 1;
-        UINT32 j;
-        EXT2Block block;
+        uint32_t nblks = 1;
+        uint32_t j;
+        ext2_block_t block;
 
         /* Count the number of consecutive blocks: nblks */
         for (j = i + 1; j < blknos.size; j++)
@@ -2521,18 +2412,18 @@ EXT2Err EXT2LoadFileFromInode(
         if (nblks == 1)
         {
             /* Read the next block */
-            if (EXT2_IFERR(err = EXT2ReadBlock(ext2, blknos.data[i], &block)))
+            if ((err = ext2_read_block(ext2, blknos.data[i], &block)))
             {
                 GOTO(done);
             }
 
             /* Append block to end of buffer */
-            if (EXT2_IFERR(err = BufAppend(&buf, block.data, block.size)))
+            if ((err = buf_append(&buf, block.data, block.size)))
                 GOTO(done);
         }
         else
         {
-            if (EXT2_IFERR(_ReadBlocks(ext2, blknos.data[i], nblks, &buf)))
+            if ((_read_blocks(ext2, blknos.data[i], nblks, &buf)))
             {
                 GOTO(done);
             }
@@ -2548,27 +2439,27 @@ EXT2Err EXT2LoadFileFromInode(
 
 done:
 
-    if (EXT2_IFERR(err))
-        BufRelease(&buf);
+    if ((err))
+        buf_release(&buf);
 
-    BufU32Release(&blknos);
+    buf_u32_release(&blknos);
 
     return err;
 }
 
-EXT2Err EXT2LoadFileFromPath(
-    const EXT2* ext2,
+ext2_err_t ext2_load_file_from_path(
+    const ext2_t* ext2,
     const char* path,
     void** data,
-    UINT32* size)
+    uint32_t* size)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Inode inode;
+    ext2_inode_t inode;
 
-    if (EXT2PathToInode(ext2, path, NULL, &inode) != EXT2_ERR_NONE)
+    if (ext2_path_to_inode(ext2, path, NULL, &inode) != EXT2_ERR_NONE)
         goto done;
 
-    if (EXT2LoadFileFromInode(ext2, &inode, data, size) != EXT2_ERR_NONE)
+    if (ext2_load_file_from_inode(ext2, &inode, data, size) != EXT2_ERR_NONE)
         goto done;
 
     err = EXT2_ERR_NONE;
@@ -2580,17 +2471,15 @@ done:
 /*
 **==============================================================================
 **
-** EXT2
+** ext2_t
 **
 **==============================================================================
 */
 
-EXT2Err EXT2New(
-    Blkdev* dev,
-    EXT2** ext2_out)
+ext2_err_t ext2_new(blkdev_t* dev, ext2_t** ext2_out)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2* ext2 = NULL;
+    ext2_t* ext2 = NULL;
 
     /* Check parameters */
     if (!dev || !ext2_out)
@@ -2603,14 +2492,14 @@ EXT2Err EXT2New(
     *ext2_out = NULL;
 
     /* Bit endian is not supported */
-    if (_IsBigEndian())
+    if (_is_big_endian())
     {
         err = EXT2_ERR_UNSUPPORTED;
         GOTO(done);
     }
 
     /* Allocate the file system object */
-    if (!(ext2 = (EXT2*)calloc(1, sizeof(EXT2))))
+    if (!(ext2 = (ext2_t*)calloc(1, sizeof(ext2_t))))
     {
         err = EXT2_ERR_OUT_OF_MEMORY;
         GOTO(done);
@@ -2620,7 +2509,7 @@ EXT2Err EXT2New(
     ext2->dev = dev;
 
     /* Read the superblock */
-    if (EXT2_IFERR(err = _ReadSuperBlock(ext2->dev, &ext2->sb)))
+    if ((err = _read_super_block(ext2->dev, &ext2->sb)))
     {
         err = EXT2_ERR_FAILED_TO_READ_SUPERBLOCK;
         GOTO(done);
@@ -2650,7 +2539,7 @@ EXT2Err EXT2New(
     }
 
     /* Check inode size */
-    if (ext2->sb.s_inode_size > sizeof(EXT2Inode))
+    if (ext2->sb.s_inode_size > sizeof(ext2_inode_t))
     {
         err = EXT2_ERR_UNEXPECTED;
         GOTO(done);
@@ -2660,18 +2549,18 @@ EXT2Err EXT2New(
     ext2->block_size = 1024 << ext2->sb.s_log_block_size;
 
     /* Calculate the number of block groups */
-    ext2->group_count = 
+    ext2->group_count =
         1 + (ext2->sb.s_blocks_count-1) / ext2->sb.s_blocks_per_group;
 
     /* Get the groups list */
-    if (!(ext2->groups = _ReadGroups(ext2)))
+    if (!(ext2->groups = _read_groups(ext2)))
     {
         err = EXT2_ERR_FAILED_TO_READ_GROUPS;
         GOTO(done);
     }
 
     /* Read the root inode */
-    if (EXT2_IFERR(err = EXT2ReadInode(ext2, EXT2_ROOT_INO, &ext2->root_inode)))
+    if ((err = ext2_read_inode(ext2, EXT2_ROOT_INO, &ext2->root_inode)))
     {
         err = EXT2_ERR_FAILED_TO_READ_INODE;
         GOTO(done);
@@ -2681,11 +2570,11 @@ EXT2Err EXT2New(
 
 done:
 
-    if (EXT2_IFERR(err))
+    if ((err))
     {
         /* Caller must dispose of this! */
         ext2->dev = NULL;
-        EXT2Delete(ext2);
+        ext2_delete(ext2);
     }
     else
         *ext2_out = ext2;
@@ -2693,12 +2582,12 @@ done:
     return err;
 }
 
-void EXT2Delete(EXT2* ext2)
+void ext2_delete(ext2_t* ext2)
 {
     if (ext2)
     {
         if (ext2->dev)
-            ext2->dev->Close(ext2->dev);
+            ext2->dev->close(ext2->dev);
 
         if (ext2->groups)
             free(ext2->groups);
@@ -2707,29 +2596,27 @@ void EXT2Delete(EXT2* ext2)
     }
 }
 
-# if !defined(BUILD_EFI)
-EXT2Err EXT2Dump(
-    const EXT2* ext2)
+ext2_err_t ext2_dump(const ext2_t* ext2)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 grpno;
+    uint32_t grpno;
 
     /* Print the superblock */
-    EXT2DumpSuperBlock(&ext2->sb);
+    ext2_dump_super_block(&ext2->sb);
 
     printf("block_size=%u\n", ext2->block_size);
     printf("group_count=%u\n", ext2->group_count);
 
     /* Print the groups */
-    _DumpGroupDescs(ext2->groups, ext2->group_count);
+    _dump_group_descs(ext2->groups, ext2->group_count);
 
     /* Print out the bitmaps for the data blocks */
     {
         for (grpno = 0; grpno < ext2->group_count; grpno++)
         {
-            EXT2Block bitmap;
+            ext2_block_t bitmap;
 
-            if (EXT2_IFERR(err = EXT2ReadBlockBitmap(ext2, grpno, &bitmap)))
+            if ((err = ext2_read_block_bitmap(ext2, grpno, &bitmap)))
             {
                 GOTO(done);
             }
@@ -2742,9 +2629,9 @@ EXT2Err EXT2Dump(
     /* Print the inode bitmaps */
     for (grpno = 0; grpno < ext2->group_count; grpno++)
     {
-        EXT2Block bitmap;
+        ext2_block_t bitmap;
 
-        if (EXT2_IFERR(err = EXT2readReadInodeBitmap(ext2, grpno, &bitmap)))
+        if ((err = ext2_read_inode_bitmap(ext2, grpno, &bitmap)))
         {
             GOTO(done);
         }
@@ -2755,30 +2642,30 @@ EXT2Err EXT2Dump(
 
     /* dump the inodes */
     {
-        UINT32 nbits = 0;
-        UINT32 mbits = 0;
+        uint32_t nbits = 0;
+        uint32_t mbits = 0;
 
         /* Print the inode tables */
         for (grpno = 0; grpno < ext2->group_count; grpno++)
         {
-            EXT2Block bitmap;
-            UINT32 lino;
+            ext2_block_t bitmap;
+            uint32_t lino;
 
             /* Get inode bitmap for this group */
-            if (EXT2_IFERR(err = EXT2readReadInodeBitmap(ext2, grpno, &bitmap)))
+            if ((err = ext2_read_inode_bitmap(ext2, grpno, &bitmap)))
             {
                 GOTO(done);
             }
 
-            nbits += _CountBitsN(bitmap.data, bitmap.size);
+            nbits += _count_bits_n(bitmap.data, bitmap.size);
 
             /* For each bit set in the bit map */
             for (lino = 0; lino < ext2->sb.s_inodes_per_group; lino++)
             {
-                EXT2Inode inode;
-                EXT2Ino ino;
+                ext2_inode_t inode;
+                ext2_ino_t ino;
 
-                if (!_TestBit(bitmap.data, bitmap.size, lino))
+                if (!_test_bit(bitmap.data, bitmap.size, lino))
                     continue;
 
                 mbits++;
@@ -2786,15 +2673,15 @@ EXT2Err EXT2Dump(
                 if ((lino+1) < EXT2_FIRST_INO && (lino+1) != EXT2_ROOT_INO)
                     continue;
 
-                ino = _MakeIno(ext2, grpno, lino);
+                ino = _make_ino(ext2, grpno, lino);
 
-                if (EXT2_IFERR(err = EXT2ReadInode(ext2, ino, &inode)))
+                if ((err = ext2_read_inode(ext2, ino, &inode)))
                 {
                     GOTO(done);
                 }
 
                 printf("INODE{%u}\n", ino);
-                EXT2DumpInode(ext2, &inode);
+                ext2_dump_inode(ext2, &inode);
             }
         }
 
@@ -2803,48 +2690,44 @@ EXT2Err EXT2Dump(
     }
 
     /* dump the root inode */
-    EXT2DumpInode(ext2, &ext2->root_inode);
+    ext2_dump_inode(ext2, &ext2->root_inode);
 
     err = EXT2_ERR_NONE;
 
 done:
     return err;
 }
-#endif /* !defined(BUILD_EFI) */
 
-EXT2Err EXT2Check(
-    const EXT2* ext2)
+ext2_err_t ext2_check(const ext2_t* ext2)
 {
     EXT2_DECLARE_ERR(err);
 
     /* Check the block bitmaps */
     {
-        UINT32 i;
-        UINT32 n = 0;
-        UINT32 nused = 0;
-        UINT32 nfree = 0;
+        uint32_t i;
+        uint32_t n = 0;
+        uint32_t nused = 0;
+        uint32_t nfree = 0;
 
         for (i = 0; i < ext2->group_count; i++)
         {
-            EXT2Block bitmap;
+            ext2_block_t bitmap;
 
             nfree += ext2->groups[i].bg_free_blocks_count;
 
-            if (EXT2_IFERR(err = EXT2ReadBlockBitmap(ext2, i, &bitmap)))
+            if ((err = ext2_read_block_bitmap(ext2, i, &bitmap)))
             {
                 GOTO(done);
             }
 
-            nused += _CountBitsN(bitmap.data, bitmap.size);
+            nused += _count_bits_n(bitmap.data, bitmap.size);
             n += bitmap.size * 8;
         }
 
         if (ext2->sb.s_free_blocks_count != nfree)
         {
-#if !defined(BUILD_EFI)
             printf("s_free_blocks_count{%u}, nfree{%u}\n",
                 ext2->sb.s_free_blocks_count, nfree);
-#endif /* !defined(BUILD_EFI) */
             GOTO(done);
         }
 
@@ -2856,24 +2739,24 @@ EXT2Err EXT2Check(
 
     /* Check the inode bitmaps */
     {
-        UINT32 i;
-        UINT32 n = 0;
-        UINT32 nused = 0;
-        UINT32 nfree = 0;
+        uint32_t i;
+        uint32_t n = 0;
+        uint32_t nused = 0;
+        uint32_t nfree = 0;
 
         /* Check the bitmaps for the inodes */
         for (i = 0; i < ext2->group_count; i++)
         {
-            EXT2Block bitmap;
+            ext2_block_t bitmap;
 
             nfree += ext2->groups[i].bg_free_inodes_count;
 
-            if (EXT2_IFERR(err = EXT2readReadInodeBitmap(ext2, i, &bitmap)))
+            if ((err = ext2_read_inode_bitmap(ext2, i, &bitmap)))
             {
                 GOTO(done);
             }
 
-            nused += _CountBitsN(bitmap.data, bitmap.size);
+            nused += _count_bits_n(bitmap.data, bitmap.size);
             n += bitmap.size * 8;
         }
 
@@ -2890,31 +2773,31 @@ EXT2Err EXT2Check(
 
     /* Check the inodes */
     {
-        UINT32 grpno;
-        UINT32 nbits = 0;
-        UINT32 mbits = 0;
+        uint32_t grpno;
+        uint32_t nbits = 0;
+        uint32_t mbits = 0;
 
         /* Check the inode tables */
         for (grpno = 0; grpno < ext2->group_count; grpno++)
         {
-            EXT2Block bitmap;
-            UINT32 lino;
+            ext2_block_t bitmap;
+            uint32_t lino;
 
             /* Get inode bitmap for this group */
-            if (EXT2_IFERR(err = EXT2readReadInodeBitmap(ext2, grpno, &bitmap)))
+            if ((err = ext2_read_inode_bitmap(ext2, grpno, &bitmap)))
             {
                 GOTO(done);
             }
 
-            nbits += _CountBitsN(bitmap.data, bitmap.size);
+            nbits += _count_bits_n(bitmap.data, bitmap.size);
 
             /* For each bit set in the bit map */
             for (lino = 0; lino < ext2->sb.s_inodes_per_group; lino++)
             {
-                EXT2Inode inode;
-                EXT2Ino ino;
+                ext2_inode_t inode;
+                ext2_ino_t ino;
 
-                if (!_TestBit(bitmap.data, bitmap.size, lino))
+                if (!_test_bit(bitmap.data, bitmap.size, lino))
                     continue;
 
                 mbits++;
@@ -2922,9 +2805,9 @@ EXT2Err EXT2Check(
                 if ((lino+1) < EXT2_FIRST_INO && (lino+1) != EXT2_ROOT_INO)
                     continue;
 
-                ino = _MakeIno(ext2, grpno, lino);
+                ino = _make_ino(ext2, grpno, lino);
 
-                if (EXT2_IFERR(err = EXT2ReadInode(ext2, ino, &inode)))
+                if ((err = ext2_read_inode(ext2, ino, &inode)))
                 {
                     GOTO(done);
                 }
@@ -2956,21 +2839,17 @@ done:
     return err;
 }
 
-EXT2Err EXT2Trunc(
-    EXT2* ext2,
-    const char* path)
+ext2_err_t ext2_trunc(ext2_t* ext2, const char* path)
 {
     EXT2_DECLARE_ERR(err);
     char dirname[EXT2_PATH_MAX];
     char basename[EXT2_PATH_MAX];
-    EXT2Ino dir_ino;
-    EXT2Inode dir_inode;
-    EXT2Ino file_ino;
-    EXT2Inode file_inode;
-    BufU32 blknos = BUF_U32_INITIALIZER;
-#if !defined(BUILD_EFI)
-    (void)_DumpBlockNumbers;
-#endif /* !defined(BUILD_EFI) */
+    ext2_ino_t dir_ino;
+    ext2_inode_t dir_inode;
+    ext2_ino_t file_ino;
+    ext2_inode_t file_inode;
+    buf_u32_t blknos = BUF_U32_INITIALIZER;
+    (void)_dump_block_numbers;
 
     /* Check parameters */
     if (!ext2 || !path)
@@ -2980,28 +2859,28 @@ EXT2Err EXT2Trunc(
     }
 
     /* Split the path */
-    if (EXT2_IFERR(err = _SplitFullPath(path, dirname, basename)))
+    if ((err = _split_full_path(path, dirname, basename)))
     {
         GOTO(done);
     }
 
     /* Find the inode of the dirname */
-    if (EXT2_IFERR(err = EXT2PathToInode(ext2, dirname, &dir_ino, &dir_inode)))
+    if ((err = ext2_path_to_inode(ext2, dirname, &dir_ino, &dir_inode)))
     {
         GOTO(done);
     }
 
     /* Find the inode of the basename */
-    if (EXT2_IFERR(err = EXT2PathToInode(
+    if ((err = ext2_path_to_inode(
         ext2, path, &file_ino, &file_inode)))
     {
         goto done;
     }
 
     /* Form a list of block-numbers for this file */
-    if (EXT2_IFERR(err = _LoadBlockNumbersFromInode(
-        ext2, 
-        &file_inode, 
+    if ((err = _load_block_numbers_from_inode(
+        ext2,
+        &file_inode,
         1, /* include_block_blocks */
         &blknos)))
     {
@@ -3016,7 +2895,7 @@ EXT2Err EXT2Trunc(
 
     /* Return the blocks to the free list */
     {
-        if (EXT2_IFERR(err = _PutBlocks(ext2, blknos.data, blknos.size)))
+        if ((err = _put_blocks(ext2, blknos.data, blknos.size)))
             GOTO(done);
     }
 
@@ -3025,14 +2904,14 @@ EXT2Err EXT2Trunc(
         file_inode.i_size = 0;
         memset(file_inode.i_block, 0, sizeof(file_inode.i_block));
 
-        if (EXT2_IFERR(err = _WriteInode(ext2, file_ino, &file_inode)))
+        if ((err = _write_inode(ext2, file_ino, &file_inode)))
         {
             GOTO(done);
         }
     }
 
     /* Update the super block */
-    if (EXT2_IFERR(err = _WriteSuperBlock(ext2)))
+    if ((err = _write_super_block(ext2)))
     {
         GOTO(done);
     }
@@ -3041,47 +2920,47 @@ EXT2Err EXT2Trunc(
 
 done:
 
-    BufU32Release(&blknos);
+    buf_u32_release(&blknos);
 
     return err;
 }
 
-static EXT2Err _WriteSingleDirectBlockNumbers(
-    EXT2* ext2,
-    const UINT32* blknos,
-    UINT32 nblknos,
-    UINT32* blkno)
+static ext2_err_t _write_single_direct_block_numbers(
+    ext2_t* ext2,
+    const uint32_t* blknos,
+    uint32_t nblknos,
+    uint32_t* blkno)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Block block;
+    ext2_block_t block;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !blknos || !nblknos)
+    if (!ext2_valid(ext2) || !blknos || !nblknos)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
     }
 
     /* If no room in a single block for the block numbers */
-    if (nblknos > ext2->block_size / sizeof(UINT32))
+    if (nblknos > ext2->block_size / sizeof(uint32_t))
     {
         err = EXT2_ERR_BUFFER_OVERFLOW;
         GOTO(done);
     }
 
     /* Assign an available block */
-    if (EXT2_IFERR(err = _GetBlock(ext2, blkno)))
+    if ((err = _get_block(ext2, blkno)))
     {
         GOTO(done);
     }
 
     /* Copy block numbers into block */
-    memset(&block, 0, sizeof(EXT2Block));
-    memcpy(block.data, blknos, nblknos * sizeof(UINT32));
+    memset(&block, 0, sizeof(ext2_block_t));
+    memcpy(block.data, blknos, nblknos * sizeof(uint32_t));
     block.size = ext2->block_size;
 
     /* Write the block */
-    if (EXT2_IFERR(err = EXT2WriteBlock(ext2, *blkno, &block)))
+    if ((err = ext2_write_block(ext2, *blkno, &block)))
     {
         GOTO(done);
     }
@@ -3092,19 +2971,19 @@ done:
     return err;
 }
 
-static EXT2Err _WriteIndirectBlockNumbers(
-    EXT2* ext2,
-    UINT32 indirection, /* level of indirection: 2=double, 3=triple */
-    const UINT32* blknos,
-    UINT32 nblknos,
-    UINT32* blkno)
+static ext2_err_t _write_indirect_block_numbers(
+    ext2_t* ext2,
+    uint32_t indirection, /* level of indirection: 2=double, 3=triple */
+    const uint32_t* blknos,
+    uint32_t nblknos,
+    uint32_t* blkno)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Block block;
-    UINT32 blknos_per_block = ext2->block_size / sizeof(UINT32);
+    ext2_block_t block;
+    uint32_t blknos_per_block = ext2->block_size / sizeof(uint32_t);
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !blknos || !nblknos || !blkno)
+    if (!ext2_valid(ext2) || !blknos || !nblknos || !blkno)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -3129,51 +3008,51 @@ static EXT2Err _WriteIndirectBlockNumbers(
     }
 
     /* Assign an available block */
-    if (EXT2_IFERR(err = _GetBlock(ext2, blkno)))
+    if ((err = _get_block(ext2, blkno)))
     {
         GOTO(done);
     }
 
     /* Allocate indirect block (to hold block numbers) */
-    memset(&block, 0, sizeof(EXT2Block));
+    memset(&block, 0, sizeof(ext2_block_t));
     block.size = ext2->block_size;
 
     /* Write each of the indirect blocks */
     {
-        const UINT32* p = blknos;
-        UINT32 r = nblknos;
-        UINT32 i;
+        const uint32_t* p = blknos;
+        uint32_t r = nblknos;
+        uint32_t i;
 
         /* For each block */
         for (i = 0; r > 0; i++)
         {
-            UINT32 n;
+            uint32_t n;
 
             /* If double indirection */
             if (indirection == 2)
             {
-                n = _Min(r, blknos_per_block);
+                n = _min(r, blknos_per_block);
 
-                if (EXT2_IFERR(err = _WriteSingleDirectBlockNumbers(
+                if ((err = _write_single_direct_block_numbers(
                     ext2,
                     p,
                     n,
-                    (UINT32*)block.data + i)))
+                    (uint32_t*)block.data + i)))
                 {
                     GOTO(done);
                 }
             }
             else
             {
-                n = _Min(r, blknos_per_block * blknos_per_block);
+                n = _min(r, blknos_per_block * blknos_per_block);
 
                 /* Write the block numbers for this block */
-                if (EXT2_IFERR(err = _WriteIndirectBlockNumbers(
+                if ((err = _write_indirect_block_numbers(
                     ext2,
                     2, /* double indirection */
                     p,
                     n,
-                    (UINT32*)block.data + i)))
+                    (uint32_t*)block.data + i)))
                 {
                     GOTO(done);
                 }
@@ -3192,7 +3071,7 @@ static EXT2Err _WriteIndirectBlockNumbers(
     }
 
     /* Write the indirect block */
-    if (EXT2_IFERR(err = EXT2WriteBlock(ext2, *blkno, &block)))
+    if ((err = ext2_write_block(ext2, *blkno, &block)))
     {
         GOTO(done);
     }
@@ -3203,29 +3082,29 @@ done:
     return err;
 }
 
-static EXT2Err _WriteData(
-    EXT2* ext2,
+static ext2_err_t _write_data(
+    ext2_t* ext2,
     const void* data,
-    UINT32 size,
-    BufU32* blknos)
+    uint32_t size,
+    buf_u32_t* blknos)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 blksize = ext2->block_size;
-    UINT32 nblks = (size + blksize - 1) / blksize;
-    UINT32 rem = size % blksize;
-    UINT32 i = 0;
-    UINT32 grpno;
+    uint32_t blksize = ext2->block_size;
+    uint32_t nblks = (size + blksize - 1) / blksize;
+    uint32_t rem = size % blksize;
+    uint32_t i = 0;
+    uint32_t grpno;
 
     for (grpno = 0; grpno < ext2->group_count && i < nblks; grpno++)
     {
-        EXT2Block bitmap;
-        EXT2Block block;
-        UINT32 blkno;
-        UINT32 lblkno;
+        ext2_block_t bitmap;
+        ext2_block_t block;
+        uint32_t blkno;
+        uint32_t lblkno;
         int changed = 0;
-    
+
         /* Read the bitmap */
-        if (EXT2_IFERR(err = EXT2ReadBlockBitmap(ext2, grpno, &bitmap)))
+        if ((err = ext2_read_block_bitmap(ext2, grpno, &bitmap)))
         {
             GOTO(done);
         }
@@ -3233,13 +3112,13 @@ static EXT2Err _WriteData(
         /* Scan the bitmap, looking for free bit */
         for (lblkno = 0; lblkno < bitmap.size * 8 && i < nblks; lblkno++)
         {
-            if (!_TestBit(bitmap.data, bitmap.size, lblkno))
+            if (!_test_bit(bitmap.data, bitmap.size, lblkno))
             {
-                _SetBit(bitmap.data, bitmap.size, lblkno);
-                blkno = MakeBlkno(ext2, grpno, lblkno);
+                _set_bit(bitmap.data, bitmap.size, lblkno);
+                blkno = _make_blkno(ext2, grpno, lblkno);
 
                 /* Append this to the array of blocks */
-                if (EXT2_IFERR(err = BufU32Append(blknos, &blkno, 1)))
+                if ((err = buf_u32_append(blknos, &blkno, 1)))
                     GOTO(done);
 
                 /* If this is the final block */
@@ -3255,7 +3134,7 @@ static EXT2Err _WriteData(
                 }
 
                 /* Write the block */
-                if (EXT2_IFERR(err = EXT2WriteBlock(ext2, blkno, &block)))
+                if ((err = ext2_write_block(ext2, blkno, &block)))
                 {
                     GOTO(done);
                 }
@@ -3271,12 +3150,12 @@ static EXT2Err _WriteData(
         if (changed == 1)
         {
             /* Write group and bitmap. */
-            if (EXT2_IFERR(err = _WriteGroup(ext2, grpno)))
+            if ((err = _write_group(ext2, grpno)))
             {
                 GOTO(done);
             }
 
-            if (EXT2_IFERR(err = EXT2WriteBlockBitmap(ext2, grpno, &bitmap)))
+            if ((err = ext2_write_block_bitmap(ext2, grpno, &bitmap)))
             {
                 GOTO(done);
             }
@@ -3290,7 +3169,7 @@ static EXT2Err _WriteData(
     }
 
     /* Write super block data. */
-    if (EXT2_IFERR(err = _WriteSuperBlock(ext2)))
+    if ((err = _write_super_block(ext2)))
     {
         GOTO(done);
     }
@@ -3301,19 +3180,19 @@ done:
     return err;
 }
 
-static EXT2Err _UpdateInodeBlockPointers(
-    EXT2* ext2,
-    EXT2Ino ino,
-    EXT2Inode* inode,
-    UINT32 size,
-    const UINT32* blknos,
-    UINT32 nblknos)
+static ext2_err_t _update_inode_block_pointers(
+    ext2_t* ext2,
+    ext2_ino_t ino,
+    ext2_inode_t* inode,
+    uint32_t size,
+    const uint32_t* blknos,
+    uint32_t nblknos)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 i;
-    const UINT32* p = blknos;
-    UINT32 r = nblknos;
-    UINT32 blknos_per_block = ext2->block_size / sizeof(UINT32);
+    uint32_t i;
+    const uint32_t* p = blknos;
+    uint32_t r = nblknos;
+    uint32_t blknos_per_block = ext2->block_size / sizeof(uint32_t);
 
     /* Update the inode size */
     inode->i_size = size;
@@ -3321,7 +3200,7 @@ static EXT2Err _UpdateInodeBlockPointers(
     /* Update the direct inode blocks */
     if (r)
     {
-        UINT32 n = _Min(r, EXT2_SINGLE_INDIRECT_BLOCK);
+        uint32_t n = _min(r, EXT2_SINGLE_INDIRECT_BLOCK);
 
         for (i = 0; i < n; i++)
         {
@@ -3335,9 +3214,9 @@ static EXT2Err _UpdateInodeBlockPointers(
     /* Write the indirect block numbers */
     if (r)
     {
-        UINT32 n = _Min(r, blknos_per_block);
+        uint32_t n = _min(r, blknos_per_block);
 
-        if (EXT2_IFERR(err = _WriteSingleDirectBlockNumbers(
+        if ((err = _write_single_direct_block_numbers(
             ext2,
             p,
             n,
@@ -3353,9 +3232,9 @@ static EXT2Err _UpdateInodeBlockPointers(
     /* Write the double indirect block numbers */
     if (r)
     {
-        UINT32 n = _Min(r, blknos_per_block * blknos_per_block);
+        uint32_t n = _min(r, blknos_per_block * blknos_per_block);
 
-        if (EXT2_IFERR(err = _WriteIndirectBlockNumbers(
+        if ((err = _write_indirect_block_numbers(
             ext2,
             2, /* double indirection */
             p,
@@ -3372,9 +3251,9 @@ static EXT2Err _UpdateInodeBlockPointers(
     /* Write the triple indirect block numbers */
     if (r)
     {
-        UINT32 n = r;
+        uint32_t n = r;
 
-        if (EXT2_IFERR(err = _WriteIndirectBlockNumbers(
+        if ((err = _write_indirect_block_numbers(
             ext2,
             3, /* triple indirection */
             p,
@@ -3395,7 +3274,7 @@ static EXT2Err _UpdateInodeBlockPointers(
     }
 
     /* Rewrite the inode */
-    if (EXT2_IFERR(err = _WriteInode(ext2, ino, inode)))
+    if ((err = _write_inode(ext2, ino, inode)))
     {
         GOTO(done);
     }
@@ -3406,25 +3285,25 @@ done:
     return err;
 }
 
-static EXT2Err _UpdateInodeDataBlocks(
-    EXT2* ext2,
-    EXT2Ino ino,
-    EXT2Inode* inode,
+static ext2_err_t _update_inode_data_blocks(
+    ext2_t* ext2,
+    ext2_ino_t ino,
+    ext2_inode_t* inode,
     const void* data,
-    UINT32 size,
-    BOOLEAN is_dir)
+    uint32_t size,
+    bool is_dir)
 {
     EXT2_DECLARE_ERR(err);
-    BufU32 blknos = BUF_U32_INITIALIZER;
-    UINT32 count = 0;
+    buf_u32_t blknos = BUF_U32_INITIALIZER;
+    uint32_t count = 0;
     void* tmp_data = NULL;
 
-    if (EXT2_IFERR(err = _WriteData(ext2, data, size, &blknos)))
+    if ((err = _write_data(ext2, data, size, &blknos)))
         GOTO(done);
 
     if (is_dir)
     {
-        if (EXT2_IFERR(err = _CountDirectoryEntries(
+        if ((err = _count_dir_entries(
             ext2, data, size, &count)))
         {
             GOTO(done);
@@ -3433,7 +3312,7 @@ static EXT2Err _UpdateInodeDataBlocks(
 
     inode->i_osd1 = count + 1;
 
-    if (EXT2_IFERR(err = _UpdateInodeBlockPointers(
+    if ((err = _update_inode_block_pointers(
         ext2,
         ino,
         inode,
@@ -3448,7 +3327,7 @@ static EXT2Err _UpdateInodeDataBlocks(
 
 done:
 
-    BufU32Release(&blknos);
+    buf_u32_release(&blknos);
 
     if (tmp_data)
         free(tmp_data);
@@ -3456,40 +3335,38 @@ done:
     return err;
 }
 
-EXT2Err EXT2Update(
-    EXT2* ext2,
+ext2_err_t ext2_update(
+    ext2_t* ext2,
     const void* data,
-    UINT32 size,
+    uint32_t size,
     const char* path)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Ino ino;
-    EXT2Inode inode;
-#if !defined(BUILD_EFI)
-    (void)_DumpDirectoryEntry;
-#endif /* !defined(BUILD_EFI) */
+    ext2_ino_t ino;
+    ext2_inode_t inode;
+    (void)_dump_dir_entry;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !data || !path)
+    if (!ext2_valid(ext2) || !data || !path)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
     }
 
     /* Truncate the destination file */
-    if (EXT2_IFERR(err = EXT2Trunc(ext2, path)))
+    if ((err = ext2_trunc(ext2, path)))
     {
         GOTO(done);
     }
 
     /* Read inode for this file */
-    if (EXT2_IFERR(err = EXT2PathToInode(ext2, path, &ino, &inode)))
+    if ((err = ext2_path_to_inode(ext2, path, &ino, &inode)))
     {
         GOTO(done);
     }
 
     /* Update the inode blocks */
-    if (EXT2_IFERR(err = _UpdateInodeDataBlocks(
+    if ((err = _update_inode_data_blocks(
         ext2,
         ino,
         &inode,
@@ -3507,14 +3384,14 @@ done:
     return err;
 }
 
-static EXT2Err _CheckDirectoryEntries(
-    const EXT2* ext2,
+static ext2_err_t _check_dir_entries(
+    const ext2_t* ext2,
     const void* data,
-    UINT32 size)
+    uint32_t size)
 {
     EXT2_DECLARE_ERR(err);
-    const UINT8* p = (UINT8*)data;
-    const UINT8* end = (UINT8*)data + size;
+    const uint8_t* p = (uint8_t*)data;
+    const uint8_t* end = (uint8_t*)data + size;
 
     /* Must be divisiable by block size */
     if ((end - p) % ext2->block_size)
@@ -3524,16 +3401,16 @@ static EXT2Err _CheckDirectoryEntries(
 
     while (p < end)
     {
-        UINT32 n;
-        const EXT2DirEntry* ent = (const EXT2DirEntry*)p;
-        
-        n = sizeof(EXT2DirEntry) - EXT2_PATH_MAX + ent->name_len;
-        n = _NextMult(n, 4);
+        uint32_t n;
+        const ext2_dir_entry_t* ent = (const ext2_dir_entry_t*)p;
+
+        n = sizeof(ext2_dir_entry_t) - EXT2_PATH_MAX + ent->name_len;
+        n = _next_mult(n, 4);
 
         if (n != ent->rec_len)
         {
-            UINT32 offset = ((char*)p - (char*)data) % ext2->block_size;
-            UINT32 rem = ext2->block_size - offset;
+            uint32_t offset = ((char*)p - (char*)data) % ext2->block_size;
+            uint32_t rem = ext2->block_size - offset;
 
             if (rem != ent->rec_len)
             {
@@ -3555,30 +3432,29 @@ done:
     return err;
 }
 
-#if !defined(BUILD_EFI)
-static void _DumpDirectoryEntries(
-    const EXT2* ext2,
+static void _dump_dir_entries(
+    const ext2_t* ext2,
     const void* data,
-    UINT32 size)
+    uint32_t size)
 {
-    const UINT8* p = (UINT8*)data;
-    const UINT8* end = (UINT8*)data + size;
+    const uint8_t* p = (uint8_t*)data;
+    const uint8_t* end = (uint8_t*)data + size;
 
     while (p < end)
     {
-        UINT32 n;
-        const EXT2DirEntry* ent = (const EXT2DirEntry*)p;
+        uint32_t n;
+        const ext2_dir_entry_t* ent = (const ext2_dir_entry_t*)p;
 
-        _DumpDirectoryEntry(ent);
-        
-        n = sizeof(EXT2DirEntry) - EXT2_PATH_MAX + ent->name_len;
-        n = _NextMult(n, 4);
+        _dump_dir_entry(ent);
+
+        n = sizeof(ext2_dir_entry_t) - EXT2_PATH_MAX + ent->name_len;
+        n = _next_mult(n, 4);
 
         if (n != ent->rec_len)
         {
-            UINT32 gap = ent->rec_len - n;
-            UINT32 offset = ((char*)p - (char*)data) % ext2->block_size;
-            UINT32 rem = ext2->block_size - offset;
+            uint32_t gap = ent->rec_len - n;
+            uint32_t offset = ((char*)p - (char*)data) % ext2->block_size;
+            uint32_t rem = ext2->block_size - offset;
 
             printf("gap: %u\n", gap);
             printf("offset: %u\n", offset);
@@ -3588,26 +3464,25 @@ static void _DumpDirectoryEntries(
         p += ent->rec_len;
     }
 }
-#endif /* !defined(BUILD_EFI) */
 
-static const EXT2DirEntry* _FindDirectoryEntry(
+static const ext2_dir_entry_t* _find_dir_entry(
     const char* name,
     const void* data,
-    UINT32 size)
+    uint32_t size)
 {
-    const UINT8* p = (UINT8*)data;
-    const UINT8* end = (UINT8*)data + size;
+    const uint8_t* p = (uint8_t*)data;
+    const uint8_t* end = (uint8_t*)data + size;
 
     while (p < end)
     {
-        const EXT2DirEntry* ent = (const EXT2DirEntry*)p;
+        const ext2_dir_entry_t* ent = (const ext2_dir_entry_t*)p;
         char tmp[EXT2_PATH_MAX];
 
 
         /* Create zero-terminated name */
         tmp[0] = '\0';
         _strncat(tmp, sizeof(tmp), ent->name,
-            _Min(ent->name_len, EXT2_PATH_MAX-1));
+            _min(ent->name_len, EXT2_PATH_MAX-1));
 
         if (strcmp(tmp, name) == 0)
             return ent;
@@ -3619,17 +3494,17 @@ static const EXT2DirEntry* _FindDirectoryEntry(
     return NULL;
 }
 
-static EXT2Err _CountDirectoryEntriesIno(
-    EXT2* ext2,
-    EXT2Ino ino,
-    UINT32* count)
+static ext2_err_t _count_dir_entry_ino(
+    ext2_t* ext2,
+    ext2_ino_t ino,
+    uint32_t* count)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2_DIR* dir = NULL;
-    EXT2DirEnt* ent;
+    ext2_dir_t* dir = NULL;
+    ext2_dir_ent_t* ent;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !ino || !count)
+    if (!ext2_valid(ext2) || !ino || !count)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -3639,13 +3514,13 @@ static EXT2Err _CountDirectoryEntriesIno(
     *count = 0;
 
     /* Open directory */
-    if (!(dir = EXT2OpenDirIno(ext2, ino)))
+    if (!(dir = ext2_open_dir_ino(ext2, ino)))
     {
         GOTO(done);
     }
 
     /* Count the entries (notes that "." and ".." will always be present). */
-    while ((ent = EXT2ReadDir(dir)))
+    while ((ent = ext2_read_dir(dir)))
     {
         (*count)++;
     }
@@ -3655,66 +3530,64 @@ static EXT2Err _CountDirectoryEntriesIno(
 done:
 
     if (dir)
-        EXT2CloseDir(dir);
+        ext2_close_dir(dir);
 
     return err;
 }
 
-EXT2Err EXT2Rm(
-    EXT2* ext2,
-    const char* path)
+ext2_err_t ext2_rm(ext2_t* ext2, const char* path)
 {
     EXT2_DECLARE_ERR(err);
     char dirname[EXT2_PATH_MAX];
     char filename[EXT2_PATH_MAX];
     void* blocks = NULL;
-    UINT32 blocks_size = 0;
+    uint32_t blocks_size = 0;
     void* new_blocks = NULL;
-    UINT32 new_blocks_size = 0;
-    BufU32 blknos = BUF_U32_INITIALIZER;
-    EXT2Ino ino;
-    EXT2Inode inode;
-    const EXT2DirEntry* ent = NULL;
+    uint32_t new_blocks_size = 0;
+    buf_u32_t blknos = BUF_U32_INITIALIZER;
+    ext2_ino_t ino;
+    ext2_inode_t inode;
+    const ext2_dir_entry_t* ent = NULL;
 
-    (void)_DumpDirectoryEntries;
+    (void)_dump_dir_entries;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) && !path)
+    if (!ext2_valid(ext2) && !path)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
     }
 
     /* Truncate the file first */
-    if (EXT2_IFERR(err = EXT2Trunc(ext2, path)))
+    if ((err = ext2_trunc(ext2, path)))
     {
         goto done;
     }
 
     /* Split the path */
-    if (EXT2_IFERR(err = _SplitFullPath(path, dirname, filename)))
+    if ((err = _split_full_path(path, dirname, filename)))
     {
         GOTO(done);
     }
 
     /* Load the directory inode */
-    if (EXT2_IFERR(err = EXT2PathToInode(ext2, dirname, &ino, &inode)))
+    if ((err = ext2_path_to_inode(ext2, dirname, &ino, &inode)))
     {
         GOTO(done);
     }
 
     /* Load the directory file */
-    if (EXT2_IFERR(err = EXT2LoadFileFromInode(
-        ext2, 
-        &inode, 
-        &blocks, 
+    if ((err = ext2_load_file_from_inode(
+        ext2,
+        &inode,
+        &blocks,
         &blocks_size)))
     {
         GOTO(done);
     }
 
     /* Load the block numbers (including the block blocks) */
-    if (EXT2_IFERR(err = _LoadBlockNumbersFromInode(
+    if ((err = _load_block_numbers_from_inode(
         ext2,
         &inode,
         1, /* include_block_blocks */
@@ -3724,7 +3597,7 @@ EXT2Err EXT2Rm(
     }
 
     /* Find 'filename' within this directory */
-    if (!(ent = _FindDirectoryEntry(filename, blocks, blocks_size)))
+    if (!(ent = _find_dir_entry(filename, blocks, blocks_size)))
     {
         GOTO(done);
     }
@@ -3732,19 +3605,19 @@ EXT2Err EXT2Rm(
     /* Allow removal of empty directories only */
     if (ent->file_type == EXT2_FT_DIR)
     {
-        EXT2Ino dir_ino;
-        EXT2Inode dir_inode;
-        UINT32 count;
+        ext2_ino_t dir_ino;
+        ext2_inode_t dir_inode;
+        uint32_t count;
 
         /* Find the inode of the filename */
-        if (EXT2_IFERR(err = EXT2PathToInode(
+        if ((err = ext2_path_to_inode(
             ext2, filename, &dir_ino, &dir_inode)))
         {
             GOTO(done);
         }
 
         /* Disallow removal if directory is non empty */
-        if (EXT2_IFERR(err = _CountDirectoryEntriesIno(ext2, dir_ino, &count)))
+        if ((err = _count_dir_entry_ino(ext2, dir_ino, &count)))
         {
             GOTO(done);
         }
@@ -3774,14 +3647,14 @@ EXT2Err EXT2Rm(
 
         /* Copy over directory entries (skipping removed entry) */
         {
-            EXT2DirEntry* prev = NULL;
+            ext2_dir_entry_t* prev = NULL;
 
             while (src < src_end)
             {
-                const EXT2DirEntry* curr_ent = 
-                    (const EXT2DirEntry*)src;
-                UINT32 rec_len;
-                UINT32 offset;
+                const ext2_dir_entry_t* curr_ent =
+                    (const ext2_dir_entry_t*)src;
+                uint32_t rec_len;
+                uint32_t offset;
 
                 /* Skip the removed directory entry */
                 if (curr_ent == ent || !ent->name)
@@ -3792,7 +3665,7 @@ EXT2Err EXT2Rm(
 
                 /* Compute size of the new directory entry */
                 rec_len = sizeof(*curr_ent) - EXT2_PATH_MAX + curr_ent->name_len;
-                rec_len = _NextMult(rec_len, 4);
+                rec_len = _next_mult(rec_len, 4);
 
                 /* Compute byte offset into current block */
                 offset = (dest - (char*)new_blocks) % ext2->block_size;
@@ -3800,7 +3673,7 @@ EXT2Err EXT2Rm(
                 /* If new entry would overflow the block */
                 if (offset + rec_len > ext2->block_size)
                 {
-                    UINT32 rem = ext2->block_size - offset;
+                    uint32_t rem = ext2->block_size - offset;
 
                     if (!prev)
                     {
@@ -3814,10 +3687,10 @@ EXT2Err EXT2Rm(
 
                 /* Copy this entry into new buffer */
                 {
-                    EXT2DirEntry* new_ent = 
-                        (EXT2DirEntry*)dest;
+                    ext2_dir_entry_t* new_ent =
+                        (ext2_dir_entry_t*)dest;
                     memset(new_ent, 0, rec_len);
-                    memcpy(new_ent, curr_ent, 
+                    memcpy(new_ent, curr_ent,
                         sizeof(*curr_ent) + curr_ent->name_len);
 
                     new_ent->rec_len = rec_len;
@@ -3831,8 +3704,8 @@ EXT2Err EXT2Rm(
             /* Set final entry to point to end of the block */
             if (prev)
             {
-                UINT32 offset;
-                UINT32 rem;
+                uint32_t offset;
+                uint32_t rem;
 
                 /* Compute byte offset into current block */
                 offset = (dest - (char*)new_blocks) % ext2->block_size;
@@ -3848,11 +3721,11 @@ EXT2Err EXT2Rm(
             }
 
             /* Size down the new blocks size */
-            new_blocks_size = (UINT32)(dest - (char*)new_blocks);
+            new_blocks_size = (uint32_t)(dest - (char*)new_blocks);
 
-            if (EXT2_IFERR(err = _CheckDirectoryEntries(
-                ext2, 
-                new_blocks, 
+            if ((err = _check_dir_entries(
+                ext2,
+                new_blocks,
                 new_blocks_size)))
             {
                 GOTO(done);
@@ -3862,22 +3735,22 @@ EXT2Err EXT2Rm(
 
     /* Count directory entries before and after */
     {
-        UINT32 count;
-        UINT32 new_count;
+        uint32_t count;
+        uint32_t new_count;
 
-        if (EXT2_IFERR(err = _CountDirectoryEntries(
-            ext2, 
-            blocks, 
-            blocks_size, 
+        if ((err = _count_dir_entries(
+            ext2,
+            blocks,
+            blocks_size,
             &count)))
         {
             GOTO(done);
         }
 
-        if (EXT2_IFERR(err = _CountDirectoryEntries(
-            ext2, 
-            new_blocks, 
-            new_blocks_size, 
+        if ((err = _count_dir_entries(
+            ext2,
+            new_blocks,
+            new_blocks_size,
             &new_count)))
         {
             GOTO(done);
@@ -3885,13 +3758,13 @@ EXT2Err EXT2Rm(
     }
 
     /* Return all directory blocks to the free list */
-    if (EXT2_IFERR(err = _PutBlocks(ext2, blknos.data, blknos.size)))
+    if ((err = _put_blocks(ext2, blknos.data, blknos.size)))
     {
         GOTO(done);
     }
 
     /* Update the inode blocks */
-    if (EXT2_IFERR(err = _UpdateInodeDataBlocks(
+    if ((err = _update_inode_data_blocks(
         ext2,
         ino,
         &inode,
@@ -3912,25 +3785,25 @@ done:
     if (new_blocks)
         free(new_blocks);
 
-    BufU32Release(&blknos);
+    buf_u32_release(&blknos);
 
     return err;
 }
 
-static EXT2Err _CreateFileInode(
-    EXT2* ext2, 
-    const void* data, 
-    UINT32 size, 
-    UINT16 mode,
-    UINT32* blknos, 
-    UINT32 nblknos,
-    UINT32* ino)
+static ext2_err_t _create_file_inode(
+    ext2_t* ext2,
+    const void* data,
+    uint32_t size,
+    uint16_t mode,
+    uint32_t* blknos,
+    uint32_t nblknos,
+    uint32_t* ino)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Inode inode;
+    ext2_inode_t inode;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !data || !blknos)
+    if (!ext2_valid(ext2) || !data || !blknos)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -3938,9 +3811,9 @@ static EXT2Err _CreateFileInode(
 
     /* Initialize the inode */
     {
-        const UINT32 t = time(NULL);
+        const uint32_t t = time(NULL);
 
-        memset(&inode, 0, sizeof(EXT2Inode));
+        memset(&inode, 0, sizeof(ext2_inode_t));
 
         /* Set the mode of the new file */
         inode.i_mode = mode;
@@ -3968,13 +3841,13 @@ static EXT2Err _CreateFileInode(
     }
 
     /* Assign an inode number */
-    if (EXT2_IFERR(err = _GetIno(ext2, ino)))
+    if ((err = _get_ino(ext2, ino)))
     {
         GOTO(done);
     }
 
     /* Update the inode block pointers and write the inode to disk */
-    if (EXT2_IFERR(err = _UpdateInodeBlockPointers(
+    if ((err = _update_inode_block_pointers(
         ext2,
         *ino,
         &inode,
@@ -3991,26 +3864,26 @@ done:
     return err;
 }
 
-typedef struct _EXT2DirectoryEntBuf
+typedef struct _ext2_dir_entry_buf
 {
-    EXT2DirEntry base;
-        char buf[EXT2_PATH_MAX];
+    ext2_dir_entry_t base;
+    char buf[EXT2_PATH_MAX];
 }
-EXT2DirectoryEntBuf;
+ext2_dir_ent_buf_t;
 
-static EXT2Err _CreateDirInodeAndBlock(
-    EXT2* ext2, 
-    EXT2Ino parent_ino,
-    UINT16 mode,
-    EXT2Ino* ino)
+static ext2_err_t _create_dir_inode_and_block(
+    ext2_t* ext2,
+    ext2_ino_t parent_ino,
+    uint16_t mode,
+    ext2_ino_t* ino)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Inode inode;
-    UINT32 blkno;
-    EXT2Block block;
+    ext2_inode_t inode;
+    uint32_t blkno;
+    ext2_block_t block;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !mode || !parent_ino || !ino)
+    if (!ext2_valid(ext2) || !mode || !parent_ino || !ino)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -4018,9 +3891,9 @@ static EXT2Err _CreateDirInodeAndBlock(
 
     /* Initialize the inode */
     {
-        const UINT32 t = time(NULL);
+        const uint32_t t = time(NULL);
 
-        memset(&inode, 0, sizeof(EXT2Inode));
+        memset(&inode, 0, sizeof(ext2_inode_t));
 
         /* Set the mode of the new file */
         inode.i_mode = mode;
@@ -4048,22 +3921,22 @@ static EXT2Err _CreateDirInodeAndBlock(
     }
 
     /* Assign an inode number */
-    if (EXT2_IFERR(err = _GetIno(ext2, ino)))
+    if ((err = _get_ino(ext2, ino)))
     {
         GOTO(done);
     }
 
     /* Assign a block number */
-    if (EXT2_IFERR(err = _GetBlock(ext2, &blkno)))
+    if ((err = _get_block(ext2, &blkno)))
     {
         GOTO(done);
     }
 
     /* Create a block to hold the two directory entries */
     {
-        EXT2DirectoryEntBuf dot1;
-        EXT2DirectoryEntBuf dot2;
-        EXT2DirEntry* ent;
+        ext2_dir_ent_buf_t dot1;
+        ext2_dir_ent_buf_t dot2;
+        ext2_dir_entry_t* ent;
 
         /* The "." directory */
         memset(&dot1, 0, sizeof(dot1));
@@ -4071,8 +3944,8 @@ static EXT2Err _CreateDirInodeAndBlock(
         dot1.base.name_len = 1;
         dot1.base.file_type = EXT2_DT_DIR;
         dot1.base.name[0] = '.';
-        UINT16 d1len = sizeof(EXT2DirEntry) - EXT2_PATH_MAX + dot1.base.name_len;
-        dot1.base.rec_len = _NextMult(d1len, 4);
+        uint16_t d1len = sizeof(ext2_dir_entry_t) - EXT2_PATH_MAX + dot1.base.name_len;
+        dot1.base.rec_len = _next_mult(d1len, 4);
 
         /* The ".." directory */
         memset(&dot2, 0, sizeof(dot2));
@@ -4081,30 +3954,30 @@ static EXT2Err _CreateDirInodeAndBlock(
         dot2.base.file_type = EXT2_DT_DIR;
         dot2.base.name[0] = '.';
         dot2.base.name[1] = '.';
-        UINT16 d2len = sizeof(EXT2DirEntry) - EXT2_PATH_MAX + dot2.base.name_len;
-        dot2.base.rec_len = _NextMult(d2len, 4);
+        uint16_t d2len = sizeof(ext2_dir_entry_t) - EXT2_PATH_MAX + dot2.base.name_len;
+        dot2.base.rec_len = _next_mult(d2len, 4);
 
         /* Initialize the directory entries block */
-        memset(&block, 0, sizeof(EXT2Block));
+        memset(&block, 0, sizeof(ext2_block_t));
         memcpy(block.data, &dot1, dot1.base.rec_len);
         memcpy(block.data + dot1.base.rec_len, &dot2, dot2.base.rec_len);
         block.size = ext2->block_size;
 
         /* Adjust dot2.rec_len to point to end of block */
-        ent = (EXT2DirEntry*)(block.data + dot1.base.rec_len);
+        ent = (ext2_dir_entry_t*)(block.data + dot1.base.rec_len);
 
-        ent->rec_len += ext2->block_size - 
+        ent->rec_len += ext2->block_size -
             (dot1.base.rec_len + dot2.base.rec_len);
 
         /* Write the block */
-        if (EXT2_IFERR(err = EXT2WriteBlock(ext2, blkno, &block)))
+        if ((err = ext2_write_block(ext2, blkno, &block)))
         {
             GOTO(done);
         }
     }
 
     /* Update the inode block pointers and write the inode to disk */
-    if (EXT2_IFERR(err = _UpdateInodeBlockPointers(
+    if ((err = _update_inode_block_pointers(
         ext2,
         *ino,
         &inode,
@@ -4121,22 +3994,22 @@ done:
     return err;
 }
 
-static EXT2Err _AppendDirectoryEntry(
-    EXT2* ext2, 
+static ext2_err_t _append_dir_entry(
+    ext2_t* ext2,
     void* data,
-    UINT32 size, /* unused */
+    uint32_t size, /* unused */
     char** current,
-    EXT2DirEntry** prev,
-    const EXT2DirEntry* ent)
+    ext2_dir_entry_t** prev,
+    const ext2_dir_entry_t* ent)
 {
     EXT2_DECLARE_ERR(err);
-    UINT32 rec_len;
-    UINT32 offset;
+    uint32_t rec_len;
+    uint32_t offset;
     (void)size;
 
     /* Compute size of the new directory entry */
     rec_len = sizeof(*ent) - EXT2_PATH_MAX + ent->name_len;
-    rec_len = _NextMult(rec_len, 4);
+    rec_len = _next_mult(rec_len, 4);
 
     /* Compute byte offset into current block */
     offset = ((char*)(*current) - (char*)data) % ext2->block_size;
@@ -4144,7 +4017,7 @@ static EXT2Err _AppendDirectoryEntry(
     /* If new entry would overflow the block */
     if (offset + rec_len > ext2->block_size)
     {
-        UINT32 rem = ext2->block_size - offset;
+        uint32_t rem = ext2->block_size - offset;
 
         if (!(*prev))
         {
@@ -4158,10 +4031,10 @@ static EXT2Err _AppendDirectoryEntry(
 
     /* Copy this entry into new buffer */
     {
-        EXT2DirEntry* tmp_ent;
+        ext2_dir_entry_t* tmp_ent;
 
         /* Set pointer to next new entry */
-        tmp_ent = (EXT2DirEntry*)(*current);
+        tmp_ent = (ext2_dir_entry_t*)(*current);
 
         /* Copy over new entry */
         memset(tmp_ent, 0, rec_len);
@@ -4177,14 +4050,14 @@ done:
     return err;
 }
 
-static EXT2Err _IndexDirectoryToLinkedListDirectory(
-    EXT2* ext2,
+static ext2_err_t _index_dir_to_linked_list_dir(
+    ext2_t* ext2,
     const char* rm_name, /* may be null */
-    EXT2DirEntry* new_ent, /* may be null */
+    ext2_dir_entry_t* new_ent, /* may be null */
     const void* data,
-    UINT32 size,
+    uint32_t size,
     void** new_data,
-    UINT32* new_size)
+    uint32_t* new_size)
 {
     EXT2_DECLARE_ERR(err);
     const char* src = (const char*)data;
@@ -4192,7 +4065,7 @@ static EXT2Err _IndexDirectoryToLinkedListDirectory(
     char* dest = NULL;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !data || !size || !new_data || !new_size)
+    if (!ext2_valid(ext2) || !data || !size || !new_data || !new_size)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -4212,14 +4085,14 @@ static EXT2Err _IndexDirectoryToLinkedListDirectory(
 
     /* Copy over directory entries (skipping removed entry) */
     {
-        EXT2DirEntry* prev = NULL;
+        ext2_dir_entry_t* prev = NULL;
 
         while (src < src_end)
         {
-            const EXT2DirEntry* ent;
+            const ext2_dir_entry_t* ent;
 
             /* Set pointer to current entry */
-            ent = (const EXT2DirEntry*)src;
+            ent = (const ext2_dir_entry_t*)src;
 
             /* Skip blank directory entries */
             if (!ent->name)
@@ -4235,7 +4108,7 @@ static EXT2Err _IndexDirectoryToLinkedListDirectory(
                 continue;
             }
 
-            if (EXT2_IFERR(err = _AppendDirectoryEntry(
+            if ((err = _append_dir_entry(
                 ext2,
                 *new_data,
                 *new_size,
@@ -4251,7 +4124,7 @@ static EXT2Err _IndexDirectoryToLinkedListDirectory(
 
         if (new_ent)
         {
-            if (EXT2_IFERR(err = _AppendDirectoryEntry(
+            if ((err = _append_dir_entry(
                 ext2,
                 *new_data,
                 *new_size,
@@ -4266,8 +4139,8 @@ static EXT2Err _IndexDirectoryToLinkedListDirectory(
         /* Set final entry to point to end of the block */
         if (prev)
         {
-            UINT32 offset;
-            UINT32 rem;
+            uint32_t offset;
+            uint32_t rem;
 
             /* Compute byte offset into current block */
             offset = (dest - (char*)*new_data) % ext2->block_size;
@@ -4283,10 +4156,10 @@ static EXT2Err _IndexDirectoryToLinkedListDirectory(
         }
 
         /* Size down the new blocks size */
-        *new_size = (UINT32)(dest - (char*)*new_data);
+        *new_size = (uint32_t)(dest - (char*)*new_data);
 
         /* Perform a sanity check on the new entries */
-        if (EXT2_IFERR(err = _CheckDirectoryEntries(
+        if ((err = _check_dir_entries(
             ext2, *new_data, *new_size)))
         {
             GOTO(done);
@@ -4299,32 +4172,32 @@ done:
     return err;
 }
 
-static EXT2Err _AddDirectoryEntry(
-    EXT2* ext2,
-    EXT2Ino dir_ino,
-    EXT2Inode* dir_inode,
+static ext2_err_t _add_dir_ent(
+    ext2_t* ext2,
+    ext2_ino_t dir_ino,
+    ext2_inode_t* dir_inode,
     const char* filename,
-    EXT2DirEntry* new_ent)
+    ext2_dir_entry_t* new_ent)
 {
     EXT2_DECLARE_ERR(err);
     void* blocks = NULL;
-    UINT32 blocks_size = 0;
+    uint32_t blocks_size = 0;
     void* new_blocks = NULL;
-    UINT32 new_blocks_size = 0;
-    BufU32 blknos = BUF_U32_INITIALIZER;
+    uint32_t new_blocks_size = 0;
+    buf_u32_t blknos = BUF_U32_INITIALIZER;
 
     /* Load the directory file */
-    if (EXT2_IFERR(err = EXT2LoadFileFromInode(
-        ext2, 
-        dir_inode, 
-        &blocks, 
+    if ((err = ext2_load_file_from_inode(
+        ext2,
+        dir_inode,
+        &blocks,
         &blocks_size)))
     {
         GOTO(done);
     }
 
     /* Load the block numbers (including the block blocks) */
-    if (EXT2_IFERR(err = _LoadBlockNumbersFromInode(
+    if ((err = _load_block_numbers_from_inode(
         ext2,
         dir_inode,
         1, /* include_block_blocks */
@@ -4334,14 +4207,14 @@ static EXT2Err _AddDirectoryEntry(
     }
 
     /* Find 'filename' within this directory */
-    if ((_FindDirectoryEntry(filename, blocks, blocks_size)))
+    if ((_find_dir_entry(filename, blocks, blocks_size)))
     {
         err = EXT2_ERR_FILE_NOT_FOUND;
         GOTO(done);
     }
 
     /* Convert from 'indexed' to 'linked list' directory format */
-    if (EXT2_IFERR(err = _IndexDirectoryToLinkedListDirectory(
+    if ((err = _index_dir_to_linked_list_dir(
         ext2,
         NULL, /* rm_name */
         new_ent, /* new_entry */
@@ -4355,22 +4228,22 @@ static EXT2Err _AddDirectoryEntry(
 
     /* Count directory entries before and after */
     {
-        UINT32 count;
-        UINT32 new_count;
+        uint32_t count;
+        uint32_t new_count;
 
-        if (EXT2_IFERR(err = _CountDirectoryEntries(
-            ext2, 
-            blocks, 
-            blocks_size, 
+        if ((err = _count_dir_entries(
+            ext2,
+            blocks,
+            blocks_size,
             &count)))
         {
             GOTO(done);
         }
 
-        if (EXT2_IFERR(err = _CountDirectoryEntries(
-            ext2, 
-            new_blocks, 
-            new_blocks_size, 
+        if ((err = _count_dir_entries(
+            ext2,
+            new_blocks,
+            new_blocks_size,
             &new_count)))
         {
             GOTO(done);
@@ -4383,13 +4256,13 @@ static EXT2Err _AddDirectoryEntry(
     }
 
     /* Return all directory blocks to the free list */
-    if (EXT2_IFERR(err = _PutBlocks(ext2, blknos.data, blknos.size)))
+    if ((err = _put_blocks(ext2, blknos.data, blknos.size)))
     {
         GOTO(done);
     }
 
     /* Update the directory inode blocks */
-    if (EXT2_IFERR(err = _UpdateInodeDataBlocks(
+    if ((err = _update_inode_data_blocks(
         ext2,
         dir_ino,
         dir_inode,
@@ -4410,31 +4283,31 @@ done:
     if (new_blocks)
         free(new_blocks);
 
-    BufU32Release(&blknos);
+    buf_u32_release(&blknos);
 
     return err;
 }
 
-EXT2Err EXT2Put(
-    EXT2* ext2,
+ext2_err_t ext2_put(
+    ext2_t* ext2,
     const void* data,
-    UINT32 size,
+    uint32_t size,
     const char* path,
-    UINT16 mode)
+    uint16_t mode)
 {
     EXT2_DECLARE_ERR(err);
     char dirname[EXT2_PATH_MAX];
     char filename[EXT2_PATH_MAX];
-    EXT2Ino file_ino;
-    EXT2Inode file_inode;
-    EXT2Ino dir_ino;
-    EXT2Inode dir_inode;
-    BufU32 blknos = BUF_U32_INITIALIZER;
-    EXT2DirectoryEntBuf ent_buf;
-    EXT2DirEntry* ent = &ent_buf.base;
+    ext2_ino_t file_ino;
+    ext2_inode_t file_inode;
+    ext2_ino_t dir_ino;
+    ext2_inode_t dir_inode;
+    buf_u32_t blknos = BUF_U32_INITIALIZER;
+    ext2_dir_ent_buf_t ent_buf;
+    ext2_dir_entry_t* ent = &ent_buf.base;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !data || !size || !path)
+    if (!ext2_valid(ext2) || !data || !size || !path)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -4447,19 +4320,19 @@ EXT2Err EXT2Put(
     }
 
     /* Split the path */
-    if (EXT2_IFERR(err = _SplitFullPath(path, dirname, filename)))
+    if ((err = _split_full_path(path, dirname, filename)))
     {
         GOTO(done);
     }
 
     /* Read inode for the directory */
-    if (EXT2_IFERR(err = EXT2PathToInode(ext2, dirname, &dir_ino, &dir_inode)))
+    if ((err = ext2_path_to_inode(ext2, dirname, &dir_ino, &dir_inode)))
     {
         GOTO(done);
     }
 
     /* Read inode for the file (if any) */
-    if (!EXT2_IFERR(err = EXT2PathToInode(ext2, path, &file_ino, &file_inode)))
+    if (!(err = ext2_path_to_inode(ext2, path, &file_ino, &file_inode)))
     {
         /* Disallow overwriting of directory */
         if (!(file_inode.i_mode & EXT2_S_IFDIR))
@@ -4468,23 +4341,23 @@ EXT2Err EXT2Put(
         }
 
         /* Delete the file if it exists */
-        if (EXT2_IFERR(err = EXT2Rm(ext2, path)))
+        if ((err = ext2_rm(ext2, path)))
         {
             GOTO(done);
         }
     }
 
     /* Write the blocks of the file */
-    if (EXT2_IFERR(err = _WriteData(ext2, data, size, &blknos)))
+    if ((err = _write_data(ext2, data, size, &blknos)))
         GOTO(done);
 
     /* Create an inode for this new file */
-    if (EXT2_IFERR(err = _CreateFileInode(
-        ext2, 
-        data, 
-        size, 
-        mode, 
-        blknos.data, 
+    if ((err = _create_file_inode(
+        ext2,
+        data,
+        size,
+        mode,
+        blknos.data,
         blknos.size,
         &file_ino)))
     {
@@ -4497,7 +4370,7 @@ EXT2Err EXT2Put(
         ent->inode = file_ino;
 
         /* ent->name_len */
-        ent->name_len = (UINT32)strlen(filename);
+        ent->name_len = (uint32_t)strlen(filename);
 
         /* ent->file_type */
         ent->file_type = EXT2_FT_REG_FILE;
@@ -4507,16 +4380,16 @@ EXT2Err EXT2Put(
         _strncat(ent->name, sizeof(ent->name), filename, EXT2_PATH_MAX-1);
 
         /* ent->rec_len */
-        ent->rec_len = 
-            _NextMult(sizeof(*ent)- EXT2_PATH_MAX + ent->name_len, 4);
+        ent->rec_len =
+            _next_mult(sizeof(*ent)- EXT2_PATH_MAX + ent->name_len, 4);
     }
 
     /* Create new entry for this file in the directory inode */
-    if (EXT2_IFERR(err = _AddDirectoryEntry(
-        ext2, 
-        dir_ino, 
-        &dir_inode, 
-        filename, 
+    if ((err = _add_dir_ent(
+        ext2,
+        dir_ino,
+        &dir_inode,
+        filename,
         ent)))
     {
         GOTO(done);
@@ -4526,28 +4399,25 @@ EXT2Err EXT2Put(
 
 done:
 
-    BufU32Release(&blknos);
+    buf_u32_release(&blknos);
 
     return err;
 }
 
-EXT2Err EXT2MkDir(
-    EXT2* ext2,
-    const char* path,
-    UINT16 mode)
+ext2_err_t ext2_mkdir(ext2_t* ext2, const char* path, uint16_t mode)
 {
     EXT2_DECLARE_ERR(err);
     char dirname[EXT2_PATH_MAX];
     char basename[EXT2_PATH_MAX];
-    EXT2Ino dir_ino;
-    EXT2Inode dir_inode;
-    EXT2Ino base_ino;
-    EXT2Inode base_inode;
-    EXT2DirectoryEntBuf ent_buf;
-    EXT2DirEntry* ent = &ent_buf.base;
+    ext2_ino_t dir_ino;
+    ext2_inode_t dir_inode;
+    ext2_ino_t base_ino;
+    ext2_inode_t base_inode;
+    ext2_dir_ent_buf_t ent_buf;
+    ext2_dir_entry_t* ent = &ent_buf.base;
 
     /* Check parameters */
-    if (!EXT2Valid(ext2) || !path || !mode)
+    if (!ext2_valid(ext2) || !path || !mode)
     {
         err = EXT2_ERR_INVALID_PARAMETER;
         GOTO(done);
@@ -4561,27 +4431,27 @@ EXT2Err EXT2MkDir(
     }
 
     /* Split the path */
-    if (EXT2_IFERR(err = _SplitFullPath(path, dirname, basename)))
+    if ((err = _split_full_path(path, dirname, basename)))
     {
         GOTO(done);
     }
 
     /* Read inode for 'dirname' */
-    if (EXT2_IFERR(err = EXT2PathToInode(
+    if ((err = ext2_path_to_inode(
         ext2, dirname, &dir_ino, &dir_inode)))
     {
         GOTO(done);
     }
 
     /* Fail if the directory already exists */
-    if (!EXT2_IFERR(err = EXT2PathToInode(
+    if (!(err = ext2_path_to_inode(
         ext2, path, &base_ino, &base_inode)))
     {
         GOTO(done);
     }
 
     /* Create the directory inode and its one block */
-    if (EXT2_IFERR(err = _CreateDirInodeAndBlock(
+    if ((err = _create_dir_inode_and_block(
         ext2,
         dir_ino,
         mode,
@@ -4596,7 +4466,7 @@ EXT2Err EXT2MkDir(
         ent->inode = base_ino;
 
         /* ent->name_len */
-        ent->name_len = (UINT32)strlen(basename);
+        ent->name_len = (uint32_t)strlen(basename);
 
         /* ent->file_type */
         ent->file_type = EXT2_FT_DIR;
@@ -4607,15 +4477,14 @@ EXT2Err EXT2MkDir(
 
         /* ent->rec_len */
         ent->rec_len =
-            _NextMult(sizeof(*ent) - EXT2_PATH_MAX + ent->name_len, 4);
+            _next_mult(sizeof(*ent) - EXT2_PATH_MAX + ent->name_len, 4);
     }
 
     /* Include new child directory in parent directory's i_links_count */
     dir_inode.i_links_count++;
 
     /* Create new entry for this file in the directory inode */
-    if (EXT2_IFERR(err = _AddDirectoryEntry(
-        ext2, dir_ino, &dir_inode, basename, ent)))
+    if ((err = _add_dir_ent(ext2, dir_ino, &dir_inode, basename, ent)))
     {
         GOTO(done);
     }
@@ -4629,41 +4498,41 @@ done:
 /*
 **==============================================================================
 **
-** EXT2File
+** ext2_file_t
 **
 **==============================================================================
 */
 
-struct _EXT2File
+struct _ext2_file
 {
-    EXT2* ext2;
-    EXT2Inode inode;
-    BufU32 blknos;
-    UINTN offset;
-    BOOLEAN eof;
+    ext2_t* ext2;
+    ext2_inode_t inode;
+    buf_u32_t blknos;
+    uint64_t offset;
+    bool eof;
 };
 
-EXT2File* EXT2OpenFile(
-    EXT2* ext2,
+ext2_file_t* ext2_open_file(
+    ext2_t* ext2,
     const char* path,
-    EXT2FileMode mode)
+    ext2_file_mode_t mode)
 {
-    EXT2File* file = NULL;
-    EXT2Ino ino;
-    EXT2Inode inode;
-    BufU32 blknos = BUF_U32_INITIALIZER;
+    ext2_file_t* file = NULL;
+    ext2_ino_t ino;
+    ext2_inode_t inode;
+    buf_u32_t blknos = BUF_U32_INITIALIZER;
 
     /* Reject null parameters */
     if (!ext2 || !path)
         goto done;
 
     /* Find the inode for this file */
-    if (EXT2PathToInode(ext2, path, &ino, &inode) != EXT2_ERR_NONE)
+    if (ext2_path_to_inode(ext2, path, &ino, &inode) != EXT2_ERR_NONE)
         goto done;
 
     /* Load the block numbers for this inode */
-    if (_LoadBlockNumbersFromInode(
-        ext2, 
+    if (_load_block_numbers_from_inode(
+        ext2,
         &inode,
         0, /* include_block_blocks */
         &blknos) != EXT2_ERR_NONE)
@@ -4673,7 +4542,7 @@ EXT2File* EXT2OpenFile(
 
     /* Allocate and initialize the file object */
     {
-        if (!(file = (EXT2File*)calloc(1, sizeof(EXT2File))))
+        if (!(file = (ext2_file_t*)calloc(1, sizeof(ext2_file_t))))
             goto done;
 
         file->ext2 = ext2;
@@ -4684,21 +4553,21 @@ EXT2File* EXT2OpenFile(
 
 done:
     if (!file)
-        BufU32Release(&blknos);
+        buf_u32_release(&blknos);
 
     return file;
 }
 
-INTN EXT2ReadFile(
-    EXT2File* file,
+int64_t ext2_file_read(
+    ext2_file_t* file,
     void* data,
-    UINTN size)
+    uint64_t size)
 {
-    INTN nread = -1;
-    UINT32 first;
-    UINT32 i;
-    UINTN remaining;
-    UINT8* end = (UINT8*)data;
+    int64_t nread = -1;
+    uint32_t first;
+    uint32_t i;
+    uint64_t remaining;
+    uint8_t* end = (uint8_t*)data;
 
     /* Check parameters */
     if (!file || !file->ext2 || !data)
@@ -4713,12 +4582,12 @@ INTN EXT2ReadFile(
     /* Read the data block-by-block */
     for (i = first; i < file->blknos.size && remaining > 0 && !file->eof; i++)
     {
-        EXT2Block block;
-        UINT32 offset;
+        ext2_block_t block;
+        uint32_t offset;
 
-        if (EXT2ReadBlock(
-            file->ext2, 
-            file->blknos.data[i], 
+        if (ext2_read_block(
+            file->ext2,
+            file->blknos.data[i],
             &block) != EXT2_ERR_NONE)
         {
             goto done;
@@ -4733,14 +4602,14 @@ INTN EXT2ReadFile(
          *     file-bytes-remaining
          */
         {
-            UINTN copyBytes;
+            uint64_t copyBytes;
 
             /* Bytes to copy to user buffer */
             copyBytes = remaining;
 
             /* Reduce copyBytes to bytes remaining in the block? */
             {
-                UINTN blockBytesRemaining = file->ext2->block_size - offset;
+                uint64_t blockBytesRemaining = file->ext2->block_size - offset;
 
                 if (blockBytesRemaining < copyBytes)
                     copyBytes = blockBytesRemaining;
@@ -4748,12 +4617,12 @@ INTN EXT2ReadFile(
 
             /* Reduce copyBytes to bytes remaining in the file? */
             {
-                UINTN fileBytesRemaining = file->inode.i_size - file->offset;
+                uint64_t fileBytesRemaining = file->inode.i_size - file->offset;
 
                 if (fileBytesRemaining < copyBytes)
                 {
                     copyBytes = fileBytesRemaining;
-                    file->eof = TRUE;
+                    file->eof = true;
                 }
             }
 
@@ -4772,17 +4641,13 @@ done:
     return nread;
 }
 
-INTN EXT2WriteFile(
-    EXT2File* file,
-    const void* data,
-    UINTN size)
+int64_t ext2_file_write(ext2_file_t* file, const void* data, uint64_t size)
 {
     /* Unsupported */
     return -1;
 }
 
-int EXT2FlushFile(
-    EXT2File* file)
+int ext2_flush_file(ext2_file_t* file)
 {
     int rc = -1;
 
@@ -4790,7 +4655,7 @@ int EXT2FlushFile(
     if (!file || !file->ext2)
         goto done;
 
-    /* No-op because EXT2 is always flushed */
+    /* No-op because ext2_t is always flushed */
 
     rc = 0;
 
@@ -4798,8 +4663,7 @@ done:
     return rc;
 }
 
-int EXT2CloseFile(
-    EXT2File* file)
+int ext2_file_close(ext2_file_t* file)
 {
     int rc = -1;
 
@@ -4808,7 +4672,7 @@ int EXT2CloseFile(
         goto done;
 
     /* Release the block numbers buffer */
-    BufU32Release(&file->blknos);
+    buf_u32_release(&file->blknos);
 
     /* Release the file object */
     free(file);
@@ -4819,9 +4683,7 @@ done:
     return rc;
 }
 
-int EXT2SeekFile(
-    EXT2File* file,
-    INTN offset)
+int ext2_file_seek(ext2_file_t* file, int64_t offset)
 {
     int rc = -1;
 
@@ -4839,26 +4701,24 @@ done:
     return rc;
 }
 
-INTN EXT2TellFile(
-    EXT2File* file)
+int64_t ext2_file_tell(ext2_file_t* file)
 {
     return file ? file->offset : -1;
 }
 
-INTN EXT2SizeFile(
-    EXT2File* file)
+int64_t ext2_file_size(ext2_file_t* file)
 {
     return file ? file->inode.i_size : -1;
 }
 
-EXT2Err EXT2GetBlockNumbers(
-    EXT2* ext2,
+ext2_err_t ext2_get_block_numbers(
+    ext2_t* ext2,
     const char* path,
-    BufU32* blknos)
+    buf_u32_t* blknos)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Ino ino;
-    EXT2Inode inode;
+    ext2_ino_t ino;
+    ext2_inode_t inode;
 
     /* Reject null parameters */
     if (!ext2 || !path || !blknos)
@@ -4868,12 +4728,12 @@ EXT2Err EXT2GetBlockNumbers(
     }
 
     /* Find the inode for this file */
-    if (EXT2PathToInode(ext2, path, &ino, &inode) != EXT2_ERR_NONE)
+    if (ext2_path_to_inode(ext2, path, &ino, &inode) != EXT2_ERR_NONE)
         goto done;
 
     /* Load the block numbers for this inode */
-    if (EXT2_IFERR(err = _LoadBlockNumbersFromInode(
-        ext2, 
+    if ((err = _load_block_numbers_from_inode(
+        ext2,
         &inode,
         1, /* include_block_blocks */
         blknos)))
@@ -4888,20 +4748,18 @@ done:
     return err;
 }
 
-UINTN EXT2BlknoToLBA(
-    const EXT2* ext2,
-    UINT32 blkno)
+uint64_t ext2_blkno_to_lba(const ext2_t* ext2, uint32_t blkno)
 {
-    return BlockOffset(blkno, ext2->block_size) / BLKDEV_BLKSIZE;
+    return block_offset(blkno, ext2->block_size) / BLKDEV_BLKSIZE;
 }
 
-EXT2Err EXT2GetFirstBlkno(
-    const EXT2* ext2,
-    EXT2Ino ino,
-    UINT32* blkno)
+ext2_err_t ext2_get_first_blkno(
+    const ext2_t* ext2,
+    ext2_ino_t ino,
+    uint32_t* blkno)
 {
     EXT2_DECLARE_ERR(err);
-    EXT2Inode inode;
+    ext2_inode_t inode;
 
     /* Initialize output parameter */
     if (blkno)
@@ -4915,7 +4773,7 @@ EXT2Err EXT2GetFirstBlkno(
     }
 
     /* Read the inode into memory */
-    if (EXT2ReadInode(ext2, ino, &inode) != EXT2_ERR_NONE)
+    if (ext2_read_inode(ext2, ino, &inode) != EXT2_ERR_NONE)
         goto done;
 
     /* Get the block number from the inode */

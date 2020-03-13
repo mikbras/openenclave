@@ -1,22 +1,22 @@
 /*
 **==============================================================================
 **
-** LSVMTools 
-** 
+** LSVMTools
+**
 ** MIT License
-** 
+**
 ** Copyright (c) Microsoft Corporation. All rights reserved.
-** 
+**
 ** Permission is hereby granted, free of charge, to any person obtaining a copy
 ** of this software and associated documentation files (the "Software"), to deal
 ** in the Software without restriction, including without limitation the rights
 ** to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 ** copies of the Software, and to permit persons to whom the Software is
 ** furnished to do so, subject to the following conditions:
-** 
-** The above copyright notice and this permission notice shall be included in 
+**
+** The above copyright notice and this permission notice shall be included in
 ** all copies or substantial portions of the Software.
-** 
+**
 ** THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 ** IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 ** FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -27,8 +27,9 @@
 **
 **==============================================================================
 */
-#ifndef _ext2_h
-#define _ext2_h
+
+#ifndef _EXT2_H
+#define _EXT2_H
 
 #include "config.h"
 #include "blkdev.h"
@@ -42,8 +43,8 @@
 **==============================================================================
 */
 
-typedef unsigned int EXT2Ino;
-typedef unsigned int EXT2Off;
+typedef unsigned int ext2_ino_t;
+typedef unsigned int ext2_off_t;
 
 /*
 **==============================================================================
@@ -53,9 +54,7 @@ typedef unsigned int EXT2Off;
 **==============================================================================
 */
 
-#define EXT2_IFERR(ERR) __EXT2IfErr(ERR)
-
-typedef enum _EXT2Err
+typedef enum _ext2_err
 {
     EXT2_ERR_NONE,
     EXT2_ERR_FAILED,
@@ -83,14 +82,9 @@ typedef enum _EXT2Err
     EXT2_ERR_BAD_SIZE,
     EXT2_ERR_PATH_TOO_LONG,
 }
-EXT2Err;
+ext2_err_t;
 
-static __inline BOOLEAN __EXT2IfErr(EXT2Err err)
-{
-    return err ? 1 : 0;
-}
-
-const char* EXT2ErrStr(EXT2Err err);
+const char* ext2_err_str(ext2_err_t err);
 
 /*
 **==============================================================================
@@ -100,13 +94,13 @@ const char* EXT2ErrStr(EXT2Err err);
 **==============================================================================
 */
 
-typedef struct _EXT2 EXT2;
-typedef struct _EXT2Block EXT2Block;
-typedef struct _EXT2SuperBlock EXT2SuperBlock;
-typedef struct _EXT2GroupDesc EXT2GroupDesc;
-typedef struct _EXT2Inode EXT2Inode;
-typedef struct _EXT2DirectoryEntry EXT2DirEntry;
-typedef struct _EXT2_DIR EXT2_DIR;
+typedef struct _ext2 ext2_t;
+typedef struct _ext2_block ext2_block_t;
+typedef struct _ext2_super_block ext2_super_block_t;
+typedef struct _ext2_group_desc ext2_group_desc_t;
+typedef struct _ext2_inode ext2_inode_t;
+typedef struct _ext2_dir_entry ext2_dir_entry_t;
+typedef struct _ext2_dir ext2_dir_t;
 
 /*
 **==============================================================================
@@ -118,21 +112,21 @@ typedef struct _EXT2_DIR EXT2_DIR;
 
 #define EXT2_MAX_BLOCK_SIZE (8 * 1024)
 
-struct _EXT2Block
+struct _ext2_block
 {
-    UINT8 data[EXT2_MAX_BLOCK_SIZE];
-    UINT32 size;
+    uint8_t data[EXT2_MAX_BLOCK_SIZE];
+    uint32_t size;
 };
 
-EXT2Err EXT2ReadBlock(
-    const EXT2* ext2,
-    UINT32 blkno,
-    EXT2Block* block);
+ext2_err_t ext2_read_block(
+    const ext2_t* ext2,
+    uint32_t blkno,
+    ext2_block_t* block);
 
-EXT2Err EXT2WriteBlock(
-    const EXT2* ext2,
-    UINT32 blkno,
-    const EXT2Block* block);
+ext2_err_t ext2_write_block(
+    const ext2_t* ext2,
+    uint32_t blkno,
+    const ext2_block_t* block);
 
 /*
 **==============================================================================
@@ -146,74 +140,73 @@ EXT2Err EXT2WriteBlock(
 #define EXT2_BASE_OFFSET 1024
 
 #define EXT2_S_MAGIC 0xEF53
-#define EXT2_GOOD_OLD_REV 0 /* Revision 0 EXT2 */
-#define EXT2_DYNAMIC_REV 1 /* Revision 1 EXT2 */
+#define EXT2_GOOD_OLD_REV 0 /* Revision 0 ext2_t */
+#define EXT2_DYNAMIC_REV 1 /* Revision 1 ext2_t */
 
-struct _EXT2SuperBlock
+struct _ext2_super_block
 {
     /* General */
-    UINT32 s_inodes_count;
-    UINT32 s_blocks_count;
-    UINT32 s_r_blocks_count;
-    UINT32 s_free_blocks_count;
-    UINT32 s_free_inodes_count;
-    UINT32 s_first_data_block;
-    UINT32 s_log_block_size;
-    UINT32 s_log_frag_size;
-    UINT32 s_blocks_per_group;
-    UINT32 s_frags_per_group;
-    UINT32 s_inodes_per_group;
-    UINT32 s_mtime;
-    UINT32 s_wtime;
-    UINT16 s_mnt_count;
-    UINT16 s_max_mnt_count;
-    UINT16 s_magic;
-    UINT16 s_state;
-    UINT16 s_errors;
-    UINT16 s_minor_rev_level;
-    UINT32 s_lastcheck;
-    UINT32 s_checkinterval;
-    UINT32 s_creator_os;
-    UINT32 s_rev_level;
-    UINT16 s_def_resuid;
-    UINT16 s_def_resgid;
+    uint32_t s_inodes_count;
+    uint32_t s_blocks_count;
+    uint32_t s_r_blocks_count;
+    uint32_t s_free_blocks_count;
+    uint32_t s_free_inodes_count;
+    uint32_t s_first_data_block;
+    uint32_t s_log_block_size;
+    uint32_t s_log_frag_size;
+    uint32_t s_blocks_per_group;
+    uint32_t s_frags_per_group;
+    uint32_t s_inodes_per_group;
+    uint32_t s_mtime;
+    uint32_t s_wtime;
+    uint16_t s_mnt_count;
+    uint16_t s_max_mnt_count;
+    uint16_t s_magic;
+    uint16_t s_state;
+    uint16_t s_errors;
+    uint16_t s_minor_rev_level;
+    uint32_t s_lastcheck;
+    uint32_t s_checkinterval;
+    uint32_t s_creator_os;
+    uint32_t s_rev_level;
+    uint16_t s_def_resuid;
+    uint16_t s_def_resgid;
 
     /* DYNAMIC_REV Specific */
-    UINT32 s_first_ino;
-    UINT16 s_inode_size;
-    UINT16 s_block_group_nr;
-    UINT32 s_feature_compat;
-    UINT32 s_feature_incompat;
-    UINT32 s_feature_ro_compat;
-    UINT8 s_uuid[16];
-    UINT8 s_volume_name[16];
-    UINT8 s_last_mounted[64];
-    UINT32 s_algo_bitmap;
+    uint32_t s_first_ino;
+    uint16_t s_inode_size;
+    uint16_t s_block_group_nr;
+    uint32_t s_feature_compat;
+    uint32_t s_feature_incompat;
+    uint32_t s_feature_ro_compat;
+    uint8_t s_uuid[16];
+    uint8_t s_volume_name[16];
+    uint8_t s_last_mounted[64];
+    uint32_t s_algo_bitmap;
 
     /* Performance Hints */
-    UINT8 s_prealloc_blocks;
-    UINT8 s_prealloc_dir_blocks;
-    UINT16 __alignment;
+    uint8_t s_prealloc_blocks;
+    uint8_t s_prealloc_dir_blocks;
+    uint16_t __alignment;
 
     /* Journaling Support */
-    UINT8 s_journal_uuid[16];
-    UINT32 s_journal_inum;
-    UINT32 s_journal_dev;
-    UINT32 s_last_orphan;
+    uint8_t s_journal_uuid[16];
+    uint32_t s_journal_inum;
+    uint32_t s_journal_dev;
+    uint32_t s_last_orphan;
 
     /* Directory Indexing Support */
-    UINT32 s_hash_seed[4];
-    UINT8 s_def_hash_version;
-    UINT8 padding[3];
+    uint32_t s_hash_seed[4];
+    uint8_t s_def_hash_version;
+    uint8_t padding[3];
 
     /* Other options */
-    UINT32 s_default_mount_options;
-    UINT32 s_first_meta_bg;
-    UINT8 __unused[760];
+    uint32_t s_default_mount_options;
+    uint32_t s_first_meta_bg;
+    uint8_t __unused[760];
 };
 
-void EXT2DumpSuperBlock(
-    const EXT2SuperBlock* sb);
+void ext2_dump_super_block(const ext2_super_block_t* sb);
 
 /*
 **==============================================================================
@@ -223,16 +216,16 @@ void EXT2DumpSuperBlock(
 **==============================================================================
 */
 
-struct _EXT2GroupDesc
+struct _ext2_group_desc
 {
-    UINT32 bg_block_bitmap;
-    UINT32 bg_inode_bitmap;
-    UINT32 bg_inode_table;
-    UINT16 bg_free_blocks_count;
-    UINT16 bg_free_inodes_count;
-    UINT16 bg_used_dirs_count;
-    UINT16 bg_pad;
-    UINT8 bg_reserved[12];
+    uint32_t bg_block_bitmap;
+    uint32_t bg_inode_bitmap;
+    uint32_t bg_inode_table;
+    uint16_t bg_free_blocks_count;
+    uint16_t bg_free_inodes_count;
+    uint16_t bg_used_dirs_count;
+    uint16_t bg_pad;
+    uint8_t bg_reserved[12];
 };
 
 /*
@@ -295,54 +288,52 @@ struct _EXT2GroupDesc
 #define EXT3_JOURNAL_DATA_FL 0x00004000
 #define EXT2_RESERVED_FL 0x80000000
 
-struct _EXT2Inode
+struct _ext2_inode
 {
-    UINT16 i_mode;
-    UINT16 i_uid;
-    UINT32 i_size;
-    UINT32 i_atime;
-    UINT32 i_ctime;
-    UINT32 i_mtime;
-    UINT32 i_dtime;
-    UINT16 i_gid;
-    UINT16 i_links_count;
-    UINT32 i_blocks;
-    UINT32 i_flags;
-    UINT32 i_osd1;
+    uint16_t i_mode;
+    uint16_t i_uid;
+    uint32_t i_size;
+    uint32_t i_atime;
+    uint32_t i_ctime;
+    uint32_t i_mtime;
+    uint32_t i_dtime;
+    uint16_t i_gid;
+    uint16_t i_links_count;
+    uint32_t i_blocks;
+    uint32_t i_flags;
+    uint32_t i_osd1;
     /*
        0:11 -- direct block numbers
        12 -- indirect block number
        13 -- double-indirect block number
        14 -- triple-indirect block number
     */
-    UINT32 i_block[15];
-    UINT32 i_generation;
-    UINT32 i_file_acl;
-    UINT32 i_dir_acl;
-    UINT32 i_faddr;
-    UINT8 i_osd2[12];
-    UINT8 dummy[128]; /* sometimes the inode is bigger */
+    uint32_t i_block[15];
+    uint32_t i_generation;
+    uint32_t i_file_acl;
+    uint32_t i_dir_acl;
+    uint32_t i_faddr;
+    uint8_t i_osd2[12];
+    uint8_t dummy[128]; /* sometimes the inode is bigger */
 };
 
-void EXT2DumpInode(
-    const EXT2* ext2,
-    const EXT2Inode* inode);
+void ext2_dump_inode(const ext2_t* ext2, const ext2_inode_t* inode);
 
-EXT2Err EXT2ReadInode(
-    const EXT2* ext2,
-    EXT2Ino ino,
-    EXT2Inode* inode);
+ext2_err_t ext2_read_inode(
+    const ext2_t* ext2,
+    ext2_ino_t ino,
+    ext2_inode_t* inode);
 
-EXT2Err EXT2PathToIno(
-    const EXT2* ext2,
+ext2_err_t ext2_path_to_ino(
+    const ext2_t* ext2,
     const char* path,
-    UINT32* ino);
+    uint32_t* ino);
 
-EXT2Err EXT2PathToInode(
-    const EXT2* ext2,
+ext2_err_t ext2_path_to_inode(
+    const ext2_t* ext2,
     const char* path,
-    EXT2Ino* ino,
-    EXT2Inode* inode);
+    ext2_ino_t* ino,
+    ext2_inode_t* inode);
 
 /*
 **==============================================================================
@@ -352,20 +343,20 @@ EXT2Err EXT2PathToInode(
 **==============================================================================
 */
 
-EXT2Err EXT2ReadBlockBitmap(
-    const EXT2* ext2,
-    UINT32 group_index,
-    EXT2Block* block);
+ext2_err_t ext2_read_block_bitmap(
+    const ext2_t* ext2,
+    uint32_t group_index,
+    ext2_block_t* block);
 
-EXT2Err EXT2WriteBlockBitmap(
-    const EXT2* ext2,
-    UINT32 group_index,
-    const EXT2Block* block);
+ext2_err_t ext2_write_block_bitmap(
+    const ext2_t* ext2,
+    uint32_t group_index,
+    const ext2_block_t* block);
 
-EXT2Err EXT2readReadInodeBitmap(
-    const EXT2* ext2,
-    UINT32 group_index,
-    EXT2Block* block);
+ext2_err_t ext2_read_inode_bitmap(
+    const ext2_t* ext2,
+    uint32_t group_index,
+    ext2_block_t* block);
 
 /*
 **==============================================================================
@@ -386,12 +377,12 @@ EXT2Err EXT2readReadInodeBitmap(
 #define EXT2_FT_SOCK 6
 #define EXT2_FT_SYMLINK 7
 
-struct _EXT2DirectoryEntry
+struct _ext2_dir_entry
 {
-    UINT32 inode;
-    UINT16 rec_len;
-    UINT8 name_len;
-    UINT8 file_type;
+    uint32_t inode;
+    uint16_t rec_len;
+    uint8_t name_len;
+    uint8_t file_type;
     char name[EXT2_PATH_MAX];
 };
 
@@ -409,35 +400,29 @@ struct _EXT2DirectoryEntry
 #define EXT2_DT_SOCK 12
 #define EXT2_DT_WHT 14
 
-typedef struct _EXT2DirEnt
+typedef struct ext2_dir_ent
 {
-   EXT2Ino d_ino;
-   EXT2Off d_off;
-   UINT16 d_reclen;
-   UINT8 d_type;
+   ext2_ino_t d_ino;
+   ext2_off_t d_off;
+   uint16_t d_reclen;
+   uint8_t d_type;
    char d_name[EXT2_PATH_MAX];
 }
-EXT2DirEnt;
+ext2_dir_ent_t;
 
-EXT2_DIR *EXT2OpenDir(
-    const EXT2* ext2,
-    const char *name);
+ext2_dir_t* ext2_open_dir(const ext2_t* ext2, const char* name);
 
-EXT2_DIR *EXT2OpenDirIno(
-    const EXT2* ext2,
-    EXT2Ino ino);
+ext2_dir_t* ext2_open_dir_ino(const ext2_t* ext2, ext2_ino_t ino);
 
-EXT2DirEnt *EXT2ReadDir(
-    EXT2_DIR *dir);
+ext2_dir_ent_t* ext2_read_dir(ext2_dir_t* dir);
 
-EXT2Err EXT2CloseDir(
-    EXT2_DIR* dir);
+ext2_err_t ext2_close_dir(ext2_dir_t* dir);
 
-EXT2Err EXT2ListDirInode(
-    const EXT2* ext2,
-    UINT32 global_ino,
-    EXT2DirEnt** entries,
-    UINT32* num_entries);
+ext2_err_t ext2_list_dir_inode(
+    const ext2_t* ext2,
+    uint32_t global_ino,
+    ext2_dir_ent_t** entries,
+    uint32_t* num_entries);
 
 /*
 **==============================================================================
@@ -447,157 +432,115 @@ EXT2Err EXT2ListDirInode(
 **==============================================================================
 */
 
-EXT2Err EXT2LoadFileFromInode(
-    const EXT2* ext2,
-    const EXT2Inode* inode,
+ext2_err_t ext2_load_file_from_inode(
+    const ext2_t* ext2,
+    const ext2_inode_t* inode,
     void** data,
-    UINT32* size);
+    uint32_t* size);
 
-EXT2Err EXT2LoadFileFromPath(
-    const EXT2* ext2,
+ext2_err_t ext2_load_file_from_path(
+    const ext2_t* ext2,
     const char* path,
     void** data,
-    UINT32* size);
+    uint32_t* size);
 
 /*
 **==============================================================================
 **
-** EXT2:
+** ext2_t:
 **
 **==============================================================================
 */
 
-struct _EXT2
+struct _ext2
 {
-    Blkdev* dev;
-    EXT2SuperBlock sb;
-    UINT32 block_size; /* block size in bytes */
-    UINT32 group_count;
-    EXT2GroupDesc* groups;
-    EXT2Inode root_inode;
+    blkdev_t* dev;
+    ext2_super_block_t sb;
+    uint32_t block_size;
+    uint32_t group_count;
+    ext2_group_desc_t* groups;
+    ext2_inode_t root_inode;
 };
 
-static __inline BOOLEAN EXT2Valid(
-    const EXT2* ext2)
+EXT2_INLINE bool ext2_valid(const ext2_t* ext2)
 {
     return ext2 != NULL && ext2->sb.s_magic == EXT2_S_MAGIC;
 }
 
-EXT2Err EXT2New(
-    Blkdev* dev,
-    EXT2** ext2);
+ext2_err_t ext2_new(blkdev_t* dev, ext2_t** ext2);
 
-void EXT2Delete(
-    EXT2* ext2);
+void ext2_delete(ext2_t* ext2);
 
-EXT2Err EXT2Dump(
-    const EXT2* ext2);
+ext2_err_t ext2_dump(const ext2_t* ext2);
 
-EXT2Err EXT2Check(
-    const EXT2* ext2);
+ext2_err_t ext2_check(const ext2_t* ext2);
 
-EXT2Err EXT2Trunc(
-    EXT2* ext2,
-    const char* path);
+ext2_err_t ext2_trunc(ext2_t* ext2, const char* path);
 
-EXT2Err EXT2Update(
-    EXT2* ext2,
+ext2_err_t ext2_update(
+    ext2_t* ext2,
     const void* data,
-    UINT32 size,
+    uint32_t size,
     const char* path);
 
-EXT2Err EXT2Rm(
-    EXT2* ext2,
-    const char* path);
+ext2_err_t ext2_rm(ext2_t* ext2, const char* path);
 
-/* rw-r--r-- */
-#define EXT2_FILE_MODE_RW0_R00_R00 \
-    (EXT2_S_IFREG|EXT2_S_IRUSR|EXT2_S_IWUSR|EXT2_S_IRGRP|EXT2_S_IROTH)
-
-/* rw------- */
-#define EXT2_FILE_MODE_RW0_000_000 (EXT2_S_IFREG|EXT2_S_IRUSR|EXT2_S_IWUSR)
-
-EXT2Err EXT2Put(
-    EXT2* ext2,
+ext2_err_t ext2_put(
+    ext2_t* ext2,
     const void* data,
-    UINT32 size,
+    uint32_t size,
     const char* path,
-    UINT16 mode); /* See EXT2_S_* flags above */
+    uint16_t mode);
 
-/* rwxrx-rx- */
-#define EXT2_DIR_MODE_RWX_R0X_R0X \
-    (EXT2_S_IFDIR | \
-    (EXT2_S_IRUSR|EXT2_S_IWUSR|EXT2_S_IXUSR) | \
-    (EXT2_S_IRGRP|EXT2_S_IXGRP) | \
-    (EXT2_S_IROTH|EXT2_S_IXOTH))
-
-EXT2Err EXT2MkDir(
-    EXT2* ext2,
-    const char* path,
-    UINT16 mode); /* See EXT2_S_* flags above */
+ext2_err_t ext2_mkdir(ext2_t* ext2, const char* path, uint16_t mode);
 
 /*
 **==============================================================================
 **
-** EXT2File:
+** ext2_file_t:
 **
 **==============================================================================
 */
 
-typedef struct _EXT2File EXT2File;
+typedef struct _ext2_file ext2_file_t;
 
-typedef enum _EXT2FileMode
+typedef enum _ext2_file_mode
 {
-    EXT2FILE_RDWR,
-    EXT2FILE_RDONLY,
-    EXT2FILE_WRONLY
+    EXT2_FILE_RDWR,
+    EXT2_FILE_RDONLY,
+    EXT2_FILE_WRONLY
 }
-EXT2FileMode;
+ext2_file_mode_t;
 
-EXT2File* EXT2OpenFile(
-    EXT2* ext2,
+ext2_file_t* ext2_open_file(
+    ext2_t* ext2,
     const char* path,
-    EXT2FileMode mode);
+    ext2_file_mode_t mode);
 
-INTN EXT2ReadFile(
-    EXT2File* file,
-    void* data,
-    UINTN size);
+int64_t ext2_file_read(ext2_file_t* file, void* data, uint64_t size);
 
-INTN EXT2WriteFile(
-    EXT2File* file,
-    const void* data,
-    UINTN size);
+int64_t ext2_file_write(ext2_file_t* file, const void* data, uint64_t size);
 
-int EXT2SeekFile(
-    EXT2File* file,
-    INTN offset);
+int ext2_file_seek(ext2_file_t* file, int64_t offset);
 
-INTN EXT2TellFile(
-    EXT2File* file);
+int64_t ext2_file_tell(ext2_file_t* file);
 
-INTN EXT2SizeFile(
-    EXT2File* file);
+int64_t ext2_file_size(ext2_file_t* file);
 
-int EXT2FlushFile(
-    EXT2File* file);
+int ext2_flush_file(ext2_file_t* file);
 
-int EXT2CloseFile(
-    EXT2File* file);
+int ext2_file_close(ext2_file_t* file);
 
-EXT2Err EXT2GetBlockNumbers(
-    EXT2* ext2,
+ext2_err_t ext2_get_block_numbers(
+    ext2_t* ext2,
     const char* path,
-    BufU32* blknos);
+    buf_u32_t* blknos);
 
-UINTN EXT2BlknoToLBA(
-    const EXT2* ext2,
-    UINT32 blkno);
+uint64_t ext2_blkno_to_lba(const ext2_t* ext2, uint32_t blkno);
 
-/* Get the block number (LBA) of the first block of this file */
-EXT2Err EXT2GetFirstBlkno(
-    const EXT2* ext2,
-    EXT2Ino ino,
-    UINT32* blkno);
+ext2_err_t ext2_get_first_blkno(
+    const ext2_t* ext2,
+    ext2_ino_t ino,
+    uint32_t* blkno);
 
-#endif /* _ext2_h */
+#endif /* _EXT2_H */
