@@ -16,4 +16,16 @@ struct _blkdev
     int (*put)(blkdev_t* dev, uint64_t blkno, const void* data);
 };
 
+ssize_t blkdev_read(
+    blkdev_t* dev,
+    size_t offset,
+    void* data,
+    size_t size);
+
+ssize_t blkdev_write(
+    blkdev_t* dev,
+    size_t offset,
+    const void* data,
+    size_t size);
+
 #endif /* _BLKDEV_H */

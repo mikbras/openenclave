@@ -27,12 +27,13 @@
 **
 **==============================================================================
 */
+
+#include "blkdev.h"
 #include "config.h"
 #include "ext2.h"
 #include <time.h>
 #include "buf.h"
-
-#define EXT2_DECLARE_ERR(ERR) ext2_err_t ERR = EXT2_ERR_FAILED
+#include "bitmap.h"
 
 /*
 **==============================================================================
@@ -119,127 +120,6 @@ EXT2_INLINE uint32_t _min(uint32_t x, uint32_t y)
     return x < y ? x : y;
 }
 
-static void _hex_dump(const uint8_t* data, uint32_t size, bool printables)
-{
-    uint32_t i;
-
-    printf("%u bytes\n", size);
-
-    for (i = 0; i < size; i++)
-    {
-        unsigned char c = data[i];
-
-        if (printables && (c >= ' ' && c < '~'))
-            printf("'%c", c);
-        else
-            printf("%02X", c);
-
-        if ((i + 1) % 16)
-        {
-            printf(" ");
-        }
-        else
-        {
-            printf("\n");
-        }
-    }
-
-    printf("\n");
-}
-
-static ssize_t _read(
-    blkdev_t* dev,
-    size_t offset,
-    void* data,
-    size_t size)
-{
-    uint32_t blkno;
-    uint32_t i;
-    uint32_t rem;
-    uint8_t* ptr;
-
-    if (!dev || !data)
-        return -1;
-
-    blkno = offset / BLKDEV_BLKSIZE;
-
-    for (i = blkno, rem = size, ptr = (uint8_t*)data; rem; i++)
-    {
-        uint8_t blk[BLKDEV_BLKSIZE];
-        uint32_t off; /* offset into this block */
-        uint32_t len; /* bytes to read from this block */
-
-        if (dev->get(dev, i, blk) != 0)
-            return -1;
-
-        /* If first block */
-        if (i == blkno)
-            off = offset % BLKDEV_BLKSIZE;
-        else
-            off = 0;
-
-        len = BLKDEV_BLKSIZE - off;
-
-        if (len > rem)
-            len = rem;
-
-        memcpy(ptr, &blk[off], len);
-        rem -= len;
-        ptr += len;
-    }
-
-    return size;
-}
-
-static ssize_t _write(
-    blkdev_t* dev,
-    size_t offset,
-    const void* data,
-    size_t size)
-{
-    uint32_t blkno;
-    uint32_t i;
-    uint32_t rem;
-    uint8_t* ptr;
-
-    if (!dev || !data)
-        return -1;
-
-    blkno = offset / BLKDEV_BLKSIZE;
-
-    for (i = blkno, rem = size, ptr = (uint8_t*)data; rem; i++)
-    {
-        uint8_t blk[BLKDEV_BLKSIZE];
-        uint32_t off; /* offset into this block */
-        uint32_t len; /* bytes to write from this block */
-
-        /* Fetch the block */
-        if (dev->get(dev, i, blk) != 0)
-            return -1;
-
-        /* If first block */
-        if (i == blkno)
-            off = offset % BLKDEV_BLKSIZE;
-        else
-            off = 0;
-
-        len = BLKDEV_BLKSIZE - off;
-
-        if (len > rem)
-            len = rem;
-
-        memcpy(&blk[off], ptr, len);
-        rem -= len;
-        ptr += len;
-
-        /* Rewrite the block */
-        if (dev->put(dev, i, blk) != 0)
-            return -1;
-    }
-
-    return size;
-}
-
 static void _dump_block_numbers(const uint32_t* data, uint32_t size)
 {
     uint32_t i;
@@ -283,91 +163,6 @@ static void _ascii_dump(const uint8_t* data, uint32_t size)
     }
 
     printf("\n");
-}
-
-static bool _zero_filled(const uint8_t* data, uint32_t size)
-{
-    uint32_t i;
-
-    for (i = 0; i < size; i++)
-    {
-        if (data[i])
-            return 0;
-    }
-
-    return 1;
-}
-
-static uint32_t _count_bits(uint8_t byte)
-{
-    uint8_t i;
-    uint8_t n = 0;
-
-    for (i = 0; i < 8; i++)
-    {
-        if (byte & (1 << i))
-            n++;
-    }
-
-    return n;
-}
-
-static uint32_t _count_bits_n(const uint8_t* data, uint32_t size)
-{
-    uint32_t i;
-    uint32_t n = 0;
-
-    for (i = 0; i < size; i++)
-    {
-        n += _count_bits(data[i]);
-    }
-
-    return n;
-}
-
-EXT2_INLINE bool _test_bit(const uint8_t* data, uint32_t size, uint32_t index)
-{
-    uint32_t byte = index / 8;
-    uint32_t bit = index % 8;
-
-    if (byte >= size)
-        return 0;
-
-    return ((uint32_t)(data[byte]) & (1 << bit)) ? 1 : 0;
-}
-
-EXT2_INLINE void _set_bit(uint8_t* data, uint32_t size, uint32_t index)
-{
-    uint32_t byte = index / 8;
-    uint32_t bit = index % 8;
-
-    if (byte >= size)
-        return;
-
-    data[byte] |= (1 << bit);
-}
-
-EXT2_INLINE void _clear_bit(uint8_t* data, uint32_t size, uint32_t index)
-{
-    uint32_t byte = index / 8;
-    uint32_t bit = index % 8;
-
-    if (byte >= size)
-        return;
-
-    data[byte] &= ~(1 << bit);
-}
-
-static void _dump_bitmap(const ext2_block_t* block)
-{
-    if (_zero_filled(block->data, block->size))
-    {
-        printf("...\n\n");
-    }
-    else
-    {
-        _hex_dump(block->data, block->size, 0);
-    }
 }
 
 EXT2_INLINE bool _is_big_endian(void)
@@ -516,7 +311,7 @@ static ext2_err_t _read_blocks(
     uint32_t nblks,
     buf_t* buf)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t bytes;
 
     /* Check for null parameters */
@@ -535,7 +330,7 @@ static ext2_err_t _read_blocks(
     }
 
     /* Read the blocks */
-    if (_read(
+    if (blkdev_read(
         ext2->dev,
         block_offset(blkno, ext2->block_size),
         (unsigned char*)buf->data + buf->size,
@@ -559,7 +354,7 @@ ext2_err_t ext2_read_block(
     uint32_t blkno,
     ext2_block_t* block)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
 
     /* Check for null parameters */
     if (!ext2_valid(ext2) || !block)
@@ -581,7 +376,7 @@ ext2_err_t ext2_read_block(
     block->size = ext2->block_size;
 
     /* Read the block */
-    if (_read(
+    if (blkdev_read(
         ext2->dev,
         block_offset(blkno, ext2->block_size),
         block->data,
@@ -603,7 +398,7 @@ ext2_err_t ext2_write_block(
     uint32_t blkno,
     const ext2_block_t* block)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
 
     /* Check for null parameters */
     if (!ext2_valid(ext2) || !block)
@@ -620,7 +415,7 @@ ext2_err_t ext2_write_block(
     }
 
     /* Write the block */
-    if (_write(
+    if (blkdev_write(
         ext2->dev,
         block_offset(blkno, ext2->block_size),
         block->data,
@@ -642,7 +437,7 @@ static ext2_err_t _append_direct_block_numbers(
     uint32_t num_blocks,
     buf_u32_t *buf)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t i;
     uint32_t n = 0;
 
@@ -673,7 +468,7 @@ static ext2_err_t _append_indirect_block_numbers(
     bool include_block_blocks,
     buf_u32_t *buf)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_block_t block;
     uint32_t i;
 
@@ -721,7 +516,7 @@ static ext2_err_t _append_double_indirect_block_numbers(
     bool include_block_blocks,
     buf_u32_t *buf)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_block_t block;
     uint32_t i;
 
@@ -770,7 +565,7 @@ static ext2_err_t _load_block_numbers_from_inode(
     bool include_block_blocks,
     buf_u32_t *buf)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
 
     /* Check parameters */
     if (!ext2_valid(ext2) || !inode || !buf)
@@ -913,7 +708,7 @@ static ext2_err_t _check_block_number(
     uint32_t grpno,
     uint32_t lblkno)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
 
     /* Check parameters */
     if (!ext2)
@@ -947,7 +742,7 @@ static ext2_err_t _write_group_with_bitmap(
     uint32_t grpno,
     ext2_block_t* bitmap)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
 
     /* Check parameters */
     if (!ext2 || !bitmap)
@@ -992,7 +787,7 @@ static ext2_err_t _put_blocks(
     const uint32_t* blknos,
     uint32_t nblknos)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t i;
     uint32_t *temp = NULL;
 
@@ -1049,14 +844,14 @@ static ext2_err_t _put_blocks(
         }
 
         /* Sanity check */
-        if (!_test_bit(bitmap.data, bitmap.size, lblkno))
+        if (!bitmap_test(bitmap.data, bitmap.size, lblkno))
         {
             err = EXT2_ERR_SANITY_CHECK_FAILED;
             GOTO(done);
         }
 
         /* Update in memory structs. */
-        _clear_bit(bitmap.data, bitmap.size, lblkno);
+        bitmap_clear(bitmap.data, bitmap.size, lblkno);
         ext2->sb.s_free_blocks_count++;
         ext2->groups[grpno].bg_free_blocks_count++;
         prevgrpno = grpno;
@@ -1086,7 +881,7 @@ done:
 
 static ext2_err_t _get_block(ext2_t* ext2, uint32_t* blkno)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_block_t bitmap;
     uint32_t grpno;
 
@@ -1115,9 +910,9 @@ static ext2_err_t _get_block(ext2_t* ext2, uint32_t* blkno)
         /* Scan the bitmap, looking for free bit */
         for (lblkno = 0; lblkno < bitmap.size * 8; lblkno++)
         {
-            if (!_test_bit(bitmap.data, bitmap.size, lblkno))
+            if (!bitmap_test(bitmap.data, bitmap.size, lblkno))
             {
-                _set_bit(bitmap.data, bitmap.size, lblkno);
+                bitmap_set(bitmap.data, bitmap.size, lblkno);
                 *blkno = _make_blkno(ext2, grpno, lblkno);
                 break;
             }
@@ -1242,10 +1037,10 @@ static ext2_err_t _read_super_block(
     blkdev_t* dev,
     ext2_super_block_t* sb)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
 
     /* Read the superblock */
-    if (_read(
+    if (blkdev_read(
         dev,
         EXT2_BASE_OFFSET,
         sb,
@@ -1262,10 +1057,10 @@ done:
 
 static ext2_err_t _write_super_block(const ext2_t* ext2)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
 
     /* Read the superblock */
-    if (_write(
+    if (blkdev_write(
         ext2->dev,
         EXT2_BASE_OFFSET,
         &ext2->sb,
@@ -1316,7 +1111,7 @@ static void _dump_group_descs(
 
 static ext2_group_desc_t* _read_groups(const ext2_t* ext2)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_group_desc_t* groups = NULL;
     uint32_t groups_size = 0;
     uint32_t blkno;
@@ -1347,7 +1142,7 @@ static ext2_group_desc_t* _read_groups(const ext2_t* ext2)
         blkno = 1;
 
     /* Read the block */
-    if (_read(
+    if (blkdev_read(
         ext2->dev,
         block_offset(blkno, ext2->block_size),
         groups,
@@ -1374,7 +1169,7 @@ done:
 
 static ext2_err_t _write_group(const ext2_t* ext2, uint32_t grpno)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t blkno;
 
     /* Check the file system argument */
@@ -1390,7 +1185,7 @@ static ext2_err_t _write_group(const ext2_t* ext2, uint32_t grpno)
         blkno = 1;
 
     /* Read the block */
-    if (_write(
+    if (blkdev_write(
         ext2->dev,
         block_offset(blkno,ext2->block_size) +
             (grpno * sizeof(ext2_group_desc_t)),
@@ -1441,8 +1236,6 @@ void ext2_dump_inode(const ext2_t* ext2, const ext2_inode_t* inode)
 {
     uint32_t i;
     uint32_t n;
-    (void)_hex_dump;
-    (void)_ascii_dump;
 
     printf("=== ext2_inode_t\n");
     printf("i_mode=%u (%X)\n", inode->i_mode, inode->i_mode);
@@ -1511,7 +1304,7 @@ static ext2_err_t _write_inode_bitmap(
     uint32_t group_index,
     const ext2_block_t* block)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t bitmap_size_bytes;
 
     if (!ext2_valid(ext2) || !block)
@@ -1550,7 +1343,7 @@ done:
 
 static ext2_err_t _get_ino(ext2_t* ext2, ext2_ino_t* ino)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_block_t bitmap;
     uint32_t grpno;
 
@@ -1578,9 +1371,9 @@ static ext2_err_t _get_ino(ext2_t* ext2, ext2_ino_t* ino)
         /* Scan the bitmap, looking for free bit */
         for (lino = 0; lino < bitmap.size * 8; lino++)
         {
-            if (!_test_bit(bitmap.data, bitmap.size, lino))
+            if (!bitmap_test(bitmap.data, bitmap.size, lino))
             {
-                _set_bit(bitmap.data, bitmap.size, lino);
+                bitmap_set(bitmap.data, bitmap.size, lino);
                 *ino = _make_ino(ext2, grpno, lino);
                 break;
             }
@@ -1633,7 +1426,7 @@ ext2_err_t ext2_read_inode(
     ext2_ino_t ino,
     ext2_inode_t* inode)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t lino = _ino_to_lino(ext2, ino);
     uint32_t grpno = _ino_to_grpno(ext2, ino);
     const ext2_group_desc_t* group = &ext2->groups[grpno];
@@ -1657,7 +1450,7 @@ ext2_err_t ext2_read_inode(
         lino * inode_size;
 
     /* Read the inode */
-    if (_read(
+    if (blkdev_read(
         ext2->dev,
         offset,
         inode,
@@ -1677,7 +1470,7 @@ static ext2_err_t _write_inode(
     ext2_ino_t ino,
     const ext2_inode_t* inode)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t lino = _ino_to_lino(ext2, ino);
     uint32_t grpno = _ino_to_grpno(ext2, ino);
     const ext2_group_desc_t* group = &ext2->groups[grpno];
@@ -1695,7 +1488,7 @@ static ext2_err_t _write_inode(
         lino * inode_size;
 
     /* Read the inode */
-    if (_write(
+    if (blkdev_write(
         ext2->dev,
         offset,
         inode,
@@ -1715,7 +1508,7 @@ ext2_err_t ext2_path_to_ino(
     const char* path,
     ext2_ino_t* ino)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     char buf[EXT2_PATH_MAX];
     const char* elements[32];
     const uint8_t NELEMENTS = sizeof(elements) / sizeof(elements[0]);
@@ -1830,7 +1623,7 @@ ext2_err_t ext2_path_to_inode(
     ext2_ino_t* ino,
     ext2_inode_t* inode)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_ino_t tmp_ino;
 
     /* Check parameters */
@@ -1875,7 +1668,7 @@ ext2_err_t ext2_read_block_bitmap(
     uint32_t group_index,
     ext2_block_t* block)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t bitmap_size_bytes;
 
     if (!ext2_valid(ext2) || !block)
@@ -1916,7 +1709,7 @@ ext2_err_t ext2_write_block_bitmap(
     uint32_t group_index,
     const ext2_block_t* block)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t bitmap_size_bytes;
 
     if (!ext2_valid(ext2) || !block)
@@ -1958,7 +1751,7 @@ ext2_err_t ext2_read_inode_bitmap(
     uint32_t group_index,
     ext2_block_t* block)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t bitmap_size_bytes;
 
     if (!ext2_valid(ext2) || !block)
@@ -2018,7 +1811,7 @@ static ext2_err_t _count_dir_entries(
     uint32_t size,
     uint32_t* count)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     const uint8_t* p = (uint8_t*)data;
     const uint8_t* end = (uint8_t*)data + size;
 
@@ -2230,7 +2023,7 @@ done:
 
 ext2_err_t ext2_close_dir(ext2_dir_t* dir)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
 
     if (!dir)
     {
@@ -2252,7 +2045,7 @@ ext2_err_t ext2_list_dir_inode(
     ext2_dir_ent_t** entries,
     uint32_t* nentries)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_dir_t* dir = NULL;
     ext2_dir_ent_t* ent;
     buf_t buf = BUF_INITIALIZER;
@@ -2367,7 +2160,7 @@ ext2_err_t ext2_load_file_from_inode(
     void** data,
     uint32_t* size)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     buf_u32_t blknos = BUF_U32_INITIALIZER;
     buf_t buf = BUF_INITIALIZER;
     uint32_t i;
@@ -2453,7 +2246,7 @@ ext2_err_t ext2_load_file_from_path(
     void** data,
     uint32_t* size)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_inode_t inode;
 
     if (ext2_path_to_inode(ext2, path, NULL, &inode) != EXT2_ERR_NONE)
@@ -2478,7 +2271,7 @@ done:
 
 ext2_err_t ext2_new(blkdev_t* dev, ext2_t** ext2_out)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_t* ext2 = NULL;
 
     /* Check parameters */
@@ -2598,7 +2391,7 @@ void ext2_delete(ext2_t* ext2)
 
 ext2_err_t ext2_dump(const ext2_t* ext2)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t grpno;
 
     /* Print the superblock */
@@ -2622,7 +2415,7 @@ ext2_err_t ext2_dump(const ext2_t* ext2)
             }
 
             printf("=== block bitmap:\n");
-            _dump_bitmap(&bitmap);
+            bitmap_dump(bitmap.data, bitmap.size);
         }
     }
 
@@ -2637,7 +2430,7 @@ ext2_err_t ext2_dump(const ext2_t* ext2)
         }
 
         printf("=== inode bitmap:\n");
-        _dump_bitmap(&bitmap);
+        bitmap_dump(bitmap.data, bitmap.size);
     }
 
     /* dump the inodes */
@@ -2657,7 +2450,7 @@ ext2_err_t ext2_dump(const ext2_t* ext2)
                 GOTO(done);
             }
 
-            nbits += _count_bits_n(bitmap.data, bitmap.size);
+            nbits += bitmap_count_bits_n(bitmap.data, bitmap.size);
 
             /* For each bit set in the bit map */
             for (lino = 0; lino < ext2->sb.s_inodes_per_group; lino++)
@@ -2665,7 +2458,7 @@ ext2_err_t ext2_dump(const ext2_t* ext2)
                 ext2_inode_t inode;
                 ext2_ino_t ino;
 
-                if (!_test_bit(bitmap.data, bitmap.size, lino))
+                if (!bitmap_test(bitmap.data, bitmap.size, lino))
                     continue;
 
                 mbits++;
@@ -2700,7 +2493,7 @@ done:
 
 ext2_err_t ext2_check(const ext2_t* ext2)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
 
     /* Check the block bitmaps */
     {
@@ -2720,7 +2513,7 @@ ext2_err_t ext2_check(const ext2_t* ext2)
                 GOTO(done);
             }
 
-            nused += _count_bits_n(bitmap.data, bitmap.size);
+            nused += bitmap_count_bits_n(bitmap.data, bitmap.size);
             n += bitmap.size * 8;
         }
 
@@ -2756,7 +2549,7 @@ ext2_err_t ext2_check(const ext2_t* ext2)
                 GOTO(done);
             }
 
-            nused += _count_bits_n(bitmap.data, bitmap.size);
+            nused += bitmap_count_bits_n(bitmap.data, bitmap.size);
             n += bitmap.size * 8;
         }
 
@@ -2789,7 +2582,7 @@ ext2_err_t ext2_check(const ext2_t* ext2)
                 GOTO(done);
             }
 
-            nbits += _count_bits_n(bitmap.data, bitmap.size);
+            nbits += bitmap_count_bits_n(bitmap.data, bitmap.size);
 
             /* For each bit set in the bit map */
             for (lino = 0; lino < ext2->sb.s_inodes_per_group; lino++)
@@ -2797,7 +2590,7 @@ ext2_err_t ext2_check(const ext2_t* ext2)
                 ext2_inode_t inode;
                 ext2_ino_t ino;
 
-                if (!_test_bit(bitmap.data, bitmap.size, lino))
+                if (!bitmap_test(bitmap.data, bitmap.size, lino))
                     continue;
 
                 mbits++;
@@ -2841,7 +2634,7 @@ done:
 
 ext2_err_t ext2_trunc(ext2_t* ext2, const char* path)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     char dirname[EXT2_PATH_MAX];
     char basename[EXT2_PATH_MAX];
     ext2_ino_t dir_ino;
@@ -2931,7 +2724,7 @@ static ext2_err_t _write_single_direct_block_numbers(
     uint32_t nblknos,
     uint32_t* blkno)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_block_t block;
 
     /* Check parameters */
@@ -2978,7 +2771,7 @@ static ext2_err_t _write_indirect_block_numbers(
     uint32_t nblknos,
     uint32_t* blkno)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_block_t block;
     uint32_t blknos_per_block = ext2->block_size / sizeof(uint32_t);
 
@@ -3088,7 +2881,7 @@ static ext2_err_t _write_data(
     uint32_t size,
     buf_u32_t* blknos)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t blksize = ext2->block_size;
     uint32_t nblks = (size + blksize - 1) / blksize;
     uint32_t rem = size % blksize;
@@ -3112,9 +2905,9 @@ static ext2_err_t _write_data(
         /* Scan the bitmap, looking for free bit */
         for (lblkno = 0; lblkno < bitmap.size * 8 && i < nblks; lblkno++)
         {
-            if (!_test_bit(bitmap.data, bitmap.size, lblkno))
+            if (!bitmap_test(bitmap.data, bitmap.size, lblkno))
             {
-                _set_bit(bitmap.data, bitmap.size, lblkno);
+                bitmap_set(bitmap.data, bitmap.size, lblkno);
                 blkno = _make_blkno(ext2, grpno, lblkno);
 
                 /* Append this to the array of blocks */
@@ -3188,7 +2981,7 @@ static ext2_err_t _update_inode_block_pointers(
     const uint32_t* blknos,
     uint32_t nblknos)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t i;
     const uint32_t* p = blknos;
     uint32_t r = nblknos;
@@ -3293,7 +3086,7 @@ static ext2_err_t _update_inode_data_blocks(
     uint32_t size,
     bool is_dir)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     buf_u32_t blknos = BUF_U32_INITIALIZER;
     uint32_t count = 0;
     void* tmp_data = NULL;
@@ -3341,7 +3134,7 @@ ext2_err_t ext2_update(
     uint32_t size,
     const char* path)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_ino_t ino;
     ext2_inode_t inode;
     (void)_dump_dir_entry;
@@ -3389,7 +3182,7 @@ static ext2_err_t _check_dir_entries(
     const void* data,
     uint32_t size)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     const uint8_t* p = (uint8_t*)data;
     const uint8_t* end = (uint8_t*)data + size;
 
@@ -3499,7 +3292,7 @@ static ext2_err_t _count_dir_entry_ino(
     ext2_ino_t ino,
     uint32_t* count)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_dir_t* dir = NULL;
     ext2_dir_ent_t* ent;
 
@@ -3537,7 +3330,7 @@ done:
 
 ext2_err_t ext2_rm(ext2_t* ext2, const char* path)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     char dirname[EXT2_PATH_MAX];
     char filename[EXT2_PATH_MAX];
     void* blocks = NULL;
@@ -3799,7 +3592,7 @@ static ext2_err_t _create_file_inode(
     uint32_t nblknos,
     uint32_t* ino)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_inode_t inode;
 
     /* Check parameters */
@@ -3877,7 +3670,7 @@ static ext2_err_t _create_dir_inode_and_block(
     uint16_t mode,
     ext2_ino_t* ino)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_inode_t inode;
     uint32_t blkno;
     ext2_block_t block;
@@ -4002,7 +3795,7 @@ static ext2_err_t _append_dir_entry(
     ext2_dir_entry_t** prev,
     const ext2_dir_entry_t* ent)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     uint32_t rec_len;
     uint32_t offset;
     (void)size;
@@ -4059,7 +3852,7 @@ static ext2_err_t _index_dir_to_linked_list_dir(
     void** new_data,
     uint32_t* new_size)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     const char* src = (const char*)data;
     const char* src_end = (const char*)data + size;
     char* dest = NULL;
@@ -4179,7 +3972,7 @@ static ext2_err_t _add_dir_ent(
     const char* filename,
     ext2_dir_entry_t* new_ent)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     void* blocks = NULL;
     uint32_t blocks_size = 0;
     void* new_blocks = NULL;
@@ -4295,7 +4088,7 @@ ext2_err_t ext2_put(
     const char* path,
     uint16_t mode)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     char dirname[EXT2_PATH_MAX];
     char filename[EXT2_PATH_MAX];
     ext2_ino_t file_ino;
@@ -4406,7 +4199,7 @@ done:
 
 ext2_err_t ext2_mkdir(ext2_t* ext2, const char* path, uint16_t mode)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     char dirname[EXT2_PATH_MAX];
     char basename[EXT2_PATH_MAX];
     ext2_ino_t dir_ino;
@@ -4716,7 +4509,7 @@ ext2_err_t ext2_get_block_numbers(
     const char* path,
     buf_u32_t* blknos)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_ino_t ino;
     ext2_inode_t inode;
 
@@ -4758,7 +4551,7 @@ ext2_err_t ext2_get_first_blkno(
     ext2_ino_t ino,
     uint32_t* blkno)
 {
-    EXT2_DECLARE_ERR(err);
+    ext2_err_t err = EXT2_ERR_FAILED;
     ext2_inode_t inode;
 
     /* Initialize output parameter */
